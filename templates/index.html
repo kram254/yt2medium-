@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube to Medium - AI Blog Post Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header">
+        <h1>🎥 YouTube to Medium</h1>
+        <p>Transform any YouTube video into a viral-worthy Medium blog post with perfect formatting and AI-powered engagement optimization</p>
+    </div>
+
+    <div class="container">
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="main-form">
+            <form action="{{ url_for('blog_post') }}" method="POST" id="generateForm">
+                <div class="form-group">
+                    <label for="youtube_link">YouTube Video URL</label>
+                    <input 
+                        type="text" 
+                        id="youtube_link" 
+                        name="youtube_link" 
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="model">AI Model</label>
+                    <select id="model" name="model">
+                        <option value="gpt-4o">OpenAI GPT-4o (Primary - Recommended)</option>
+                        <option value="gemini-2.0-flash-exp">Google Gemini 2.0 Flash (Secondary)</option>
+                        <option value="claude-3-5-sonnet-20241022">Anthropic Claude 3.5 Sonnet (Fallback)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="enhance" name="enhance">
+                        <label for="enhance">Apply Advanced Enhancement (takes longer but generates more engaging content)</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-full">Generate Medium Post</button>
+            </form>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>🎯 Viral-Optimized</h3>
+                <p>Uses proven Medium engagement strategies to create posts designed to get 1000+ claps and maximum reader interaction.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>✨ Perfect Formatting</h3>
+                <p>Automatically formats content with proper headings, emphasis, quotes, and structure that Medium readers love.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🖼️ AI-Generated Images</h3>
+                <p>Creates stunning, professional header images that capture attention and complement your content perfectly.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>📊 Engagement Scoring</h3>
+                <p>Get instant feedback on your post's viral potential with our AI-powered engagement score and optimization tips.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>⚡ Multi-AI Powered</h3>
+                <p>Uses OpenAI GPT-4o, Google Gemini, and Anthropic Claude with automatic fallback for reliable, high-quality content generation.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>📝 Export Ready</h3>
+                <p>Get clean Markdown output that's ready to paste directly into Medium with zero additional formatting needed.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('generateForm').addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Generating... This may take 30-60 seconds';
+            submitBtn.style.opacity = '0.7';
+        });
+    </script>
+</body>
+</html>

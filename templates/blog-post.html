@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Medium Post Preview</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="blog-post-container">
+        {% if image_data %}
+        <img src="data:image/png;base64,{{ image_data }}" alt="{{ title }}" class="blog-header-image">
+        {% endif %}
+
+        <div class="blog-meta">
+            <div class="meta-item">
+                <span class="meta-label">Reading Time:</span>
+                <span class="meta-value">{{ reading_time }}</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Word Count:</span>
+                <span class="meta-value">{{ word_count }} words</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Engagement Score:</span>
+                <span class="engagement-score">{{ engagement_score }}/100</span>
+            </div>
+        </div>
+
+        <h1 class="blog-title">{{ title }}</h1>
+
+        <div class="blog-content">
+            {{ blog_post_html|safe }}
+        </div>
+
+        {% if key_quotes %}
+        <div class="key-quotes">
+            <h3>💡 Key Takeaways</h3>
+            {% for quote in key_quotes %}
+            <div class="quote-item">{{ quote }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="export-section">
+            <h3>Ready to Publish?</h3>
+            <p style="margin-bottom: 30px; color: var(--text-secondary);">Your Medium post is ready! Copy the Markdown below or download it as a file.</p>
+            
+            <div class="button-group">
+                <button class="btn" onclick="copyMarkdown()">📋 Copy Markdown</button>
+                <button class="btn btn-secondary" onclick="downloadMarkdown()">💾 Download Markdown</button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">🔄 Generate Another</a>
+            </div>
+
+            <textarea id="markdownContent" style="display: none;">{{ blog_post_markdown }}</textarea>
+        </div>
+
+        <div id="copyNotification" style="display: none; position: fixed; bottom: 30px; right: 30px; background: var(--success-color); color: white; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-weight: 600; z-index: 1000;">
+            ✓ Markdown copied to clipboard!
+        </div>
+    </div>
+
+    <script>
+        function copyMarkdown() {
+            const textarea = document.getElementById('markdownContent');
+            textarea.style.display = 'block';
+            textarea.select();
+            document.execCommand('copy');
+            textarea.style.display = 'none';
+            
+            const notification = document.getElementById('copyNotification');
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        function downloadMarkdown() {
+            const content = document.getElementById('markdownContent').value;
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '{{ title }}.md'.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
