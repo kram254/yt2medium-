@@ -78,8 +78,8 @@ ENGAGEMENT_THRESHOLDS = {
 }
 
 OPTIMAL_WORD_COUNT = {
-    'min': 1400,
-    'ideal_min': 1600,
+    'min': 800,
+    'ideal_min': 1100,
     'ideal_max': 2400,
     'max': 3000
 }

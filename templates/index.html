@@ -8,8 +8,8 @@
 </head>
 <body>
     <div class="header">
-        <h1>🎥 YouTube to Medium</h1>
-        <p>Transform any YouTube video into a viral-worthy Medium blog post with perfect formatting and AI-powered engagement optimization</p>
+        <h1>🎥 AI Content to Medium</h1>
+        <p>Transform any content - YouTube videos, URLs, or topics - into viral-worthy Medium blog posts with perfect formatting and AI-powered engagement optimization</p>
     </div>
 
     <div class="container">
@@ -22,14 +22,17 @@
         <div class="main-form">
             <form action="{{ url_for('blog_post') }}" method="POST" id="generateForm">
                 <div class="form-group">
-                    <label for="youtube_link">YouTube Video URL</label>
+                    <label for="youtube_link">Content Source (URL or Topic)</label>
                     <input 
                         type="text" 
                         id="youtube_link" 
                         name="youtube_link" 
-                        placeholder="https://www.youtube.com/watch?v=..." 
+                        placeholder="Enter YouTube URL, any web link, or a topic like 'trending AI developments today'..." 
                         required
                     >
+                    <small style="display: block; margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;">
+                        💡 Examples: YouTube videos, articles, blog posts, or topics like "trending AI news" or "create a post about blockchain"
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -80,7 +83,27 @@
             
             <div class="feature-card">
                 <h3>📝 Export Ready</h3>
-                <p>Get clean Markdown output that's ready to paste directly into Medium with zero additional formatting needed.</p>
+                <p>Copy formatted HTML content with one click - ready to paste directly into Medium with perfect formatting preserved.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🔍 Smart Research</h3>
+                <p>Automatically researches trending topics and generates up-to-date content with the latest information and insights.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🎨 Dual Images</h3>
+                <p>Generates two stunning AI images per post - a header image and content image using Qwen or DALL-E for maximum visual impact.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>📊 Mermaid Diagrams</h3>
+                <p>Automatically creates beautiful workflow diagrams and visualizations for technical content and coding tutorials.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🌐 Universal Input</h3>
+                <p>Works with YouTube videos, any web article, trending topics, or direct prompts - maximum flexibility for content creation.</p>
             </div>
         </div>
     </div>

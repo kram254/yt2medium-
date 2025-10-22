@@ -13,14 +13,25 @@ from util import (
     estimate_reading_time,
     calculate_engagement_score
 )
-from ai_providers import AIProviderManager, get_youtube_transcript
+from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
 
 load_dotenv()
 
-def generate_blog_post(ai_manager, youtube_url):
-    video_context = get_youtube_transcript(youtube_url)
+def generate_blog_post(ai_manager, user_input):
+    input_type = detect_input_type(user_input)
+    
+    if input_type == 'youtube':
+        content_context = get_youtube_transcript(user_input)
+    elif input_type == 'url':
+        content_context = scrape_web_content(user_input)
+    else:
+        if any(keyword in user_input.lower() for keyword in ['trending', 'latest', 'today', 'recent', 'current']):
+            content_context = research_trending_topic(user_input, ai_manager)
+        else:
+            content_context = f"User Request: {user_input}\n\nCreate comprehensive, well-researched content based on this topic or prompt."
+    
     prompt = prompts.get_blog_gen_prompt()
-    response = ai_manager.generate_content(prompt, video_context)
+    response = ai_manager.generate_content(prompt, content_context)
     return clean_markdown(response)
 
 def process_batch(input_file, output_dir='output'):
@@ -43,25 +54,25 @@ def process_batch(input_file, output_dir='output'):
     ai_manager = AIProviderManager()
     total = len(urls)
     
-    print(f"🎥 Processing {total} videos...")
+    print(f"📝 Processing {total} items...")
     print(f"📁 Output directory: {output_path}")
     print("🤖 Using AI providers: OpenAI (primary) → Gemini (secondary) → Anthropic (fallback)")
     print("=" * 60)
     
-    for idx, url in enumerate(urls, 1):
-        print(f"\n[{idx}/{total}] Processing: {url}")
+    for idx, item in enumerate(urls, 1):
+        print(f"\n[{idx}/{total}] Processing: {item}")
         
-        if not validate_youtube_url(url):
-            print(f"   ❌ Invalid URL, skipping")
+        if not item or len(item.strip()) < 3:
+            print(f"   ❌ Invalid input, skipping")
             results.append({
-                'url': url,
+                'input': item,
                 'status': 'failed',
-                'error': 'Invalid URL'
+                'error': 'Invalid input'
             })
             continue
         
         try:
-            blog_text = generate_blog_post(ai_manager, url)
+            blog_text = generate_blog_post(ai_manager, item)
             title = extract_title_from_markdown(blog_text)
             
             safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
@@ -116,12 +127,16 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python batch_process.py <input_file> [output_dir]")
         print("\nInput file formats supported:")
-        print("  - Text file (.txt): One URL per line")
+        print("  - Text file (.txt): One URL/topic per line")
         print("  - CSV file (.csv): Must have 'url' column")
-        print("  - JSON file (.json): Array of URLs or {urls: [...]}")
+        print("  - JSON file (.json): Array of items or {urls: [...]}")
         print("\nExamples:")
-        print("  python batch_process.py urls.txt")
+        print("  python batch_process.py content.txt")
         print("  python batch_process.py urls.csv output_blogs")
+        print("\nEach line can be:")
+        print("  - YouTube URL: https://youtube.com/watch?v=...")
+        print("  - Any URL: https://example.com/article")
+        print("  - Topic/prompt: trending AI developments today")
         sys.exit(1)
     
     input_file = sys.argv[1]

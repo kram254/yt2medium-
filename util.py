@@ -62,10 +62,25 @@ def validate_youtube_url(url):
             return True
     return False
 
+def validate_input(user_input):
+    if not user_input or len(user_input.strip()) < 3:
+        return False
+    return True
+
 def clean_markdown(text):
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = text.strip()
     return text
+
+def convert_mermaid_to_html(markdown_text):
+    pattern = r'```mermaid\n(.*?)```'
+    
+    def replace_mermaid(match):
+        mermaid_code = match.group(1)
+        return f'<div class="mermaid">\n{mermaid_code}\n</div>'
+    
+    result = re.sub(pattern, replace_mermaid, markdown_text, flags=re.DOTALL)
+    return result
 
 def calculate_engagement_score(text):
     score = 0
@@ -79,9 +94,9 @@ def calculate_engagement_score(text):
     questions = text.count('?')
     score += min(15, questions * 2)
     words = len(text.split())
-    if 1400 <= words <= 2400:
+    if 800 <= words <= 2400:
         score += 20
-    elif 1000 <= words <= 3000:
+    elif 600 <= words <= 3000:
         score += 15
     else:
         score += 5

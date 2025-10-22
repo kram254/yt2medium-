@@ -2,7 +2,9 @@ def get_blog_gen_prompt():
     return """
 You are an elite Medium writer and content strategist known for creating viral posts that consistently receive 1000+ claps. Your articles are featured regularly and drive massive reader engagement.
 
-Create an exceptional, highly engaging blog post from this video that will captivate Medium readers and drive viral engagement.
+Create an exceptional, highly engaging blog post from the provided content that will captivate Medium readers and drive viral engagement.
+
+IMPORTANT: If the content involves coding, technical setups, or workflows, you MUST include creative Mermaid diagram(s) to visualize the concepts. Use proper Mermaid syntax within code blocks marked as ```mermaid.
 
 HUMAN WRITING STYLE - MANDATORY RULES:
 
@@ -86,7 +88,7 @@ CRITICAL SUCCESS FACTORS FOR VIRAL MEDIUM POSTS:
 
 9. MEDIUM-SPECIFIC OPTIMIZATION:
    - Title should be 60-80 characters, emotionally compelling
-   - Aim for 7-12 minute read time (1400-2400 words)
+   - Aim for 800-2400 words (minimum 800, ideal 1100-2400)
    - Natural keyword integration for discoverability
    - Create "tweetable" moments - quotable one-liners
 
@@ -254,4 +256,27 @@ OPENING: [specific suggestion]
 STRUCTURE: [specific suggestion]
 
 CONCLUSION: [specific suggestion]
+"""
+
+def get_content_image_prompt(blog_title, blog_content_excerpt):
+    return f"""
+Create a stunning, high-quality content image for a Medium article titled "{blog_title}".
+
+Content excerpt: {blog_content_excerpt[:500]}
+
+STYLE REQUIREMENTS:
+- Creative, modern, and visually striking
+- Abstract or conceptual representation related to the content theme
+- Professional color scheme with bold contrasts
+- Artistic and engaging composition
+- Suitable for embedding within article content
+
+TECHNICAL REQUIREMENTS:
+- NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY
+- High quality and crisp details
+- Landscape or square format
+- Eye-catching and content-relevant
+- Professional aesthetic
+
+Create an image that enhances the article's narrative and keeps readers engaged.
 """

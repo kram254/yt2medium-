@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }} - Medium Post Preview</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
 </head>
 <body>
     <div class="blog-post-container">
@@ -33,6 +37,10 @@
             {{ blog_post_html|safe }}
         </div>
 
+        {% if image_data_2 %}
+        <img src="data:image/png;base64,{{ image_data_2 }}" alt="Content Image" class="blog-content-image" style="width: 100%; max-width: 800px; margin: 30px auto; display: block; border-radius: 8px;">
+        {% endif %}
+
         {% if key_quotes %}
         <div class="key-quotes">
             <h3>💡 Key Takeaways</h3>
@@ -44,35 +52,49 @@
 
         <div class="export-section">
             <h3>Ready to Publish?</h3>
-            <p style="margin-bottom: 30px; color: var(--text-secondary);">Your Medium post is ready! Copy the Markdown below or download it as a file.</p>
+            <p style="margin-bottom: 30px; color: var(--text-secondary);">Your Medium post is ready! Copy the formatted content below or download it.</p>
             
             <div class="button-group">
-                <button class="btn" onclick="copyMarkdown()">📋 Copy Markdown</button>
+                <button class="btn" onclick="copyContent()">📋 Copy Content</button>
                 <button class="btn btn-secondary" onclick="downloadMarkdown()">💾 Download Markdown</button>
                 <a href="{{ url_for('index') }}" class="btn btn-secondary">🔄 Generate Another</a>
             </div>
 
             <textarea id="markdownContent" style="display: none;">{{ blog_post_markdown }}</textarea>
+            <div id="htmlContent" style="display: none;">{{ blog_post_html|safe }}</div>
         </div>
 
         <div id="copyNotification" style="display: none; position: fixed; bottom: 30px; right: 30px; background: var(--success-color); color: white; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-weight: 600; z-index: 1000;">
-            ✓ Markdown copied to clipboard!
+            ✓ Content copied to clipboard!
         </div>
     </div>
 
     <script>
-        function copyMarkdown() {
-            const textarea = document.getElementById('markdownContent');
-            textarea.style.display = 'block';
-            textarea.select();
-            document.execCommand('copy');
-            textarea.style.display = 'none';
+        function copyContent() {
+            const htmlContent = document.getElementById('htmlContent').innerHTML;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            document.body.appendChild(tempDiv);
             
-            const notification = document.getElementById('copyNotification');
-            notification.style.display = 'block';
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
+            const range = document.createRange();
+            range.selectNodeContents(tempDiv);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            try {
+                document.execCommand('copy');
+                const notification = document.getElementById('copyNotification');
+                notification.style.display = 'block';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            } catch (err) {
+                console.error('Copy failed:', err);
+            }
+            
+            document.body.removeChild(tempDiv);
+            selection.removeAllRanges();
         }
 
         function downloadMarkdown() {

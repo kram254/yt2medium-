@@ -432,3 +432,43 @@ body {
         width: 100%;
     }
 }
+
+.mermaid {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 30px 0;
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+}
+
+.blog-content pre {
+    background-color: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 20px 0;
+    border-left: 4px solid var(--accent-color);
+}
+
+.blog-content code {
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 0.9em;
+    background-color: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.blog-content pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+.blog-content-image {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.blog-content-image:hover {
+    transform: scale(1.02);
+}

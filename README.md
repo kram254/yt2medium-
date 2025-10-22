@@ -1,6 +1,16 @@
-# 🎥 YouTube to Medium - AI Blog Post Generator
+# 🎥 AI Content to Medium - Universal Blog Post Generator
 
-Transform any YouTube video into a viral-worthy Medium blog post with perfect formatting and AI-powered engagement optimization. Built with OpenAI GPT-5 OSS, Google Gemini, and Anthropic Claude Sonnet 4.1 with intelligent fallback support for maximum reliability.
+Transform **any content** - YouTube videos, web articles, or topic prompts - into viral-worthy Medium blog posts with perfect formatting and AI-powered engagement optimization. Built with OpenAI GPT-4o, Google Gemini, and Anthropic Claude with intelligent fallback support for maximum reliability.
+
+## 🆕 What's New
+
+- ✅ **Universal Input Support** - YouTube, any URL, or direct topics/prompts
+- ✅ **Smart Research** - Automatic research for trending topics
+- ✅ **Dual Image Generation** - 2 AI images per post (Qwen/DALL-E/Imagen)
+- ✅ **Mermaid Diagrams** - Automatic workflow visualizations for technical content
+- ✅ **HTML Copy** - One-click copy of formatted content
+- ✅ **Flexible Word Count** - 800-2400 words (optimized for Medium)
+- ✅ **Web Scraping** - Extract and transform any web article
 
 ## ✨ Features
 
@@ -36,17 +46,49 @@ Transform any YouTube video into a viral-worthy Medium blog post with perfect fo
 
 ## 🎬 How It Works
 
-1. **Paste YouTube URL**: Enter any YouTube video link
-2. **Select AI Model**: Choose from OpenAI, Gemini, or Claude (or use auto-fallback)
-3. **Generate**: AI processes the video and creates your blog post
-4. **Review & Export**: Get formatted content with engagement metrics
-5. **Publish to Medium**: Copy the Markdown and paste into Medium
+1. **Enter Any Content**: YouTube URL, article link, or topic prompt
+2. **AI Processes**: Automatic detection, research, or web scraping
+3. **Generate**: Creates blog post with 2 AI images and Mermaid diagrams
+4. **Review**: Get engagement score, reading time, and key takeaways
+5. **Copy & Publish**: One-click HTML copy ready for Medium
+
+### 📥 Input Types Supported
+
+**YouTube Videos**
+```
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+https://youtu.be/dQw4w9WgXcQ
+```
+
+**Web Articles**
+```
+https://techcrunch.com/article-link
+https://medium.com/@author/post
+https://blog.example.com/post-title
+```
+
+**Trending Topics** (with automatic research)
+```
+trending AI developments today
+latest advances in quantum computing
+current state of blockchain
+```
+
+**Direct Prompts**
+```
+create an engaging post about machine learning
+write about the future of renewable energy
+explain how neural networks work
+```
 
 ## 🛠️ Tech Stack
 
 - **Backend**: Flask (Python)
-- **AI Models**: OpenAI GPT-5 OSS, Google Gemini, Anthropic Claude Sonnet 4.1, Imagen 3.0
-- **AI Providers**: OpenAI API, Google Vertex AI, Anthropic API
+- **AI Models**: OpenAI GPT-4o, Google Gemini 2.0, Anthropic Claude 3.5 Sonnet
+- **Image Generation**: Qwen (Hugging Face), DALL-E 3, Imagen 3.0
+- **Web Scraping**: BeautifulSoup4
+- **Diagram Rendering**: Mermaid.js
+- **AI Providers**: OpenAI API, Google Vertex AI, Anthropic API, Hugging Face
 - **Frontend**: HTML, CSS, JavaScript
 - **Deployment**: Docker, Cloud Run
 
@@ -85,14 +127,20 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `.env` and add your API keys:
+Edit `.env` and add your API keys (at least ONE required):
 ```
 OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+HUGGINGFACE_TOKEN=your-huggingface-token
 PROJECT_ID=your-gcp-project-id
 LOCATION=us-central1
-ANTHROPIC_API_KEY=your-anthropic-api-key
-PORT=8080
+PORT=5000
 ```
+
+**Get API Keys:**
+- OpenAI: https://platform.openai.com/api-keys
+- Anthropic: https://console.anthropic.com/settings/keys
+- Hugging Face: https://huggingface.co/settings/tokens (for Qwen images)
 
 5. **Authenticate with Google Cloud**:
 ```bash

@@ -10,18 +10,35 @@ from util import (
     estimate_reading_time,
     calculate_engagement_score
 )
-from ai_providers import AIProviderManager, get_youtube_transcript
+from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
 
 load_dotenv()
 
-def generate_blog_post(ai_manager, youtube_url, enhance=False):
-    print(f"🎥 Processing video: {youtube_url}")
+def generate_blog_post(ai_manager, user_input, enhance=False):
+    input_type = detect_input_type(user_input)
+    
+    if input_type == 'youtube':
+        print(f"🎥 Processing YouTube video: {user_input}")
+    elif input_type == 'url':
+        print(f"🔗 Processing URL: {user_input}")
+    else:
+        print(f"💭 Processing topic: {user_input}")
+    
     print("🤖 Using AI providers: OpenAI (primary) → Gemini (secondary) → Anthropic (fallback)")
     print("⏳ Generating blog post...\n")
     
-    video_context = get_youtube_transcript(youtube_url)
+    if input_type == 'youtube':
+        content_context = get_youtube_transcript(user_input)
+    elif input_type == 'url':
+        content_context = scrape_web_content(user_input)
+    else:
+        if any(keyword in user_input.lower() for keyword in ['trending', 'latest', 'today', 'recent', 'current']):
+            content_context = research_trending_topic(user_input, ai_manager)
+        else:
+            content_context = f"User Request: {user_input}\n\nCreate comprehensive, well-researched content based on this topic or prompt."
+    
     prompt = prompts.get_blog_gen_prompt()
-    response = ai_manager.generate_content(prompt, video_context)
+    response = ai_manager.generate_content(prompt, content_context)
     blog_text = clean_markdown(response)
     
     if enhance:
@@ -60,20 +77,20 @@ def save_to_file(content, filename):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='YouTube to Medium - CLI Blog Post Generator',
+        description='AI Content to Medium - CLI Blog Post Generator',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python cli.py "https://www.youtube.com/watch?v=example"
-  python cli.py "https://youtu.be/example" --enhance
-  python cli.py "https://www.youtube.com/watch?v=example" -o output.md
-  python cli.py "https://www.youtube.com/watch?v=example" --stats-only
+  python cli.py "https://example.com/article" --enhance
+  python cli.py "trending AI developments today" -o output.md
+  python cli.py "create a post about quantum computing" --stats-only
         """
     )
     
     parser.add_argument(
-        'url',
-        help='YouTube video URL'
+        'input',
+        help='YouTube URL, web URL, or topic/prompt'
     )
     
     
@@ -102,13 +119,13 @@ Examples:
     
     args = parser.parse_args()
     
-    if not validate_youtube_url(args.url):
-        print("❌ Error: Invalid YouTube URL", file=sys.stderr)
+    if not args.input or len(args.input.strip()) < 3:
+        print("❌ Error: Input too short", file=sys.stderr)
         sys.exit(1)
     
     try:
         ai_manager = AIProviderManager()
-        blog_text = generate_blog_post(ai_manager, args.url, args.enhance)
+        blog_text = generate_blog_post(ai_manager, args.input, args.enhance)
         
         if not args.no_stats:
             print_stats(blog_text)
