@@ -143,7 +143,7 @@ def generate_blog():
         blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
         blog_post_html = markdown.markdown(
             blog_post_with_mermaid, 
-            extensions=["tables", "fenced_code", "nl2br"]
+            extensions=["tables", "fenced_code", "nl2br", "codehilite"]
         )
         
         return jsonify({
@@ -189,7 +189,7 @@ def blog_post():
             blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
             blog_post_html = markdown.markdown(
                 blog_post_with_mermaid,
-                extensions=["tables", "fenced_code", "nl2br"]
+                extensions=["tables", "fenced_code", "nl2br", "codehilite"]
             )
             
             return render_template(

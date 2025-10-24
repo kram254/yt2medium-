@@ -94,7 +94,9 @@ def calculate_engagement_score(text):
     questions = text.count('?')
     score += min(15, questions * 2)
     words = len(text.split())
-    if 800 <= words <= 2400:
+    if 1000 <= words <= 1500:
+        score += 25
+    elif 800 <= words <= 2400:
         score += 20
     elif 600 <= words <= 3000:
         score += 15
