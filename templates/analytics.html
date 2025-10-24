@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - AI Content to Medium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: "hsl(142.1 76.2% 36.3%)",
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .analytics-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .analytics-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .analytics-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .nav-links {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .nav-links a {
+            margin: 0 15px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #148f13 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card.secondary {
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        }
+        
+        .stat-card.tertiary {
+            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+        }
+        
+        .stat-card.quaternary {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            margin: 40px 0 25px 0;
+            color: var(--primary-color);
+        }
+        
+        .recent-posts {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .post-item {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .post-item:last-child {
+            border-bottom: none;
+        }
+        
+        .post-info h4 {
+            margin: 0 0 10px 0;
+            color: var(--primary-color);
+        }
+        
+        .post-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .post-metrics {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .metric-badge {
+            text-align: center;
+            padding: 10px 15px;
+            border-radius: 8px;
+            min-width: 70px;
+        }
+        
+        .metric-badge.green {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .metric-badge.blue {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .metric-badge.purple {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 30px;
+        }
+        
+        .progress-bar-bg {
+            background: #e0e0e0;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            background: linear-gradient(90deg, var(--accent-color), #148f13);
+            height: 100%;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="analytics-container">
+        <div class="analytics-header">
+            <h1>📊 Analytics Dashboard</h1>
+            <p>Track your content performance and generation metrics</p>
+        </div>
+        
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">🏠 Home</a>
+            <a href="{{ url_for('history') }}">📚 History</a>
+            <a href="{{ url_for('analytics') }}">📊 Analytics</a>
+        </div>
+        
+        {% if error %}
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <p style="margin: 0; color: #856404;">⚠️ {{ error }}</p>
+        </div>
+        {% endif %}
+        
+        {% if analytics %}
+        <h2 class="section-title">Content Statistics</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">📝 Total Posts</div>
+                <div class="stat-value">{{ analytics.total_posts }}</div>
+            </div>
+            
+            <div class="stat-card secondary">
+                <div class="stat-label">⭐ Avg Engagement</div>
+                <div class="stat-value">{{ analytics.avg_engagement_score }}/100</div>
+            </div>
+            
+            <div class="stat-card tertiary">
+                <div class="stat-label">🔍 Avg SEO Score</div>
+                <div class="stat-value">{{ analytics.avg_seo_score }}/100</div>
+            </div>
+            
+            <div class="stat-card quaternary">
+                <div class="stat-label">🚀 Avg Viral Potential</div>
+                <div class="stat-value">{{ analytics.avg_viral_potential }}/100</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">✍️ Total Words Written</div>
+                <div class="stat-value">{{ "{:,}".format(analytics.total_words_written) }}</div>
+            </div>
+        </div>
+        
+        {% if analytics.recent_posts %}
+        <h2 class="section-title">Recent Top Posts</h2>
+        <div class="recent-posts">
+            {% for post in analytics.recent_posts[:5] %}
+            <div class="post-item">
+                <div class="post-info">
+                    <h4>{{ post.title }}</h4>
+                    <p>{{ post.created_at[:10] }} • {{ post.word_count }} words</p>
+                </div>
+                <div class="post-metrics">
+                    <div class="metric-badge green">
+                        <div style="font-weight: 600; font-size: 1.2rem;">{{ post.engagement_score }}</div>
+                        <div style="font-size: 0.7rem;">Engagement</div>
+                    </div>
+                    <div class="metric-badge blue">
+                        <div style="font-weight: 600; font-size: 1.2rem;">{{ post.seo_score }}</div>
+                        <div style="font-size: 0.7rem;">SEO</div>
+                    </div>
+                    <div class="metric-badge purple">
+                        <div style="font-weight: 600; font-size: 1.2rem;">{{ post.viral_potential }}</div>
+                        <div style="font-size: 0.7rem;">Viral</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+        
+        {% if gen_stats %}
+        <h2 class="section-title">Generation Statistics</h2>
+        <div class="stats-grid">
+            <div class="stat-card secondary">
+                <div class="stat-label">🎯 Total Generations</div>
+                <div class="stat-value">{{ gen_stats.total_generations }}</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">✅ Successful</div>
+                <div class="stat-value">{{ gen_stats.successful_generations }}</div>
+            </div>
+            
+            <div class="stat-card quaternary">
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-value">{{ gen_stats.success_rate }}%</div>
+            </div>
+        </div>
+        
+        {% if gen_stats.templates_used %}
+        <h2 class="section-title">Template Usage</h2>
+        <div class="chart-container">
+            {% for template, count in gen_stats.templates_used.items() %}
+            {% set percentage = (count / gen_stats.total_generations * 100)|round %}
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">{{ template }}</span>
+                    <span style="color: var(--text-secondary);">{{ count }} uses</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" data-width="{{ percentage }}">
+                        {{ percentage }}%
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+        
+        {% if not analytics and not gen_stats and not error %}
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+            <h2>No data yet</h2>
+            <p>Generate some blog posts to see analytics!</p>
+            <a href="{{ url_for('index') }}" class="btn" style="display: inline-block; margin-top: 20px;">✨ Generate Post</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        document.querySelectorAll('.progress-bar-fill').forEach(bar => {
+            const width = bar.getAttribute('data-width');
+            bar.style.width = width + '%';
+        });
+    </script>
+</body>
+</html>

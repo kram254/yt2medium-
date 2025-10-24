@@ -146,6 +146,7 @@ class AIProviderManager:
         self.openai_client = None
         self.anthropic_client = None
         self.gemini_client = None
+        self.openrouter_api_key = None
         
         if OPENAI_AVAILABLE and os.getenv('OPENAI_API_KEY'):
             self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -163,9 +164,21 @@ class AIProviderManager:
                 )
             except:
                 self.gemini_client = None
+        
+        if os.getenv('OPENROUTER_API_KEY'):
+            self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
     
-    def generate_content(self, prompt, video_context=None):
+    def generate_content(self, prompt, video_context=None, model=None):
         errors = []
+        
+        if model and model.startswith('deepseek/'):
+            if self.openrouter_api_key:
+                try:
+                    return self._generate_with_openrouter(prompt, video_context, model)
+                except Exception as e:
+                    errors.append(f"OpenRouter: {str(e)}")
+            else:
+                errors.append("OpenRouter: API key not configured")
         
         if self.openai_client:
             try:
@@ -184,6 +197,12 @@ class AIProviderManager:
                 return self._generate_with_anthropic(prompt, video_context)
             except Exception as e:
                 errors.append(f"Anthropic: {str(e)}")
+        
+        if self.openrouter_api_key:
+            try:
+                return self._generate_with_openrouter(prompt, video_context)
+            except Exception as e:
+                errors.append(f"OpenRouter: {str(e)}")
         
         raise Exception(f"All AI providers failed: {'; '.join(errors)}")
     
@@ -241,6 +260,39 @@ class AIProviderManager:
         )
         
         return response.content[0].text
+    
+    def _generate_with_openrouter(self, prompt, video_context, model="deepseek/deepseek-chat-v3.1"):
+        if video_context:
+            full_prompt = f"{video_context}\n\n{prompt}"
+        else:
+            full_prompt = prompt
+        
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.openrouter_api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert Medium writer and content strategist."
+                    },
+                    {
+                        "role": "user",
+                        "content": full_prompt
+                    }
+                ],
+                "temperature": 0.9,
+                "max_tokens": 8192
+            }
+        )
+        
+        response.raise_for_status()
+        result = response.json()
+        return result['choices'][0]['message']['content']
     
     def generate_images(self, prompt1, prompt2):
         errors = []

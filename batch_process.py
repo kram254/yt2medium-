@@ -14,6 +14,7 @@ from util import (
     calculate_engagement_score
 )
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
+from seo_analyzer import analyze_seo
 
 load_dotenv()
 
@@ -88,8 +89,12 @@ def process_batch(input_file, output_dir='output'):
             reading_time = estimate_reading_time(blog_text)
             engagement_score = calculate_engagement_score(blog_text)
             
+            seo_analysis = analyze_seo(blog_text, title)
+            seo_score = seo_analysis.get('seo_score', 0)
+            viral_potential = seo_analysis.get('viral_potential', 0)
+            
             print(f"   ✅ Generated: {filename}")
-            print(f"   📊 Words: {word_count} | Time: {reading_time} | Score: {engagement_score}/100")
+            print(f"   📊 Words: {word_count} | Engagement: {engagement_score}/100 | SEO: {seo_score}/100 | Viral: {viral_potential}/100")
             
             results.append({
                 'url': url,
@@ -97,7 +102,9 @@ def process_batch(input_file, output_dir='output'):
                 'filename': filename,
                 'title': title,
                 'word_count': word_count,
-                'engagement_score': engagement_score
+                'engagement_score': engagement_score,
+                'seo_score': seo_score,
+                'viral_potential': viral_potential
             })
             
         except Exception as e:

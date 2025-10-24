@@ -47,3 +47,5 @@ htmlcov/
 
 credentials.json
 service-account.json
+
+temp_posts/

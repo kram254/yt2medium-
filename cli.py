@@ -11,10 +11,12 @@ from util import (
     calculate_engagement_score
 )
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
+from seo_analyzer import analyze_seo, generate_seo_recommendations
+from content_templates import TEMPLATES, get_template_prompt
 
 load_dotenv()
 
-def generate_blog_post(ai_manager, user_input, enhance=False):
+def generate_blog_post(ai_manager, user_input, enhance=False, template=None, tone=None, model='gpt-4o'):
     input_type = detect_input_type(user_input)
     
     if input_type == 'youtube':
@@ -37,8 +39,15 @@ def generate_blog_post(ai_manager, user_input, enhance=False):
         else:
             content_context = f"User Request: {user_input}\n\nCreate comprehensive, well-researched content based on this topic or prompt."
     
-    prompt = prompts.get_blog_gen_prompt()
-    response = ai_manager.generate_content(prompt, content_context)
+    base_prompt = prompts.get_blog_gen_prompt()
+    
+    if template:
+        template_addition = get_template_prompt(template, tone)
+        prompt = base_prompt + "\n\n" + template_addition
+    else:
+        prompt = base_prompt
+    
+    response = ai_manager.generate_content(prompt, content_context, model)
     blog_text = clean_markdown(response)
     
     if enhance:
@@ -58,16 +67,28 @@ Return the enhanced version in Markdown format.
 def print_stats(blog_text):
     title = extract_title_from_markdown(blog_text)
     reading_time = estimate_reading_time(blog_text)
-    word_count = len(blog_text.split())
     engagement_score = calculate_engagement_score(blog_text)
+    word_count = len(blog_text.split())
+    
+    seo_analysis = analyze_seo(blog_text, title)
+    recommendations = generate_seo_recommendations(seo_analysis)
     
     print("=" * 60)
     print("📊 BLOG POST STATISTICS")
     print("=" * 60)
     print(f"📝 Title: {title}")
-    print(f"📖 Reading Time: {reading_time}")
-    print(f"🔤 Word Count: {word_count} words")
+    print(f"⏱️  Reading Time: {reading_time} minutes")
+    print(f"📏 Word Count: {word_count} words")
     print(f"⭐ Engagement Score: {engagement_score}/100")
+    print(f"🔍 SEO Score: {seo_analysis.get('seo_score', 0)}/100")
+    print(f"🚀 Viral Potential: {seo_analysis.get('viral_potential', 0)}/100")
+    print(f"📖 Readability: {int(seo_analysis.get('readability_score', 0))}/100")
+    
+    if recommendations:
+        print("\n💡 SEO RECOMMENDATIONS:")
+        for rec in recommendations:
+            print(f"  • {rec}")
+    
     print("=" * 60)
 
 def save_to_file(content, filename):
@@ -117,6 +138,25 @@ Examples:
         help='Skip statistics display'
     )
     
+    parser.add_argument(
+        '-t', '--template',
+        choices=['tutorial', 'case_study', 'opinion', 'listicle', 'deep_dive', 'story', 'comparison', 'guide'],
+        help='Content template to use'
+    )
+    
+    parser.add_argument(
+        '--tone',
+        choices=['professional', 'conversational', 'technical', 'humorous', 'academic', 'personal', 'energetic'],
+        help='Writing tone preset'
+    )
+    
+    parser.add_argument(
+        '-m', '--model',
+        choices=['gpt-4o', 'deepseek/deepseek-chat-v3.1', 'gemini-2.0-flash-exp', 'claude-3-5-sonnet-20241022'],
+        default='gpt-4o',
+        help='AI model to use for generation'
+    )
+    
     args = parser.parse_args()
     
     if not args.input or len(args.input.strip()) < 3:
@@ -125,7 +165,7 @@ Examples:
     
     try:
         ai_manager = AIProviderManager()
-        blog_text = generate_blog_post(ai_manager, args.input, args.enhance)
+        blog_text = generate_blog_post(ai_manager, args.input, args.enhance, args.template, args.tone, args.model)
         
         if not args.no_stats:
             print_stats(blog_text)

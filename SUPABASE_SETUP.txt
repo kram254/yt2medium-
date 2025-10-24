@@ -1,0 +1,219 @@
+SUPABASE INTEGRATION SETUP GUIDE
+=================================
+
+STEP 1: INSTALL DEPENDENCIES
+-----------------------------
+
+pip install supabase
+
+STEP 2: CREATE SUPABASE PROJECT
+--------------------------------
+
+1. Go to https://supabase.com
+2. Sign up or log in
+3. Create a new project
+4. Wait for setup to complete (takes ~2 minutes)
+5. Note your project URL and API key
+
+STEP 3: ADD ENVIRONMENT VARIABLES
+----------------------------------
+
+In your .env file, add:
+
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+
+Replace with your actual values from Supabase dashboard
+
+STEP 4: CREATE DATABASE TABLES
+-------------------------------
+
+1. Open Supabase Dashboard
+2. Go to SQL Editor
+3. Copy contents from supabase_schema.sql
+4. Paste and run in SQL Editor
+5. Verify tables created successfully
+
+Tables created:
+- blog_posts (stores all generated posts)
+- generation_logs (tracks generation attempts)
+
+STEP 5: VERIFY SETUP
+---------------------
+
+python app.py
+
+Check console for:
+- No Supabase-related errors
+- App starts successfully
+- Routes registered properly
+
+STEP 6: TEST FUNCTIONALITY
+---------------------------
+
+1. Generate a blog post
+2. Check /history - should show the post
+3. Check /analytics - should show statistics
+4. Click on a post to view it
+5. Try deleting a post
+
+FEATURES ENABLED
+================
+
+1. Post History
+   - View all generated posts
+   - Search by title
+   - Delete posts
+   - Access: /history
+
+2. Analytics Dashboard
+   - Total posts count
+   - Average scores (engagement, SEO, viral)
+   - Total words written
+   - Template usage statistics
+   - Generation success rate
+   - Access: /analytics
+
+3. Persistent Storage
+   - All posts saved automatically
+   - No data loss on browser close
+   - Access posts anytime
+   - Shareable post URLs
+
+4. Post Management
+   - View any post by ID: /post/<post_id>
+   - Delete posts: DELETE /api/posts/<post_id>/delete
+   - Search posts: /api/search?q=query
+   - Recent posts API: /api/posts/recent
+
+5. Generation Tracking
+   - Logs every generation attempt
+   - Tracks success/failure
+   - Records generation time
+   - Template and tone usage
+   - Error messages for failed attempts
+
+API ENDPOINTS
+=============
+
+Content:
+GET  /history                      - View post history page
+GET  /analytics                    - View analytics dashboard
+GET  /post/<post_id>              - View specific post
+
+API:
+GET  /api/posts/recent            - Get recent posts (JSON)
+GET  /api/posts/<post_id>         - Get post by ID (JSON)
+GET  /api/analytics                - Get analytics data (JSON)
+GET  /api/search?q=query          - Search posts (JSON)
+DELETE /api/posts/<post_id>/delete - Delete post
+
+DATABASE SCHEMA
+===============
+
+blog_posts Table:
+- id (UUID, primary key)
+- title (text)
+- markdown_content (text)
+- html_content (text)
+- image_header (text, base64)
+- image_content (text, base64)
+- reading_time (integer)
+- word_count (integer)
+- engagement_score (integer)
+- seo_score (integer)
+- viral_potential (integer)
+- readability_score (integer)
+- key_quotes (jsonb)
+- seo_recommendations (jsonb)
+- created_at (timestamp)
+- updated_at (timestamp)
+
+generation_logs Table:
+- id (UUID, primary key)
+- user_input (text)
+- input_type (text)
+- model_used (text)
+- template (text)
+- tone (text)
+- enhanced (boolean)
+- success (boolean)
+- error_message (text)
+- generation_time (numeric)
+- created_at (timestamp)
+
+BENEFITS
+========
+
+1. Data Persistence
+   - Posts survive browser closes
+   - Access history anytime
+   - No data loss
+
+2. Analytics
+   - Track performance over time
+   - Identify best-performing content
+   - Optimize content strategy
+
+3. Collaboration
+   - Share post URLs with team
+   - Review past work
+   - Build content library
+
+4. Debugging
+   - Track failed generations
+   - Identify common errors
+   - Improve reliability
+
+5. Scalability
+   - Cloud-based storage
+   - Auto-scaling database
+   - No local storage limits
+
+TROUBLESHOOTING
+===============
+
+Issue: "Database not configured" error
+Solution: Check SUPABASE_URL and SUPABASE_KEY in .env file
+
+Issue: Tables not created
+Solution: Run supabase_schema.sql in SQL Editor
+
+Issue: Can't save posts
+Solution: Verify API key has write permissions (use anon key, not service key)
+
+Issue: Analytics not loading
+Solution: Generate at least one post first
+
+SECURITY NOTES
+==============
+
+1. Use anon key (public) for client access
+2. Enable Row Level Security (RLS) in production
+3. Add authentication for multi-user setups
+4. Keep service key secret (never expose)
+
+NEXT STEPS
+==========
+
+Optional enhancements:
+1. Add user authentication
+2. Enable Row Level Security
+3. Add post tagging system
+4. Implement post versioning
+5. Add export to PDF
+6. Create public portfolio page
+7. Add collaboration features
+
+For multi-user setup, implement Supabase Auth and RLS policies.
+
+SUCCESS!
+========
+
+Your app now has:
+✅ Persistent database storage
+✅ Post history with search
+✅ Analytics dashboard
+✅ Post management
+✅ Generation tracking
+✅ Cloud-based scalability
