@@ -161,10 +161,24 @@
             margin: 1.5rem 0;
         }
         
-        .blog-content pre code {
+        .blog-content pre code,
+        .blog-content .highlight {
             background: transparent;
             padding: 0;
             color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .blog-content .highlight pre {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .blog-content code:not(pre code) {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: rgba(251, 191, 36, 1);
         }
         
         .blog-content table {
@@ -470,31 +484,34 @@
             panel.classList.toggle('hidden');
         }
 
-        function copyContent() {
+        async function copyContent() {
             const blogContent = document.querySelector('.blog-content');
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = blogContent.innerHTML;
-            
-            const range = document.createRange();
-            range.selectNodeContents(tempDiv);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
+            const htmlContent = blogContent.innerHTML;
+            const textContent = blogContent.innerText;
             
             try {
-                document.execCommand('copy');
-                showNotification('Content copied! Ready to paste in Medium', 'success');
+                if (navigator.clipboard && window.ClipboardItem) {
+                    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+                    const textBlob = new Blob([textContent], { type: 'text/plain' });
+                    const data = new ClipboardItem({
+                        'text/html': htmlBlob,
+                        'text/plain': textBlob
+                    });
+                    await navigator.clipboard.write([data]);
+                    showNotification('Content copied! Ready to paste in Medium', 'success');
+                } else {
+                    fallbackCopyHTML(htmlContent, textContent);
+                }
             } catch (err) {
-                fallbackCopyHTML(blogContent.innerHTML);
+                console.error('Copy failed:', err);
+                fallbackCopyHTML(htmlContent, textContent);
             }
-            
-            selection.removeAllRanges();
         }
 
-        function fallbackCopyHTML(htmlContent) {
+        function fallbackCopyHTML(htmlContent, textContent) {
             const listener = function(e) {
                 e.clipboardData.setData('text/html', htmlContent);
-                e.clipboardData.setData('text/plain', htmlContent.replace(/<[^>]*>/g, ''));
+                e.clipboardData.setData('text/plain', textContent);
                 e.preventDefault();
             };
             document.addEventListener('copy', listener);

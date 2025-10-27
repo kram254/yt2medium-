@@ -259,7 +259,20 @@ def generate_blog():
         blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
         blog_post_html = markdown.markdown(
             blog_post_with_mermaid, 
-            extensions=["tables", "fenced_code", "nl2br", "codehilite"]
+            extensions=[
+                "markdown.extensions.tables",
+                "markdown.extensions.fenced_code",
+                "markdown.extensions.nl2br",
+                "markdown.extensions.codehilite",
+                "markdown.extensions.extra",
+                "markdown.extensions.sane_lists"
+            ],
+            extension_configs={
+                'markdown.extensions.codehilite': {
+                    'css_class': 'highlight',
+                    'linenums': False
+                }
+            }
         )
         
         generation_time = time.time() - start_time
@@ -437,7 +450,20 @@ def blog_post():
             blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
             blog_post_html = markdown.markdown(
                 blog_post_with_mermaid,
-                extensions=["tables", "fenced_code", "nl2br", "codehilite"]
+                extensions=[
+                    "markdown.extensions.tables",
+                    "markdown.extensions.fenced_code",
+                    "markdown.extensions.nl2br",
+                    "markdown.extensions.codehilite",
+                    "markdown.extensions.extra",
+                    "markdown.extensions.sane_lists"
+                ],
+                extension_configs={
+                    'markdown.extensions.codehilite': {
+                        'css_class': 'highlight',
+                        'linenums': False
+                    }
+                }
             )
             
             post_id = str(uuid.uuid4())
