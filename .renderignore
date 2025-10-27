@@ -1,0 +1,14 @@
+*.md
+*.txt
+!requirements.txt
+!runtime.txt
+.git/
+.github/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.env
+venv/
+*.log
+.DS_Store

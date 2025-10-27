@@ -19,6 +19,7 @@ from seo_analyzer import analyze_seo, generate_seo_recommendations
 from content_templates import TEMPLATES, TONE_PRESETS, get_template_prompt
 from export_handler import export_to_medium, export_to_devto, export_to_hashnode, export_to_linkedin, export_to_substack, export_to_ghost, create_twitter_thread
 from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, get_expand_prompt, get_compress_prompt, get_title_alternatives_prompt, get_meta_description_prompt
+from medium_research_agent import apply_medium_practices_to_prompt, optimize_content_structure, analyze_medium_readiness
 from supabase_client import get_supabase_manager
 import time
 import json
@@ -80,10 +81,14 @@ def calculate_temp_analytics():
         'recent_posts': posts[:5]
     }
 
+load_dotenv()
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-load_dotenv()
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 print(f"Flask app name: {app.name}")
 print(f"Flask root path: {app.root_path}")
@@ -156,8 +161,15 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         else:
             prompt = base_prompt
         
-        response = get_ai_manager().generate_content(prompt, content_context, model)
-        return clean_markdown(response)
+        topic_for_optimization = user_input[:100]
+        enhanced_prompt = apply_medium_practices_to_prompt(prompt, topic_for_optimization)
+        
+        response = get_ai_manager().generate_content(enhanced_prompt, content_context, model)
+        
+        cleaned_content = clean_markdown(response)
+        optimized_content = optimize_content_structure(cleaned_content)
+        
+        return optimized_content
     except Exception as e:
         raise Exception(f"Failed to generate blog post: {str(e)}")
 
@@ -278,6 +290,8 @@ def generate_blog():
             else:
                 reading_time_int = int(reading_time)
         
+        medium_analysis = analyze_medium_readiness(blog_post_text)
+        
         full_blog_data = {
             'title': str(title) if title else '',
             'blog_post_html': str(blog_post_html) if blog_post_html else '',
@@ -291,7 +305,9 @@ def generate_blog():
             'seo_score': int(seo_analysis.get('seo_score', 0)),
             'viral_potential': int(seo_analysis.get('viral_potential', 0)),
             'readability_score': int(seo_analysis.get('readability_score', 0)),
-            'seo_recommendations': list(seo_recommendations) if seo_recommendations else []
+            'seo_recommendations': list(seo_recommendations) if seo_recommendations else [],
+            'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
+            'medium_recommendations': medium_analysis.get('recommendations', [])
         }
         
         with open(temp_file, 'w', encoding='utf-8') as f:
@@ -434,6 +450,8 @@ def blog_post():
                 else:
                     reading_time_int = int(reading_time)
             
+            medium_analysis = analyze_medium_readiness(blog_post_text)
+            
             full_blog_data = {
                 'title': str(title) if title else '',
                 'blog_post_html': str(blog_post_html) if blog_post_html else '',
@@ -447,7 +465,9 @@ def blog_post():
                 'seo_score': int(seo_analysis.get('seo_score', 0)),
                 'viral_potential': int(seo_analysis.get('viral_potential', 0)),
                 'readability_score': int(seo_analysis.get('readability_score', 0)),
-                'seo_recommendations': list(seo_recommendations) if seo_recommendations else []
+                'seo_recommendations': list(seo_recommendations) if seo_recommendations else [],
+                'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
+                'medium_recommendations': medium_analysis.get('recommendations', [])
             }
             
             with open(temp_file, 'w', encoding='utf-8') as f:
@@ -767,8 +787,17 @@ def search_posts():
     results = db.search_posts(query)
     return jsonify({'success': True, 'results': results})
 
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('index.html'), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({'error': 'Internal server error'}), 500
+
 if __name__ == '__main__':
     server_port = int(os.environ.get('PORT', '8000'))
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
     print("=" * 60)
     print("REGISTERED ROUTES:")
     for rule in app.url_map.iter_rules():
@@ -776,4 +805,4 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"Starting Flask app on port {server_port}")
     print("=" * 60)
-    app.run(debug=True, port=server_port, host='0.0.0.0')
+    app.run(debug=debug_mode, port=server_port, host='0.0.0.0')
