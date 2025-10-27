@@ -1,0 +1,299 @@
+OPENROUTER INTEGRATION SETUP GUIDE
+===================================
+
+OVERVIEW
+--------
+
+OpenRouter provides access to multiple AI models through a single API.
+We've integrated DeepSeek Chat v3.1 - a powerful, fast, and cost-effective model.
+
+FEATURES
+--------
+
+DeepSeek Chat v3.1:
+- Fast response times
+- High-quality content generation
+- Excellent reasoning capabilities
+- Cost-effective alternative to GPT-4
+- Strong performance on technical content
+
+SETUP INSTRUCTIONS
+------------------
+
+STEP 1: Get OpenRouter API Key
+
+1. Go to https://openrouter.ai
+2. Sign up or log in
+3. Navigate to API Keys section
+4. Create a new API key
+5. Copy the key
+
+STEP 2: Add to Environment Variables
+
+In your .env file, add:
+
+OPENROUTER_API_KEY=your-openrouter-api-key-here
+
+Replace with your actual API key from OpenRouter.
+
+STEP 3: Restart Application
+
+python app.py
+
+The DeepSeek model will now be available in the model dropdown.
+
+USAGE
+-----
+
+Web Interface:
+1. Select "DeepSeek Chat v3.1 (OpenRouter - Fast & Smart)" from model dropdown
+2. Generate content as normal
+3. DeepSeek will be used for content generation
+
+CLI:
+python cli.py "your topic" -m deepseek/deepseek-chat-v3.1
+
+With template and tone:
+python cli.py "AI trends" -m deepseek/deepseek-chat-v3.1 -t tutorial --tone technical
+
+API:
+POST /generate
+{
+  "youtube_link": "your input",
+  "model": "deepseek/deepseek-chat-v3.1",
+  "template": "tutorial",
+  "tone": "technical"
+}
+
+FALLBACK BEHAVIOR
+-----------------
+
+If DeepSeek is selected but OpenRouter is not configured:
+1. App tries DeepSeek first
+2. Falls back to OpenAI GPT-4o
+3. Then falls back to Gemini
+4. Then falls back to Claude
+5. Then tries OpenRouter with default model
+
+If OpenRouter fails:
+- Error is logged
+- Automatic fallback to other providers
+- Generation continues seamlessly
+
+AVAILABLE MODELS
+----------------
+
+Current:
+- gpt-4o (OpenAI - Primary)
+- deepseek/deepseek-chat-v3.1 (OpenRouter - Fast & Smart)
+- gemini-2.0-flash-exp (Google - Secondary)
+- claude-3-5-sonnet-20241022 (Anthropic - Fallback)
+
+To add more OpenRouter models:
+1. Check available models at https://openrouter.ai/models
+2. Add to model dropdown in templates/index.html
+3. Add to CLI choices in cli.py
+4. Model routing is automatic via OpenRouter
+
+BENEFITS
+--------
+
+1. Model Diversity
+   - Access to multiple AI providers
+   - Choose best model for your use case
+   - Compare output quality
+
+2. Cost Optimization
+   - DeepSeek is cost-effective
+   - Pay only for what you use
+   - Flexible pricing
+
+3. Reliability
+   - Multiple fallback options
+   - No single point of failure
+   - Automatic error handling
+
+4. Performance
+   - Fast response times
+   - High-quality outputs
+   - Suitable for production
+
+5. Flexibility
+   - Easy to add more models
+   - Switch models on the fly
+   - Test different approaches
+
+PRICING
+-------
+
+OpenRouter:
+- Pay-as-you-go pricing
+- No monthly fees
+- Transparent costs
+- Check current rates at https://openrouter.ai/pricing
+
+DeepSeek Chat v3.1:
+- Very competitive pricing
+- Excellent value for money
+- Lower cost than GPT-4
+- Similar quality output
+
+TROUBLESHOOTING
+---------------
+
+Issue: "OpenRouter: API key not configured"
+Solution: Add OPENROUTER_API_KEY to .env file
+
+Issue: DeepSeek not in dropdown
+Solution: Restart Flask app after adding API key
+
+Issue: Generation fails with DeepSeek
+Solution: Check API key is valid, check OpenRouter dashboard for credits
+
+Issue: Slow response times
+Solution: DeepSeek is usually fast, check your internet connection
+
+Issue: Output quality issues
+Solution: Adjust temperature in ai_providers.py (currently 0.9)
+
+ADVANCED CONFIGURATION
+----------------------
+
+To adjust DeepSeek settings, edit ai_providers.py:
+
+def _generate_with_openrouter(self, prompt, video_context, model="deepseek/deepseek-chat-v3.1"):
+    ...
+    json={
+        "model": model,
+        "messages": [...],
+        "temperature": 0.9,  # Adjust creativity (0.0-1.0)
+        "max_tokens": 8192   # Adjust output length
+    }
+
+ADDING MORE MODELS
+------------------
+
+To add another OpenRouter model:
+
+1. Find model ID at https://openrouter.ai/models
+   Example: "anthropic/claude-3-opus"
+
+2. Add to UI dropdown (templates/index.html):
+   <option value="anthropic/claude-3-opus">Claude 3 Opus (OpenRouter)</option>
+
+3. Add to CLI choices (cli.py):
+   choices=['gpt-4o', 'deepseek/deepseek-chat-v3.1', 'anthropic/claude-3-opus', ...]
+
+4. No code changes needed - automatic routing
+
+MONITORING
+----------
+
+Track usage:
+1. Visit https://openrouter.ai/dashboard
+2. View API usage statistics
+3. Monitor costs
+4. Set budget limits
+
+BEST PRACTICES
+--------------
+
+1. API Key Security
+   - Never commit API key to git
+   - Use .env file only
+   - Rotate keys periodically
+
+2. Cost Management
+   - Set budget alerts on OpenRouter
+   - Monitor usage regularly
+   - Use appropriate models for tasks
+
+3. Error Handling
+   - App handles errors gracefully
+   - Automatic fallback to other models
+   - Check logs for issues
+
+4. Performance
+   - DeepSeek is fast for most tasks
+   - Use GPT-4o for complex reasoning
+   - Test different models for your use case
+
+SUCCESS INDICATORS
+------------------
+
+After setup, you should see:
+✅ DeepSeek in model dropdown
+✅ No errors on app start
+✅ Can generate content with DeepSeek
+✅ Fallback works if DeepSeek fails
+✅ All existing functionality preserved
+
+COMPARISON
+----------
+
+DeepSeek vs GPT-4o:
++ Faster response times
++ More cost-effective
++ Good for most content types
+- May be less creative for some tasks
+- Less training data
+
+DeepSeek vs Gemini:
++ More consistent outputs
++ Better instruction following
++ Faster
+~ Similar quality for blog posts
+
+DeepSeek vs Claude:
++ Faster
++ More cost-effective
+~ Different writing style
+~ Both excellent for content
+
+RECOMMENDATIONS
+---------------
+
+Use DeepSeek for:
+- Tutorial content
+- Technical documentation
+- List articles
+- Case studies
+- How-to guides
+- Standard blog posts
+
+Use GPT-4o for:
+- Highly creative content
+- Complex reasoning tasks
+- Nuanced storytelling
+- Opinionated pieces
+- When quality is critical
+
+Use the right tool for the job!
+
+SUPPORT
+-------
+
+OpenRouter:
+- Documentation: https://openrouter.ai/docs
+- Support: https://openrouter.ai/discord
+- Status: https://status.openrouter.ai
+
+DeepSeek:
+- Website: https://www.deepseek.com
+- Documentation: Check OpenRouter docs
+
+Your App:
+- Check IMPLEMENTATION_SUMMARY.txt
+- Check app logs for errors
+- Test with different models
+
+SUCCESS!
+========
+
+You now have access to:
+✅ DeepSeek Chat v3.1 (fast & smart)
+✅ Multiple AI providers
+✅ Automatic fallbacks
+✅ Cost-effective content generation
+✅ Flexible model selection
+✅ Production-ready setup

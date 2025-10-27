@@ -10,104 +10,39 @@
             theme: {
                 extend: {
                     colors: {
-                        glass: 'rgba(255, 255, 255, 0.05)',
-                        glassBorder: 'rgba(255, 255, 255, 0.1)',
+                        border: "hsl(214.3 31.8% 91.4%)",
+                        input: "hsl(214.3 31.8% 91.4%)",
+                        ring: "hsl(142.1 76.2% 36.3%)",
+                        primary: {
+                            DEFAULT: "hsl(142.1 76.2% 36.3%)",
+                            foreground: "hsl(355.7 100% 97.3%)",
+                        },
                     },
                 }
             }
         }
     </script>
-    <style>
-        body {
-            background: #000000;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, rgba(147, 51, 234, 0.15) 0px, transparent 50%);
-        }
-        
-        .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        
-        .glass-hover:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-        
-        .glow-button {
-            background: white;
-            color: black;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-        }
-        
-        .glow-button:hover {
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-        }
-        
-        input, textarea, select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            transition: all 0.3s ease;
-        }
-        
-        input:focus, textarea:focus, select:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.3);
-            outline: none;
-        }
-        
-        ::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-        }
-        
-        option {
-            background: #1a1a1a;
-            color: white;
-        }
-        
-        .feature-pill {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-        }
-        
-        .feature-pill:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-    </style>
 </head>
-<body class="min-h-screen text-white">
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
     
-    <nav class="border-b border-white/10 backdrop-blur-sm sticky top-0 z-50" style="background: rgba(0, 0, 0, 0.7);">
-        <div class="max-w-5xl mx-auto px-6">
+    <nav class="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-lg glass flex items-center justify-center font-bold text-sm">
+                    <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
                         AI
                     </div>
-                    <span class="text-lg font-semibold">Content to Medium</span>
+                    <span class="text-xl font-semibold text-slate-900">Content to Medium</span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="{{ url_for('history') }}" class="feature-pill">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="{{ url_for('history') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 hover:text-primary transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                         </svg>
                         History
                     </a>
-                    <a href="{{ url_for('analytics') }}" class="feature-pill">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="{{ url_for('analytics') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 hover:text-primary transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                         Analytics
@@ -117,20 +52,23 @@
         </div>
     </nav>
 
-    <div class="max-w-4xl mx-auto px-6 py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        <div class="text-center mb-16">
-            <h1 class="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-neutral-200 to-neutral-400">
-                AI Content to Medium
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-slate-900 mb-4">
+                Transform Content into
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-600">
+                    Viral Medium Posts
+                </span>
             </h1>
-            <p class="text-lg text-neutral-400 max-w-2xl mx-auto leading-relaxed">
-                Transform any content into viral-worthy Medium blog posts with perfect formatting and AI-powered engagement optimization
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+                AI-powered blog post generator that turns YouTube videos, articles, or topics into professionally formatted Medium content with perfect engagement optimization
             </p>
         </div>
 
         {% if error %}
-        <div class="mb-6 glass rounded-xl p-4 border-red-500/20">
-            <div class="flex items-center text-red-400">
+        <div class="mb-6 p-4 rounded-lg border border-red-200 bg-red-50 text-red-800">
+            <div class="flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
                 </svg>
@@ -138,24 +76,15 @@
             </div>
         </div>
         {% endif %}
-        
-        <div id="dbWarning" class="hidden mb-6 glass rounded-xl p-4 border-yellow-500/20">
-            <div class="flex items-center text-yellow-400">
-                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                <span>Database not configured. History and Analytics unavailable. Blog generation works normally.</span>
-            </div>
-        </div>
 
-        <div class="glass rounded-2xl overflow-hidden">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
             <div class="p-8">
                 <form id="generateForm" method="POST" action="{{ url_for('blog_post') }}">
                     
                     <div class="space-y-6">
                         
                         <div>
-                            <label for="youtube_link" class="block text-sm font-medium text-neutral-300 mb-3">
+                            <label for="youtube_link" class="block text-sm font-medium text-slate-700 mb-2">
                                 Content Source
                             </label>
                             <textarea 
@@ -163,20 +92,20 @@
                                 name="youtube_link" 
                                 rows="3" 
                                 required
-                                class="w-full px-4 py-4 rounded-xl resize-none"
+                                class="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all resize-none"
                                 placeholder="Enter YouTube URL, any web link, or a topic like 'trending AI developments today'..."
                             ></textarea>
-                            <p class="mt-2 text-sm text-neutral-500">
-                                💡 Examples: YouTube videos, articles, or topics like "trending AI news" or "create a post about blockchain"
+                            <p class="mt-2 text-sm text-slate-500">
+                                💡 Examples: YouTube videos, articles, blog posts, or topics like "trending AI news" or "create a post about blockchain"
                             </p>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label for="template" class="block text-sm font-medium text-neutral-300 mb-3">
+                                <label for="template" class="block text-sm font-medium text-slate-700 mb-2">
                                     Content Template
                                 </label>
-                                <select id="template" name="template" class="w-full px-4 py-4 rounded-xl">
+                                <select id="template" name="template" class="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-all">
                                     <option value="">Default (Viral Medium Style)</option>
                                     <option value="tutorial">Tutorial / How-To Guide</option>
                                     <option value="case_study">Case Study / Success Story</option>
@@ -190,10 +119,10 @@
                             </div>
 
                             <div>
-                                <label for="tone" class="block text-sm font-medium text-neutral-300 mb-3">
+                                <label for="tone" class="block text-sm font-medium text-slate-700 mb-2">
                                     Writing Tone
                                 </label>
-                                <select id="tone" name="tone" class="w-full px-4 py-4 rounded-xl">
+                                <select id="tone" name="tone" class="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-all">
                                     <option value="">Auto (Match Template)</option>
                                     <option value="professional">Professional</option>
                                     <option value="conversational">Conversational</option>
@@ -207,10 +136,10 @@
                         </div>
 
                         <div>
-                            <label for="model" class="block text-sm font-medium text-neutral-300 mb-3">
+                            <label for="model" class="block text-sm font-medium text-slate-700 mb-2">
                                 AI Model
                             </label>
-                            <select id="model" name="model" class="w-full px-4 py-4 rounded-xl">
+                            <select id="model" name="model" class="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-all">
                                 <option value="gpt-4o">OpenAI GPT-4o (Primary - Recommended)</option>
                                 <option value="deepseek/deepseek-chat-v3.1">DeepSeek Chat v3.1 (OpenRouter - Fast & Smart)</option>
                                 <option value="gemini-2.0-flash-exp">Google Gemini 2.0 Flash (Secondary)</option>
@@ -218,16 +147,16 @@
                             </select>
                         </div>
 
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" id="enhance" name="enhance" class="w-4 h-4 rounded">
-                            <label for="enhance" class="text-sm text-neutral-300">
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="enhance" name="enhance" class="w-4 h-4 text-primary border-border rounded focus:ring-ring">
+                            <label for="enhance" class="text-sm text-slate-700">
                                 Apply Advanced Enhancement (takes longer but generates more engaging content)
                             </label>
                         </div>
 
                         <button 
                             type="submit" 
-                            class="w-full glow-button font-semibold py-4 px-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                            class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-4 px-6 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
                         >
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -240,52 +169,39 @@
         </div>
 
         <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass glass-hover rounded-xl p-6 transition-all">
-                <div class="w-10 h-10 glass rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-lg transition-shadow">
+                <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                     </svg>
                 </div>
-                <h3 class="font-semibold text-white mb-2">AI-Powered Content</h3>
-                <p class="text-sm text-neutral-400">Multiple AI models including GPT-4, DeepSeek, Gemini & Claude for best quality</p>
+                <h3 class="font-semibold text-slate-900 mb-2">AI-Powered Content</h3>
+                <p class="text-sm text-slate-600">Multiple AI models including GPT-4, DeepSeek, Gemini & Claude for best quality</p>
             </div>
 
-            <div class="glass glass-hover rounded-xl p-6 transition-all">
-                <div class="w-10 h-10 glass rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-lg transition-shadow">
+                <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
                     </svg>
                 </div>
-                <h3 class="font-semibold text-white mb-2">SEO Optimized</h3>
-                <p class="text-sm text-neutral-400">Built-in SEO analysis, viral potential scoring, and readability optimization</p>
+                <h3 class="font-semibold text-slate-900 mb-2">SEO Optimized</h3>
+                <p class="text-sm text-slate-600">Built-in SEO analysis, viral potential scoring, and readability optimization</p>
             </div>
 
-            <div class="glass glass-hover rounded-xl p-6 transition-all">
-                <div class="w-10 h-10 glass rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-lg transition-shadow">
+                <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
                 </div>
-                <h3 class="font-semibold text-white mb-2">Multi-Platform Export</h3>
-                <p class="text-sm text-neutral-400">Export to Medium, Dev.to, Hashnode, LinkedIn, Ghost, and more platforms</p>
+                <h3 class="font-semibold text-slate-900 mb-2">Multi-Platform Export</h3>
+                <p class="text-sm text-slate-600">Export to Medium, Dev.to, Hashnode, LinkedIn, Ghost, and more platforms</p>
             </div>
         </div>
     </div>
 
-    <footer class="text-center text-neutral-500 py-6 mt-16 border-t border-white/10 text-sm">
-        © 2025 AI Content to Medium
-    </footer>
-
     <script>
-        fetch('/health')
-            .then(r => r.json())
-            .then(data => {
-                if (data.database === 'not_configured') {
-                    document.getElementById('dbWarning').classList.remove('hidden');
-                }
-            })
-            .catch(() => {});
-        
         document.getElementById('generateForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -315,14 +231,7 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.error || 'Server error occurred');
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success && data.redirect) {
                     window.location.href = data.redirect;
@@ -337,7 +246,7 @@
                 }
             })
             .catch(error => {
-                alert(error.message);
+                alert('Error: ' + error.message);
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
             });

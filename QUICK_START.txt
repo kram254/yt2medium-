@@ -1,0 +1,194 @@
+QUICK START GUIDE
+=================
+
+MINIMUM REQUIREMENTS TO RUN
+---------------------------
+
+You MUST have at least ONE AI provider API key configured.
+
+OPTION 1: OpenRouter (Recommended - Easiest)
+---------------------------------------------
+
+1. Sign up at https://openrouter.ai
+2. Add payment method (pay as you go)
+3. Generate API key
+4. Add to .env:
+   OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
+
+Cost: ~$0.10 per blog post with DeepSeek
+Speed: Fast (30-60 seconds)
+Setup: 5 minutes
+
+OPTION 2: OpenAI
+----------------
+
+1. Sign up at https://platform.openai.com
+2. Add payment method
+3. Generate API key
+4. Add to .env:
+   OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
+
+Cost: ~$0.50 per blog post with GPT-4o
+Speed: Fast (30-60 seconds)
+Setup: 5 minutes
+
+OPTION 3: Anthropic Claude
+--------------------------
+
+1. Sign up at https://console.anthropic.com
+2. Add payment method
+3. Generate API key
+4. Add to .env:
+   ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxx
+
+Cost: ~$0.30 per blog post
+Speed: Medium (40-80 seconds)
+Setup: 5 minutes
+
+OPTION 4: Google Gemini (Advanced)
+-----------------------------------
+
+Requires GCP project setup - more complex
+See IMPLEMENTATION_SUMMARY.txt for details
+
+VERIFY SETUP
+------------
+
+After adding API key to .env:
+
+1. Restart Flask app:
+   python app.py
+
+2. Look for these lines in console:
+   ✓ OpenAI configured
+   OR
+   ✓ OpenRouter configured
+   OR
+   ✓ Anthropic configured
+
+3. If you see at least one ✓, you're ready!
+
+4. If you see:
+   ⚠ WARNING: No AI providers configured
+   
+   Then your API key is not set correctly.
+
+COMMON MISTAKES
+---------------
+
+1. API key not in .env file
+   - Make sure file is named exactly ".env"
+   - No spaces around the = sign
+   - No quotes around the key
+
+2. Forgot to restart app
+   - Must restart after changing .env
+   - Ctrl+C then python app.py
+
+3. Invalid API key
+   - Double check you copied entire key
+   - Check key hasn't expired
+   - Verify account has credits
+
+TESTING
+-------
+
+1. Go to http://127.0.0.1:5000
+2. Enter: "Create a post about AI trends"
+3. Click "Generate Medium Post"
+4. Wait 30-60 seconds
+5. Should see blog post!
+
+If you get error, check console for details.
+
+OPTIONAL: Database (Not Required)
+----------------------------------
+
+App works WITHOUT database, but you won't have:
+- Post history
+- Analytics dashboard
+
+To enable (optional):
+
+1. Create Supabase project at https://supabase.com
+2. Get anon key from Settings > API
+3. Add to .env:
+   SUPABASE_URL=https://xxx.supabase.co
+   SUPABASE_KEY=eyJxxx...
+
+4. Run schema: See SUPABASE_SETUP.txt
+
+WHAT WORKS WITHOUT DATABASE
+----------------------------
+
+✅ Generate blog posts
+✅ View posts
+✅ Copy/download
+✅ Edit & regenerate
+✅ All AI models
+✅ Images
+✅ SEO analysis
+
+DATABASE ONLY FEATURES
+-----------------------
+
+📚 History page
+📊 Analytics dashboard
+🔍 Search posts
+
+RECOMMENDED WORKFLOW
+--------------------
+
+START SIMPLE:
+1. Add ONE AI provider key (OpenRouter easiest)
+2. Generate test post
+3. Make sure it works
+4. Then add database if you want history
+
+DON'T OVERCOMPLICATE:
+- You don't need all providers
+- You don't need Supabase
+- Just one AI key is enough!
+
+GET HELP
+--------
+
+If still stuck:
+
+1. Check TROUBLESHOOTING.txt
+2. Look at console errors
+3. Verify .env file format
+4. Make sure you restarted app
+
+COST ESTIMATE
+-------------
+
+OpenRouter (DeepSeek): $0.10/post = $1 for 10 posts
+OpenAI (GPT-4o): $0.50/post = $5 for 10 posts
+Anthropic (Claude): $0.30/post = $3 for 10 posts
+
+All are pay-as-you-go, no monthly fees.
+
+NEXT STEPS
+----------
+
+After first successful post:
+
+1. Try different templates
+2. Experiment with tones
+3. Test edit & regenerate
+4. Export to Medium
+5. Add database (optional)
+6. Explore analytics (if DB added)
+
+SUCCESS CHECKLIST
+-----------------
+
+✅ .env file exists
+✅ At least one API key added
+✅ App restarted
+✅ Console shows "✓ [Provider] configured"
+✅ No "⚠ WARNING" about providers
+✅ Test post generated successfully
+
+If all checked, you're good to go! 🚀

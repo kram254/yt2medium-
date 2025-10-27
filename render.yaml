@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: yt2medium
+    runtime: python
+    buildCommand: "chmod +x build.sh && ./build.sh"
+    startCommand: "gunicorn -c gunicorn_config.py app:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production

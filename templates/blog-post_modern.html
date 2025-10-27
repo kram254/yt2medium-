@@ -8,236 +8,53 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
     </script>
-    <style>
-        body {
-            background: #000000;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, rgba(147, 51, 234, 0.15) 0px, transparent 50%);
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: "hsl(142.1 76.2% 36.3%)",
+                            foreground: "hsl(355.7 100% 97.3%)",
+                        },
+                    },
+                }
+            }
         }
-        
-        .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        
-        .glass-hover:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-        
-        .glow-button {
-            background: white;
-            color: black;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-        }
-        
-        .glow-button:hover {
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-        }
-        
-        input, textarea, select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        
-        input:focus, textarea:focus, select:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.3);
-            outline: none;
-        }
-        
-        ::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-        }
-        
-        option {
-            background: #1a1a1a;
-            color: white;
-        }
-        
-        .blog-content {
-            color: rgba(255, 255, 255, 0.9);
-            line-height: 1.8;
-        }
-        
-        .blog-content h1 {
-            color: white;
-            font-size: 2.25rem;
-            font-weight: 700;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            line-height: 1.2;
-        }
-        
-        .blog-content h2 {
-            color: white;
-            font-size: 1.875rem;
-            font-weight: 600;
-            margin-top: 2rem;
-            margin-bottom: 0.875rem;
-            line-height: 1.3;
-        }
-        
-        .blog-content h3 {
-            color: white;
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-top: 1.75rem;
-            margin-bottom: 0.75rem;
-        }
-        
-        .blog-content h4 {
-            color: white;
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .blog-content p {
-            margin-bottom: 1.25rem;
-            color: rgba(255, 255, 255, 0.85);
-        }
-        
-        .blog-content strong {
-            color: white;
-            font-weight: 600;
-        }
-        
-        .blog-content em {
-            font-style: italic;
-        }
-        
-        .blog-content a {
-            color: rgba(147, 197, 253, 1);
-            text-decoration: underline;
-            transition: color 0.2s;
-        }
-        
-        .blog-content a:hover {
-            color: rgba(191, 219, 254, 1);
-        }
-        
-        .blog-content ul, .blog-content ol {
-            margin-bottom: 1.25rem;
-            padding-left: 1.5rem;
-        }
-        
-        .blog-content li {
-            margin-bottom: 0.5rem;
-            color: rgba(255, 255, 255, 0.85);
-        }
-        
-        .blog-content blockquote {
-            border-left: 4px solid rgba(255, 255, 255, 0.3);
-            padding-left: 1rem;
-            margin: 1.5rem 0;
-            font-style: italic;
-            color: rgba(255, 255, 255, 0.7);
-        }
-        
-        .blog-content code {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            color: rgba(251, 191, 36, 1);
-        }
-        
-        .blog-content pre {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 1rem;
-            overflow-x: auto;
-            margin: 1.5rem 0;
-        }
-        
-        .blog-content pre code {
-            background: transparent;
-            padding: 0;
-            color: rgba(255, 255, 255, 0.9);
-        }
-        
-        .blog-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-        }
-        
-        .blog-content th, .blog-content td {
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 0.75rem;
-            text-align: left;
-        }
-        
-        .blog-content th {
-            background: rgba(255, 255, 255, 0.05);
-            font-weight: 600;
-            color: white;
-        }
-        
-        .blog-content img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin: 1.5rem 0;
-        }
-        
-        .codehilite {
-            background: rgba(255, 255, 255, 0.05) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 1rem;
-            overflow-x: auto;
-            margin: 1.5rem 0;
-        }
-        
-        .codehilite pre {
-            margin: 0;
-            background: transparent !important;
-            border: none !important;
-        }
-    </style>
+    </script>
 </head>
-<body class="min-h-screen text-white">
+<body class="bg-slate-50">
     
-    <nav class="border-b border-white/10 backdrop-blur-sm sticky top-0 z-50" style="background: rgba(0, 0, 0, 0.7);">
-        <div class="max-w-6xl mx-auto px-6">
+    <nav class="border-b bg-white sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <a href="{{ url_for('index') }}" class="flex items-center space-x-2 text-neutral-300 hover:text-white transition-colors">
+                <a href="{{ url_for('index') }}" class="flex items-center space-x-2 text-slate-700 hover:text-primary transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
                     <span>Back to Home</span>
                 </a>
                 <div class="flex items-center space-x-4">
-                    <a href="{{ url_for('history') }}" class="text-neutral-300 hover:text-white transition-colors">History</a>
-                    <a href="{{ url_for('analytics') }}" class="text-neutral-300 hover:text-white transition-colors">Analytics</a>
+                    <a href="{{ url_for('history') }}" class="text-slate-700 hover:text-primary transition-colors">History</a>
+                    <a href="{{ url_for('analytics') }}" class="text-slate-700 hover:text-primary transition-colors">Analytics</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <div class="max-w-6xl mx-auto px-6 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <div class="mb-6 glass rounded-xl p-6">
+        <div class="mb-6 bg-gradient-to-r from-primary/10 to-emerald-50 rounded-xl p-6 border border-primary/20">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                    <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <span class="text-lg font-semibold text-white">Post Generated Successfully!</span>
+                    <span class="text-lg font-semibold text-slate-900">Post Generated Successfully!</span>
                 </div>
-                <button onclick="toggleEditMode()" class="inline-flex items-center px-4 py-2 glass glass-hover rounded-lg transition-all">
+                <button onclick="toggleEditMode()" class="inline-flex items-center px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg border border-slate-300 transition-all">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                     </svg>
@@ -246,20 +63,20 @@
             </div>
         </div>
 
-        <div id="editPanel" class="hidden mb-6 glass rounded-xl overflow-hidden">
-            <div class="glass px-6 py-4 border-b border-white/10">
+        <div id="editPanel" class="hidden mb-6 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
+            <div class="bg-gradient-to-r from-primary to-emerald-600 px-6 py-4">
                 <h3 class="text-lg font-semibold text-white">Edit Prompt & Regenerate</h3>
-                <p class="text-sm text-neutral-400 mt-1">Modify your input and settings to regenerate the post</p>
+                <p class="text-sm text-white/80 mt-1">Modify your input and settings to regenerate the post</p>
             </div>
             <form id="regenerateForm" class="p-6 space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-300 mb-2">Content Source</label>
-                    <textarea id="editInput" rows="3" class="w-full px-4 py-3 rounded-lg resize-none">{{ generation_params.user_input if generation_params else '' }}</textarea>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Content Source</label>
+                    <textarea id="editInput" rows="3" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none">{{ generation_params.user_input if generation_params else '' }}</textarea>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-neutral-300 mb-2">Template</label>
-                        <select id="editTemplate" class="w-full px-4 py-3 rounded-lg">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Template</label>
+                        <select id="editTemplate" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="">Default</option>
                             <option value="tutorial" {% if generation_params.template == 'tutorial' %}selected{% endif %}>Tutorial</option>
                             <option value="case_study" {% if generation_params.template == 'case_study' %}selected{% endif %}>Case Study</option>
@@ -272,8 +89,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-neutral-300 mb-2">Tone</label>
-                        <select id="editTone" class="w-full px-4 py-3 rounded-lg">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Tone</label>
+                        <select id="editTone" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="">Auto</option>
                             <option value="professional" {% if generation_params.tone == 'professional' %}selected{% endif %}>Professional</option>
                             <option value="conversational" {% if generation_params.tone == 'conversational' %}selected{% endif %}>Conversational</option>
@@ -285,8 +102,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-neutral-300 mb-2">AI Model</label>
-                        <select id="editModel" class="w-full px-4 py-3 rounded-lg">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">AI Model</label>
+                        <select id="editModel" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="gpt-4o" {% if generation_params.model == 'gpt-4o' %}selected{% endif %}>GPT-4o</option>
                             <option value="deepseek/deepseek-chat-v3.1" {% if generation_params.model == 'deepseek/deepseek-chat-v3.1' %}selected{% endif %}>DeepSeek v3.1</option>
                             <option value="gemini-2.0-flash-exp" {% if generation_params.model == 'gemini-2.0-flash-exp' %}selected{% endif %}>Gemini 2.0</option>
@@ -295,17 +112,17 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <input type="checkbox" id="editEnhance" {% if generation_params.enhance %}checked{% endif %} class="w-4 h-4 rounded">
-                    <label class="text-sm text-neutral-300">Apply Advanced Enhancement</label>
+                    <input type="checkbox" id="editEnhance" {% if generation_params.enhance %}checked{% endif %} class="w-4 h-4 text-primary rounded">
+                    <label class="text-sm text-slate-700">Apply Advanced Enhancement</label>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <button type="submit" class="flex-1 glow-button font-medium py-3 px-6 rounded-lg transition-all flex items-center justify-center space-x-2">
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary/90 text-white font-medium py-3 px-6 rounded-lg transition-all flex items-center justify-center space-x-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
                         <span>Regenerate Post</span>
                     </button>
-                    <button type="button" onclick="toggleEditMode()" class="px-6 py-3 glass glass-hover rounded-lg transition-all">
+                    <button type="button" onclick="toggleEditMode()" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-all">
                         Cancel
                     </button>
                 </div>
@@ -317,13 +134,13 @@
             <div class="lg:col-span-2 space-y-6">
                 
                 {% if image_data %}
-                <div class="glass rounded-xl overflow-hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <img src="data:image/png;base64,{{ image_data }}" alt="{{ title }}" class="w-full h-auto">
                 </div>
                 {% endif %}
 
-                <div class="glass rounded-xl p-8">
-                    <div class="blog-content">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+                    <div class="prose max-w-none">
                         {{ blog_post_html|safe }}
                     </div>
                     
@@ -335,9 +152,9 @@
                 </div>
 
                 {% if key_quotes %}
-                <div class="glass rounded-xl p-6">
-                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                         </svg>
                         Key Quotes
@@ -345,7 +162,7 @@
                     <div class="space-y-3">
                         {% for quote in key_quotes %}
                         <div class="pl-4 border-l-4 border-amber-400 py-2">
-                            <p class="text-neutral-300 italic">"{{ quote }}"</p>
+                            <p class="text-slate-700 italic">"{{ quote }}"</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -355,82 +172,82 @@
 
             <div class="space-y-6">
                 
-                <div class="glass rounded-xl p-6 sticky top-24">
-                    <h3 class="text-lg font-semibold text-white mb-4">Post Metrics</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-24">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Post Metrics</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                             <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                <span class="text-sm font-medium text-neutral-300">Reading Time</span>
+                                <span class="text-sm font-medium text-slate-700">Reading Time</span>
                             </div>
-                            <span class="text-lg font-bold text-blue-400">{{ reading_time }}</span>
+                            <span class="text-lg font-bold text-blue-600">{{ reading_time }} min</span>
                         </div>
                         
-                        <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                             <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
-                                <span class="text-sm font-medium text-neutral-300">Word Count</span>
+                                <span class="text-sm font-medium text-slate-700">Word Count</span>
                             </div>
-                            <span class="text-lg font-bold text-purple-400">{{ word_count }}</span>
+                            <span class="text-lg font-bold text-purple-600">{{ word_count }}</span>
                         </div>
                         
-                        <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                             <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path>
                                 </svg>
-                                <span class="text-sm font-medium text-neutral-300">Engagement</span>
+                                <span class="text-sm font-medium text-slate-700">Engagement</span>
                             </div>
-                            <span class="text-lg font-bold text-green-400">{{ engagement_score }}/100</span>
+                            <span class="text-lg font-bold text-green-600">{{ engagement_score }}/100</span>
                         </div>
                         
                         {% if seo_score %}
-                        <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
                             <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
-                                <span class="text-sm font-medium text-neutral-300">SEO Score</span>
+                                <span class="text-sm font-medium text-slate-700">SEO Score</span>
                             </div>
-                            <span class="text-lg font-bold text-indigo-400">{{ seo_score }}/100</span>
+                            <span class="text-lg font-bold text-indigo-600">{{ seo_score }}/100</span>
                         </div>
                         
-                        <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-pink-50 rounded-lg">
                             <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                                 </svg>
-                                <span class="text-sm font-medium text-neutral-300">Viral Potential</span>
+                                <span class="text-sm font-medium text-slate-700">Viral Potential</span>
                             </div>
-                            <span class="text-lg font-bold text-pink-400">{{ viral_potential }}/100</span>
+                            <span class="text-lg font-bold text-pink-600">{{ viral_potential }}/100</span>
                         </div>
                         
-                        <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                             <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                                 </svg>
-                                <span class="text-sm font-medium text-neutral-300">Readability</span>
+                                <span class="text-sm font-medium text-slate-700">Readability</span>
                             </div>
-                            <span class="text-lg font-bold text-amber-400">{{ readability_score|int }}/100</span>
+                            <span class="text-lg font-bold text-amber-600">{{ readability_score|int }}/100</span>
                         </div>
                         {% endif %}
                     </div>
                     
-                    <div class="mt-6 pt-6 border-t border-white/10">
-                        <h4 class="text-sm font-semibold text-white mb-3">Actions</h4>
+                    <div class="mt-6 pt-6 border-t border-slate-200">
+                        <h4 class="text-sm font-semibold text-slate-900 mb-3">Actions</h4>
                         <div class="space-y-2">
-                            <button onclick="copyContent()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 glow-button rounded-lg transition-all">
+                            <button onclick="copyContent()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg transition-all">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                 </svg>
                                 <span>Copy to Clipboard</span>
                             </button>
-                            <button onclick="downloadMarkdown()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 glass glass-hover rounded-lg transition-all">
+                            <button onclick="downloadMarkdown()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-all">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
@@ -441,17 +258,17 @@
                 </div>
 
                 {% if seo_recommendations %}
-                <div class="glass rounded-xl p-6">
-                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-amber-50 rounded-xl p-6 border border-amber-200">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                         SEO Recommendations
                     </h3>
-                    <ul class="space-y-2 text-sm text-neutral-300">
+                    <ul class="space-y-2 text-sm text-slate-700">
                         {% for rec in seo_recommendations %}
                         <li class="flex items-start space-x-2">
-                            <svg class="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg class="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                             </svg>
                             <span>{{ rec }}</span>
@@ -465,47 +282,45 @@
     </div>
 
     <script>
+        const markdownContent = `{{ blog_post_markdown|replace('\n', '\\n')|replace('\r', '\\r')|replace('"', '\\"')|safe }}`;
+
         function toggleEditMode() {
             const panel = document.getElementById('editPanel');
             panel.classList.toggle('hidden');
         }
 
         function copyContent() {
-            const blogContent = document.querySelector('.blog-content');
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = blogContent.innerHTML;
+            const content = markdownContent;
             
-            const range = document.createRange();
-            range.selectNodeContents(tempDiv);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            
-            try {
-                document.execCommand('copy');
-                showNotification('Content copied! Ready to paste in Medium', 'success');
-            } catch (err) {
-                fallbackCopyHTML(blogContent.innerHTML);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(content).then(() => {
+                    showNotification('Content copied to clipboard!', 'success');
+                }).catch(() => {
+                    fallbackCopy(content);
+                });
+            } else {
+                fallbackCopy(content);
             }
-            
-            selection.removeAllRanges();
         }
 
-        function fallbackCopyHTML(htmlContent) {
-            const listener = function(e) {
-                e.clipboardData.setData('text/html', htmlContent);
-                e.clipboardData.setData('text/plain', htmlContent.replace(/<[^>]*>/g, ''));
-                e.preventDefault();
-            };
-            document.addEventListener('copy', listener);
-            document.execCommand('copy');
-            document.removeEventListener('copy', listener);
-            showNotification('Content copied! Ready to paste in Medium', 'success');
+        function fallbackCopy(content) {
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showNotification('Content copied to clipboard!', 'success');
+            } catch (err) {
+                showNotification('Failed to copy content', 'error');
+            }
+            document.body.removeChild(textarea);
         }
 
         function downloadMarkdown() {
-            const content = {{ blog_post_markdown|tojson|safe }};
-            const blob = new Blob([content], { type: 'text/markdown' });
+            const blob = new Blob([markdownContent], { type: 'text/markdown' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;

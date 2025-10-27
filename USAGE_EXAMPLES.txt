@@ -1,0 +1,61 @@
+AI CONTENT TO MEDIUM - USAGE EXAMPLES
+======================================
+
+The application now accepts ANY content type:
+
+1. YOUTUBE VIDEOS
+   https://www.youtube.com/watch?v=dQw4w9WgXcQ
+   https://youtu.be/dQw4w9WgXcQ
+
+2. WEB ARTICLES
+   https://techcrunch.com/2024/01/15/ai-breakthrough
+   https://medium.com/@author/some-article
+   https://blog.example.com/post-title
+
+3. TRENDING TOPICS (with automatic research)
+   trending AI developments today
+   latest advances in quantum computing
+   current state of blockchain technology
+
+4. DIRECT PROMPTS
+   create an engaging post about machine learning basics
+   write about the future of renewable energy
+   explain how neural networks work
+
+5. MIXED BATCH PROCESSING
+   Create a file with mixed content (content.txt):
+   
+   https://www.youtube.com/watch?v=example1
+   https://techcrunch.com/article
+   trending AI news today
+   create a post about cloud computing
+   https://example.com/blog-post
+
+   Then run: python batch_process.py content.txt
+
+CLI USAGE:
+----------
+python cli.py "https://youtube.com/watch?v=..." --enhance
+python cli.py "https://techcrunch.com/article" -o output.md
+python cli.py "trending AI today" --stats-only
+python cli.py "create a post about Docker"
+
+WEB INTERFACE:
+--------------
+1. Open http://localhost:5000
+2. Enter ANY of the above content types
+3. Select AI model (optional)
+4. Check "Apply Advanced Enhancement" for better quality
+5. Click "Generate Medium Post"
+6. Click "Copy Content" to copy formatted HTML (ready for Medium)
+
+FEATURES:
+---------
+- Automatic content type detection
+- Web scraping for any URL
+- AI research for trending topics
+- 2 AI-generated images per post
+- Mermaid diagrams for technical content
+- 800-1100 word minimum (optimized for Medium)
+- Copy formatted HTML (not markdown)
+- Multi-provider AI fallback (OpenAI → Gemini → Anthropic)

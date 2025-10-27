@@ -1,0 +1,114 @@
+===============================================================
+RENDER DEPLOYMENT - QUICK START GUIDE
+===============================================================
+
+STEP 1: PREPARE CODE
+--------------------
+git add .
+git commit -m "Deploy to Render with Medium Research Agent"
+git push origin main
+
+
+STEP 2: CREATE RENDER WEB SERVICE
+----------------------------------
+1. Go to: https://render.com/dashboard
+2. Click: New + → Web Service
+3. Connect: Your GitHub repository (yt2medium)
+4. Select: main branch
+
+
+STEP 3: CONFIGURE SERVICE
+-------------------------
+Name: yt2medium
+Runtime: Python 3
+Build Command: chmod +x build.sh && ./build.sh
+Start Command: gunicorn -c gunicorn_config.py app:app
+Instance Type: Free (or Starter for better performance)
+
+
+STEP 4: ADD ENVIRONMENT VARIABLES (CRITICAL)
+--------------------------------------------
+Click "Environment" tab and add:
+
+REQUIRED:
+- OPENAI_API_KEY = <your-openai-key>
+- OPENROUTER_API_KEY = <your-openrouter-key>
+- SECRET_KEY = <random-secure-string>
+- FLASK_ENV = production
+
+OPTIONAL (if using):
+- ANTHROPIC_API_KEY = <your-anthropic-key>
+- SUPABASE_URL = <your-supabase-url>
+- SUPABASE_KEY = <your-supabase-key>
+- HUGGINGFACE_TOKEN = <your-token>
+- PROJECT_ID = <gcp-project-id>
+
+
+STEP 5: DEPLOY
+--------------
+1. Click "Create Web Service"
+2. Wait 5-10 minutes for build
+3. Watch logs for any errors
+4. Once deployed, your app will be at:
+   https://yt2medium.onrender.com
+
+
+STEP 6: TEST YOUR DEPLOYMENT
+-----------------------------
+1. Visit: https://yt2medium.onrender.com
+2. Generate a test blog post
+3. Check History and Analytics pages
+4. Test copy button functionality
+
+
+IMPORTANT NOTES:
+----------------
+- Free tier: App sleeps after 15min inactivity
+- First request after sleep: 30-60 seconds to wake up
+- temp_posts/ directory: Ephemeral (resets on deploy)
+- For persistent storage: Use Supabase
+- Upgrade to Starter plan: No sleep, better performance
+
+
+TROUBLESHOOTING:
+----------------
+Build fails:
+- Check build logs for missing dependencies
+- Verify requirements.txt is complete
+
+500 errors:
+- Check environment variables are set
+- Verify API keys are valid
+- Check application logs
+
+Slow performance:
+- Free tier has limited resources
+- Upgrade to Starter ($7/month)
+
+
+FILES CREATED FOR DEPLOYMENT:
+------------------------------
+✓ build.sh - Build script
+✓ render.yaml - Service configuration
+✓ gunicorn_config.py - Production server config
+✓ runtime.txt - Python version
+✓ Procfile - Alternative deployment config
+✓ .renderignore - Files to exclude
+✓ Error handlers in app.py
+
+
+FEATURES DEPLOYED:
+------------------
+✓ Medium Research Agent (2000+ clap patterns)
+✓ File-based storage (temp_posts/)
+✓ History and Analytics pages
+✓ Copy button (HTML format)
+✓ All AI providers integrated
+✓ SEO and engagement scoring
+✓ Image generation
+✓ Multiple export options
+
+
+===============================================================
+READY TO DEPLOY!
+===============================================================

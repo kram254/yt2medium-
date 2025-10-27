@@ -20,6 +20,7 @@ wheels/
 *.egg
 
 .env
+.env.local
 .venv
 env/
 venv/
@@ -47,3 +48,5 @@ htmlcov/
 
 credentials.json
 service-account.json
+
+temp_posts/
