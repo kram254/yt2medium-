@@ -37,29 +37,77 @@ def get_youtube_transcript(youtube_url):
             'writesubtitles': True,
             'writeautomaticsub': True,
             'subtitleslangs': ['en'],
+            'socket_timeout': 30,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
         }
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(youtube_url, download=False)
-            
-            title = info.get('title', 'Untitled')
-            description = info.get('description', '')
-            
-            subtitles = info.get('subtitles', {})
-            auto_captions = info.get('automatic_captions', {})
-            
-            transcript_text = ""
-            
-            if 'en' in subtitles:
-                transcript_text = _extract_subtitle_text(subtitles['en'])
-            elif 'en' in auto_captions:
-                transcript_text = _extract_subtitle_text(auto_captions['en'])
-            
-            video_context = f"Video Title: {title}\n\nDescription: {description}\n\nTranscript:\n{transcript_text}"
-            
-            return video_context
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(youtube_url, download=False)
+                
+                title = info.get('title', 'Untitled')
+                description = info.get('description', '')
+                
+                subtitles = info.get('subtitles', {})
+                auto_captions = info.get('automatic_captions', {})
+                
+                transcript_text = ""
+                
+                if 'en' in subtitles:
+                    transcript_text = _extract_subtitle_text(subtitles['en'])
+                elif 'en' in auto_captions:
+                    transcript_text = _extract_subtitle_text(auto_captions['en'])
+                
+                video_context = f"Video Title: {title}\n\nDescription: {description}\n\nTranscript:\n{transcript_text}"
+                
+                return video_context
+        except Exception as ydl_error:
+            if 'Sign in to confirm' in str(ydl_error) or 'bot' in str(ydl_error).lower():
+                return _get_youtube_fallback(youtube_url)
+            raise ydl_error
     except Exception as e:
+        fallback = _get_youtube_fallback(youtube_url)
+        if fallback:
+            return fallback
         raise Exception(f"Failed to extract video content: {str(e)}")
+
+def _get_youtube_fallback(youtube_url):
+    try:
+        video_id = None
+        if 'youtube.com/watch?v=' in youtube_url:
+            video_id = youtube_url.split('v=')[1].split('&')[0]
+        elif 'youtu.be/' in youtube_url:
+            video_id = youtube_url.split('youtu.be/')[1].split('?')[0]
+        
+        if not video_id:
+            return None
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(
+            f'https://www.youtube.com/watch?v={video_id}',
+            headers=headers,
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            import re
+            title_match = re.search(r'<title>(.*?)</title>', response.text)
+            title = title_match.group(1).replace(' - YouTube', '') if title_match else 'Untitled'
+            
+            description_match = re.search(r'"description":"(.*?)"', response.text)
+            description = description_match.group(1) if description_match else ''
+            
+            return f"Video Title: {title}\n\nDescription: {description}\n\nNote: Full transcript unavailable. Please use the video title and description for content generation."
+        
+        return None
+    except Exception as e:
+        print(f"Fallback error: {e}")
+        return None
 
 def _extract_subtitle_text(subtitle_list):
     for sub in subtitle_list:

@@ -183,7 +183,11 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         input_type = detect_input_type(user_input)
         
         if input_type == 'youtube':
-            content_context = get_youtube_transcript(user_input)
+            try:
+                content_context = get_youtube_transcript(user_input)
+            except Exception as yt_error:
+                print(f"YouTube extraction failed: {yt_error}")
+                content_context = f"YouTube Video: {user_input}\n\nNote: Unable to extract transcript. Creating content based on the video URL. Please provide additional context if needed.\n\nGenerate a comprehensive blog post based on typical content for this type of video."
         elif input_type == 'github':
             github = get_github_handler()
             readme = github.get_readme(user_input)
@@ -192,7 +196,11 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
             else:
                 content_context = f"GitHub Repository: {user_input}\n\nCreate content based on this GitHub repository."
         elif input_type == 'url':
-            content_context = scrape_web_content(user_input)
+            try:
+                content_context = scrape_web_content(user_input)
+            except Exception as url_error:
+                print(f"URL scraping failed: {url_error}")
+                content_context = f"Web URL: {user_input}\n\nNote: Unable to scrape content. Create a blog post based on the URL topic."
         else:
             if any(keyword in user_input.lower() for keyword in ['trending', 'latest', 'today', 'recent', 'current']):
                 content_context = research_trending_topic(user_input, get_ai_manager())
@@ -254,10 +262,54 @@ Original post:
 Return the enhanced version in Markdown format. No explanations or meta-commentary.
 """
         response = get_ai_manager().generate_content(enhancement_prompt)
-        return clean_markdown(response)
-    except Exception as e:
         print(f"Enhancement error: {e}")
         return blog_text
+
+@app.route('/api/generate-with-content', methods=['POST'])
+@require_session
+def generate_with_content():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request'}), 400
+        
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip()
+        model = data.get('model', DEFAULT_MODEL)
+        template = data.get('template')
+        tone = data.get('tone')
+        industry = data.get('industry')
+        
+        if not title or not content:
+            return jsonify({'error': 'Title and content required'}), 400
+        
+        if len(title) > 500:
+            return jsonify({'error': 'Title too long'}), 400
+        
+        if len(content) < 100:
+            return jsonify({'error': 'Content too short'}), 400
+        
+        full_context = f"Title: {title}\n\nContent:\n{content}"
+        
+        blog_post_text = generate_blog_post_text(
+            full_context,
+            model,
+            template=template,
+            tone=tone,
+            industry=industry
+        )
+        
+        if not blog_post_text:
+            return jsonify({'error': 'Failed to generate blog post'}), 500
+        
+        return jsonify({
+            'success': True,
+            'blog_post': blog_post_text,
+            'redirect': f'/blog?post_id={session.get("current_post_id", "")}'
+        })
+    except Exception as e:
+        print(f"Generate with content error: {e}")
+        return jsonify({'error': 'Generation failed'}), 500
 
 @app.route('/generate', methods=['POST'])
 def generate_blog():
