@@ -1,4 +1,4 @@
-# 🎥 AI Content to Medium - Universal Blog Post Generator
+# 🎥 AI Zero2Medium - Universal Blog Post Generator
 
 Transform **any content** - YouTube videos, web articles, or topic prompts - into viral-worthy Medium blog posts with perfect formatting and AI-powered engagement optimization. Built with OpenAI GPT-4o, Google Gemini, and Anthropic Claude with intelligent fallback support for maximum reliability.
 

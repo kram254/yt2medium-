@@ -39,13 +39,14 @@ AVAILABLE_MODELS = {
         'temperature': 0.9,
         'provider': 'gemini'
     },
-    'claude-3-5-sonnet-20241022': {
-        'name': 'Claude 3.5 Sonnet (Backup)',
-        'description': 'Anthropic flagship model',
-        'best_for': 'Fallback option, high quality',
-        'max_tokens': 8192,
-        'temperature': 0.9,
-        'provider': 'anthropic'
+    'claude-4-sonnet-20250514': {
+        'name': 'Claude 4 Sonnet (Extended Thinking)',
+        'description': 'Anthropic flagship model with extended thinking',
+        'best_for': 'Complex analysis, deep reasoning, high quality content',
+        'max_tokens': 16000,
+        'temperature': 1.0,
+        'provider': 'anthropic',
+        'thinking_budget': 10000
     },
     'claude-3-haiku-20240307': {
         'name': 'Claude 3 Haiku',

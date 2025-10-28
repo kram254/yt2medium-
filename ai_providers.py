@@ -84,18 +84,14 @@ def _clean_vtt_text(vtt_content):
     return ' '.join(text_lines)
 
 def detect_input_type(user_input):
-    youtube_patterns = [
-        r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+',
-    ]
-    for pattern in youtube_patterns:
-        if re.match(pattern, user_input):
-            return 'youtube'
-    
-    url_pattern = r'https?://[^\s]+'
-    if re.match(url_pattern, user_input):
+    if 'youtube.com' in user_input or 'youtu.be' in user_input:
+        return 'youtube'
+    elif 'github.com' in user_input:
+        return 'github'
+    elif user_input.startswith('http://') or user_input.startswith('https://'):
         return 'url'
-    
-    return 'prompt'
+    else:
+        return 'topic'
 
 def scrape_web_content(url):
     try:
@@ -251,15 +247,23 @@ class AIProviderManager:
             full_prompt = prompt
         
         response = self.anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=8192,
-            temperature=0.9,
+            model="claude-4-sonnet-20250514",
+            max_tokens=16000,
+            temperature=1.0,
+            thinking={
+                "type": "enabled",
+                "budget_tokens": 10000
+            },
             messages=[
                 {"role": "user", "content": full_prompt}
             ]
         )
         
-        return response.content[0].text
+        for block in response.content:
+            if block.type == "text":
+                return block.text
+        
+        return response.content[0].text if response.content else ""
     
     def _generate_with_openrouter(self, prompt, video_context, model="deepseek/deepseek-chat-v3.1"):
         if video_context:

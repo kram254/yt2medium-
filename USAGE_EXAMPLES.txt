@@ -1,4 +1,4 @@
-AI CONTENT TO MEDIUM - USAGE EXAMPLES
+AI Zero2Medium - USAGE EXAMPLES
 ======================================
 
 The application now accepts ANY content type:

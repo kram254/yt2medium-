@@ -21,6 +21,7 @@ from export_handler import export_to_medium, export_to_devto, export_to_hashnode
 from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, get_expand_prompt, get_compress_prompt, get_title_alternatives_prompt, get_meta_description_prompt
 from medium_research_agent import apply_medium_practices_to_prompt, optimize_content_structure, analyze_medium_readiness
 from linkedin_agent import generate_linkedin_post
+from github_handler import get_github_handler
 from supabase_client import get_supabase_manager
 import time
 import json
@@ -31,8 +32,10 @@ print("=" * 60)
 print("STARTING FLASK APP")
 print("=" * 60)
 
-TEMP_STORAGE_DIR = Path('temp_posts')
+TEMP_STORAGE_DIR = Path(__file__).parent / 'temp_posts'
 TEMP_STORAGE_DIR.mkdir(exist_ok=True)
+print(f"Temp storage directory: {TEMP_STORAGE_DIR}")
+print(f"Temp storage exists: {TEMP_STORAGE_DIR.exists()}")
 
 def cleanup_old_temp_files():
     try:
@@ -144,6 +147,13 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         
         if input_type == 'youtube':
             content_context = get_youtube_transcript(user_input)
+        elif input_type == 'github':
+            github = get_github_handler()
+            readme = github.get_readme(user_input)
+            if readme:
+                content_context = f"GitHub Repository Content:\n\n{readme}"
+            else:
+                content_context = f"GitHub Repository: {user_input}\n\nCreate content based on this GitHub repository."
         elif input_type == 'url':
             content_context = scrape_web_content(user_input)
         else:
@@ -575,6 +585,19 @@ def health():
 def test():
     return "Flask is working!"
 
+@app.route('/debug/posts')
+def debug_posts():
+    posts = get_all_temp_posts()
+    temp_files = list(TEMP_STORAGE_DIR.glob('*.json'))
+    return jsonify({
+        'temp_dir': str(TEMP_STORAGE_DIR),
+        'temp_dir_exists': TEMP_STORAGE_DIR.exists(),
+        'json_files_count': len(temp_files),
+        'json_files': [f.name for f in temp_files],
+        'posts_loaded': len(posts),
+        'posts': posts[:3] if posts else []
+    })
+
 @app.route('/api/seo-analysis', methods=['POST'])
 def seo_analysis():
     try:
@@ -718,6 +741,27 @@ def generate_linkedin():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/github-info', methods=['POST'])
+def github_info():
+    try:
+        data = request.get_json()
+        github_url = data.get('url', '')
+        
+        if not github_url or 'github.com' not in github_url:
+            return jsonify({'error': 'Valid GitHub URL required'}), 400
+        
+        github = get_github_handler()
+        repo_info = github.get_repo_info(github_url)
+        readme = github.get_readme(github_url)
+        
+        return jsonify({
+            'success': True,
+            'repo_info': repo_info,
+            'readme': readme
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/export/<format>', methods=['POST'])
 def export_content(format):
     try:
@@ -767,7 +811,11 @@ def history():
     else:
         posts = get_all_temp_posts()
     
-    return render_template('history.html', posts=posts)
+    print(f"History route: Found {len(posts) if posts else 0} posts")
+    if posts:
+        print(f"First post: {posts[0].get('title', 'No title')}")
+    
+    return render_template('history.html', posts=posts if posts else [])
 
 @app.route('/api/posts/recent')
 def api_recent_posts():
@@ -846,6 +894,8 @@ def analytics():
     else:
         blog_analytics = calculate_temp_analytics()
         gen_stats = None
+    
+    print(f"Analytics route: analytics={blog_analytics is not None}, gen_stats={gen_stats is not None}")
     
     return render_template('analytics.html', analytics=blog_analytics, gen_stats=gen_stats)
 

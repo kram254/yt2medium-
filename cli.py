@@ -98,7 +98,7 @@ def save_to_file(content, filename):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='AI Content to Medium - CLI Blog Post Generator',
+        description='AI Zero2Medium - CLI Blog Post Generator',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
