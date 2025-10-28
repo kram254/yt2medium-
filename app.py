@@ -429,21 +429,21 @@ def generate_blog():
         db = get_supabase_manager()
         if db:
             try:
-                db.save_blog_post(
-                    title=title,
-                    html_content=blog_post_html,
-                    markdown_content=blog_post_text,
-                    image_header=images[0],
-                    image_content=images[1],
-                    reading_time=reading_time,
-                    key_quotes=key_quotes,
-                    engagement_score=engagement_score,
-                    word_count=len(blog_post_text.split()),
-                    seo_score=seo_analysis.get('seo_score', 0),
-                    viral_potential=seo_analysis.get('viral_potential', 0),
-                    readability_score=seo_analysis.get('readability_score', 0),
-                    seo_recommendations=seo_recommendations
-                )
+                db.save_blog_post({
+                    'title': title,
+                    'html_content': blog_post_html,
+                    'markdown_content': blog_post_text,
+                    'image_header': images[0],
+                    'image_content': images[1],
+                    'reading_time': reading_time,
+                    'key_quotes': key_quotes,
+                    'engagement_score': engagement_score,
+                    'word_count': len(blog_post_text.split()),
+                    'seo_score': seo_analysis.get('seo_score', 0),
+                    'viral_potential': seo_analysis.get('viral_potential', 0),
+                    'readability_score': seo_analysis.get('readability_score', 0),
+                    'seo_recommendations': seo_recommendations
+                })
             except Exception as e:
                 print(f"Database save error: {e}")
         
@@ -623,21 +623,23 @@ def blog_post():
             db = get_supabase_manager()
             if db:
                 try:
-                    db.save_blog_post(
-                        title=title,
-                        html_content=blog_post_html,
-                        markdown_content=blog_post_text,
-                        image_header=images[0],
-                        image_content=images[1],
-                        reading_time=reading_time,
-                        key_quotes=key_quotes,
-                        engagement_score=engagement_score,
-                        word_count=len(blog_post_text.split()),
-                        seo_score=seo_analysis.get('seo_score', 0),
-                        viral_potential=seo_analysis.get('viral_potential', 0),
-                        readability_score=seo_analysis.get('readability_score', 0),
-                        seo_recommendations=seo_recommendations
-                    )
+                    db.save_blog_post({
+                        'title': title,
+                        'html_content': blog_post_html,
+                        'markdown_content': blog_post_text,
+                        'image_header': images[0],
+                        'image_content': images[1],
+                        'reading_time': reading_time,
+                        'key_quotes': key_quotes,
+                        'engagement_score': engagement_score,
+                        'word_count': len(blog_post_text.split()),
+                        'seo_score': seo_analysis.get('seo_score', 0),
+                        'viral_potential': seo_analysis.get('viral_potential', 0),
+                        'readability_score': seo_analysis.get('readability_score', 0),
+                        'seo_recommendations': seo_recommendations,
+                        'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
+                        'medium_recommendations': medium_analysis.get('recommendations', [])
+                    })
                 except Exception as e:
                     print(f"Database save error: {e}")
             
