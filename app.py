@@ -20,6 +20,7 @@ from content_templates import TEMPLATES, TONE_PRESETS, get_template_prompt
 from export_handler import export_to_medium, export_to_devto, export_to_hashnode, export_to_linkedin, export_to_substack, export_to_ghost, create_twitter_thread
 from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, get_expand_prompt, get_compress_prompt, get_title_alternatives_prompt, get_meta_description_prompt
 from medium_research_agent import apply_medium_practices_to_prompt, optimize_content_structure, analyze_medium_readiness
+from linkedin_agent import generate_linkedin_post
 from supabase_client import get_supabase_manager
 import time
 import json
@@ -63,8 +64,6 @@ def get_all_temp_posts():
 
 def calculate_temp_analytics():
     posts = get_all_temp_posts()
-    if not posts:
-        return None
     
     total_posts = len(posts)
     total_words = sum(p.get('word_count', 0) for p in posts)
@@ -78,7 +77,7 @@ def calculate_temp_analytics():
         'avg_engagement_score': round(avg_engagement),
         'avg_seo_score': round(avg_seo),
         'avg_viral_potential': round(avg_viral),
-        'recent_posts': posts[:5]
+        'recent_posts': posts[:5] if posts else []
     }
 
 load_dotenv()
@@ -326,6 +325,27 @@ def generate_blog():
         with open(temp_file, 'w', encoding='utf-8') as f:
             json.dump(full_blog_data, f, ensure_ascii=False)
         
+        db = get_supabase_manager()
+        if db:
+            try:
+                db.save_blog_post(
+                    title=title,
+                    html_content=blog_post_html,
+                    markdown_content=blog_post_text,
+                    image_header=images[0],
+                    image_content=images[1],
+                    reading_time=reading_time,
+                    key_quotes=key_quotes,
+                    engagement_score=engagement_score,
+                    word_count=len(blog_post_text.split()),
+                    seo_score=seo_analysis.get('seo_score', 0),
+                    viral_potential=seo_analysis.get('viral_potential', 0),
+                    readability_score=seo_analysis.get('readability_score', 0),
+                    seo_recommendations=seo_recommendations
+                )
+            except Exception as e:
+                print(f"Database save error: {e}")
+        
         session['current_post_id'] = post_id
         
         session['generation_params'] = {
@@ -499,6 +519,27 @@ def blog_post():
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(full_blog_data, f, ensure_ascii=False)
             
+            db = get_supabase_manager()
+            if db:
+                try:
+                    db.save_blog_post(
+                        title=title,
+                        html_content=blog_post_html,
+                        markdown_content=blog_post_text,
+                        image_header=images[0],
+                        image_content=images[1],
+                        reading_time=reading_time,
+                        key_quotes=key_quotes,
+                        engagement_score=engagement_score,
+                        word_count=len(blog_post_text.split()),
+                        seo_score=seo_analysis.get('seo_score', 0),
+                        viral_potential=seo_analysis.get('viral_potential', 0),
+                        readability_score=seo_analysis.get('readability_score', 0),
+                        seo_recommendations=seo_recommendations
+                    )
+                except Exception as e:
+                    print(f"Database save error: {e}")
+            
             session['current_post_id'] = post_id
             
             return redirect(url_for('blog_post'))
@@ -650,6 +691,29 @@ def compress_section():
         return jsonify({
             'success': True,
             'compressed': compressed
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generate-linkedin', methods=['POST'])
+def generate_linkedin():
+    try:
+        data = request.get_json()
+        medium_title = data.get('title', '')
+        medium_content = data.get('content', '')
+        
+        if not medium_title or not medium_content:
+            return jsonify({'error': 'Title and content required'}), 400
+        
+        ai_manager = get_ai_manager()
+        linkedin_post = generate_linkedin_post(medium_title, medium_content, ai_manager)
+        
+        if not linkedin_post:
+            return jsonify({'error': 'Failed to generate LinkedIn post'}), 500
+        
+        return jsonify({
+            'success': True,
+            'linkedin_post': linkedin_post
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
