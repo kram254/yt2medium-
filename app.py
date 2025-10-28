@@ -22,11 +22,17 @@ from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, ge
 from medium_research_agent import apply_medium_practices_to_prompt, optimize_content_structure, analyze_medium_readiness
 from linkedin_agent import generate_linkedin_post
 from github_handler import get_github_handler
+from social_auth import get_medium_auth, get_linkedin_auth
+from social_storage import get_social_account_manager
 from supabase_client import get_supabase_manager
 import time
 import json
 import uuid
 from pathlib import Path
+from functools import wraps
+from datetime import timedelta
+import hashlib
+import hmac
 
 print("=" * 60)
 print("STARTING FLASK APP")
@@ -90,7 +96,10 @@ app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
+app.config['SESSION_COOKIE_NAME'] = '__Host-session'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['PREFERRED_URL_SCHEME'] = 'https' if os.environ.get('FLASK_ENV') == 'production' else 'http'
 
 print(f"Flask app name: {app.name}")
 print(f"Flask root path: {app.root_path}")
@@ -99,6 +108,34 @@ print(f"Template folder: {app.template_folder}")
 ai_manager = None
 
 DEFAULT_MODEL = 'gpt-4o'
+
+def require_session(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            session['user_id'] = str(uuid.uuid4())
+            session.permanent = True
+        return f(*args, **kwargs)
+    return decorated_function
+
+def validate_request_signature(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method in ['POST', 'PUT', 'DELETE']:
+            signature = request.headers.get('X-Request-Signature')
+            if not signature:
+                return jsonify({'error': 'Missing request signature'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def rate_limit_check(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_id = session.get('user_id', 'anonymous')
+        rate_key = f"rate_limit:{user_id}:{request.endpoint}"
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 def get_ai_manager():
     global ai_manager
@@ -597,6 +634,248 @@ def debug_posts():
         'posts_loaded': len(posts),
         'posts': posts[:3] if posts else []
     })
+
+@app.route('/auth/medium')
+@require_session
+def auth_medium():
+    try:
+        state = str(uuid.uuid4())
+        nonce = hashlib.sha256(os.urandom(32)).hexdigest()
+        session['oauth_state'] = state
+        session['oauth_nonce'] = nonce
+        session.permanent = True
+        
+        medium_auth = get_medium_auth()
+        auth_url = medium_auth.get_auth_url(state)
+        return redirect(auth_url)
+    except Exception as e:
+        print(f"Medium auth error: {e}")
+        return jsonify({'error': 'Authentication failed'}), 500
+
+@app.route('/auth/medium/callback')
+@require_session
+def auth_medium_callback():
+    try:
+        code = request.args.get('code')
+        state = request.args.get('state')
+        error = request.args.get('error')
+        
+        if error:
+            print(f"Medium OAuth error: {error}")
+            return jsonify({'error': 'OAuth error from Medium'}), 400
+        
+        if not code:
+            return jsonify({'error': 'Missing authorization code'}), 400
+        
+        stored_state = session.get('oauth_state')
+        if not stored_state or state != stored_state:
+            return jsonify({'error': 'Invalid state parameter'}), 400
+        
+        medium_auth = get_medium_auth()
+        token_data = medium_auth.exchange_code_for_token(code)
+        
+        if not token_data:
+            return jsonify({'error': 'Failed to exchange code for token'}), 400
+        
+        user_info = medium_auth.get_user_info(token_data['access_token'])
+        if not user_info:
+            return jsonify({'error': 'Failed to get user info'}), 400
+        
+        user_id = session.get('user_id', 'default_user')
+        account_manager = get_social_account_manager()
+        
+        account_data = {
+            'user_info': user_info,
+            'access_token': token_data['access_token'],
+            'token_type': token_data.get('token_type'),
+            'expires_at': token_data.get('expires_at')
+        }
+        
+        account_manager.save_account(user_id, 'medium', account_data)
+        session['medium_connected'] = True
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        print(f"Medium callback error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/auth/linkedin')
+@require_session
+def auth_linkedin():
+    try:
+        state = str(uuid.uuid4())
+        nonce = hashlib.sha256(os.urandom(32)).hexdigest()
+        session['oauth_state'] = state
+        session['oauth_nonce'] = nonce
+        session.permanent = True
+        
+        linkedin_auth = get_linkedin_auth()
+        auth_url = linkedin_auth.get_auth_url(state)
+        return redirect(auth_url)
+    except Exception as e:
+        print(f"LinkedIn auth error: {e}")
+        return jsonify({'error': 'Authentication failed'}), 500
+
+@app.route('/auth/linkedin/callback')
+@require_session
+def auth_linkedin_callback():
+    try:
+        code = request.args.get('code')
+        state = request.args.get('state')
+        error = request.args.get('error')
+        
+        if error:
+            print(f"LinkedIn OAuth error: {error}")
+            return jsonify({'error': 'OAuth error from LinkedIn'}), 400
+        
+        if not code:
+            return jsonify({'error': 'Missing authorization code'}), 400
+        
+        stored_state = session.get('oauth_state')
+        if not stored_state or state != stored_state:
+            return jsonify({'error': 'Invalid state parameter'}), 400
+        
+        linkedin_auth = get_linkedin_auth()
+        token_data = linkedin_auth.exchange_code_for_token(code)
+        
+        if not token_data:
+            return jsonify({'error': 'Failed to exchange code for token'}), 400
+        
+        user_info = linkedin_auth.get_user_info(token_data['access_token'])
+        if not user_info:
+            return jsonify({'error': 'Failed to get user info'}), 400
+        
+        user_id = session.get('user_id', 'default_user')
+        account_manager = get_social_account_manager()
+        
+        account_data = {
+            'user_info': user_info,
+            'access_token': token_data['access_token'],
+            'token_type': token_data.get('token_type'),
+            'expires_at': token_data.get('expires_at')
+        }
+        
+        account_manager.save_account(user_id, 'linkedin', account_data)
+        session['linkedin_connected'] = True
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        print(f"LinkedIn callback error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/social/accounts')
+@require_session
+def get_social_accounts():
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Session required'}), 401
+        
+        account_manager = get_social_account_manager()
+        accounts = account_manager.list_accounts(user_id)
+        
+        return jsonify({
+            'success': True,
+            'accounts': accounts
+        })
+    except Exception as e:
+        print(f"Get accounts error: {e}")
+        return jsonify({'error': 'Failed to retrieve accounts'}), 500
+
+@app.route('/api/social/disconnect/<platform>', methods=['POST'])
+@require_session
+def disconnect_social(platform):
+    try:
+        if platform not in ['medium', 'linkedin']:
+            return jsonify({'error': 'Invalid platform'}), 400
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Session required'}), 401
+        
+        account_manager = get_social_account_manager()
+        
+        if account_manager.delete_account(user_id, platform):
+            session[f'{platform}_connected'] = False
+            return jsonify({'success': True})
+        
+        return jsonify({'error': 'Failed to disconnect'}), 400
+    except Exception as e:
+        print(f"Disconnect error: {e}")
+        return jsonify({'error': 'Failed to disconnect account'}), 500
+
+@app.route('/api/social/publish', methods=['POST'])
+@require_session
+def publish_to_social():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request body'}), 400
+        
+        platforms = data.get('platforms', [])
+        if not platforms or not isinstance(platforms, list):
+            return jsonify({'error': 'Invalid platforms'}), 400
+        
+        for platform in platforms:
+            if platform not in ['medium', 'linkedin']:
+                return jsonify({'error': f'Invalid platform: {platform}'}), 400
+        
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip()
+        html_content = data.get('html_content', '').strip()
+        image_url = data.get('image_url', '').strip() if data.get('image_url') else None
+        tags = data.get('tags', [])
+        
+        if not title or not content:
+            return jsonify({'error': 'Title and content required'}), 400
+        
+        if len(title) > 500:
+            return jsonify({'error': 'Title too long'}), 400
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Session required'}), 401
+        
+        account_manager = get_social_account_manager()
+        results = {}
+        
+        if 'medium' in platforms:
+            medium_account = account_manager.get_account(user_id, 'medium')
+            if medium_account:
+                medium_auth = get_medium_auth()
+                result = medium_auth.publish_post(
+                    medium_account['access_token'],
+                    title,
+                    html_content,
+                    tags=tags,
+                    image_url=image_url
+                )
+                results['medium'] = result
+                account_manager.update_last_used(user_id, 'medium')
+            else:
+                results['medium'] = {'success': False, 'error': 'Account not connected'}
+        
+        if 'linkedin' in platforms:
+            linkedin_account = account_manager.get_account(user_id, 'linkedin')
+            if linkedin_account:
+                linkedin_auth = get_linkedin_auth()
+                result = linkedin_auth.share_post(
+                    linkedin_account['access_token'],
+                    content,
+                    image_url=image_url
+                )
+                results['linkedin'] = result
+                account_manager.update_last_used(user_id, 'linkedin')
+            else:
+                results['linkedin'] = {'success': False, 'error': 'Account not connected'}
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+    except Exception as e:
+        print(f"Publish error: {e}")
+        return jsonify({'error': 'Publishing failed'}), 500
 
 @app.route('/api/seo-analysis', methods=['POST'])
 def seo_analysis():
