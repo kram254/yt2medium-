@@ -262,6 +262,8 @@ Original post:
 Return the enhanced version in Markdown format. No explanations or meta-commentary.
 """
         response = get_ai_manager().generate_content(enhancement_prompt)
+        return response if response else blog_text
+    except Exception as e:
         print(f"Enhancement error: {e}")
         return blog_text
 

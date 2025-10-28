@@ -64,8 +64,11 @@ def get_youtube_transcript(youtube_url):
                 
                 return video_context
         except Exception as ydl_error:
-            if 'Sign in to confirm' in str(ydl_error) or 'bot' in str(ydl_error).lower():
-                return _get_youtube_fallback(youtube_url)
+            error_str = str(ydl_error).lower()
+            if 'sign in' in error_str or 'bot' in error_str or 'cookie' in error_str or 'authentication' in error_str:
+                fallback = _get_youtube_fallback(youtube_url)
+                if fallback:
+                    return fallback
             raise ydl_error
     except Exception as e:
         fallback = _get_youtube_fallback(youtube_url)
@@ -81,33 +84,39 @@ def _get_youtube_fallback(youtube_url):
         elif 'youtu.be/' in youtube_url:
             video_id = youtube_url.split('youtu.be/')[1].split('?')[0]
         
-        if not video_id:
-            return None
+        if not video_id or len(video_id) < 10:
+            return f"YouTube Video: {youtube_url}\n\nNote: Unable to extract transcript. Creating content based on video URL. Please provide additional context if needed."
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
-        response = requests.get(
-            f'https://www.youtube.com/watch?v={video_id}',
-            headers=headers,
-            timeout=15
-        )
-        
-        if response.status_code == 200:
-            import re
-            title_match = re.search(r'<title>(.*?)</title>', response.text)
-            title = title_match.group(1).replace(' - YouTube', '') if title_match else 'Untitled'
+        try:
+            response = requests.get(
+                f'https://www.youtube.com/watch?v={video_id}',
+                headers=headers,
+                timeout=10
+            )
             
-            description_match = re.search(r'"description":"(.*?)"', response.text)
-            description = description_match.group(1) if description_match else ''
-            
-            return f"Video Title: {title}\n\nDescription: {description}\n\nNote: Full transcript unavailable. Please use the video title and description for content generation."
+            if response.status_code == 200:
+                import re
+                title_match = re.search(r'"title":"([^"]*)"', response.text)
+                if not title_match:
+                    title_match = re.search(r'<title>(.*?)</title>', response.text)
+                title = title_match.group(1).replace(' - YouTube', '') if title_match else 'Untitled'
+                
+                description_match = re.search(r'"description":"([^"]*)"', response.text)
+                description = description_match.group(1) if description_match else ''
+                
+                if title and title != 'Untitled':
+                    return f"Video Title: {title}\n\nDescription: {description}\n\nNote: Full transcript unavailable. Creating content based on video metadata."
+        except Exception as req_error:
+            print(f"Request error: {req_error}")
         
-        return None
+        return f"YouTube Video: {youtube_url}\n\nNote: Unable to extract transcript. Creating content based on video URL. Please provide additional context if needed."
     except Exception as e:
         print(f"Fallback error: {e}")
-        return None
+        return f"YouTube Video: {youtube_url}\n\nNote: Unable to extract transcript. Creating content based on video URL."
 
 def _extract_subtitle_text(subtitle_list):
     for sub in subtitle_list:
