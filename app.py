@@ -181,6 +181,7 @@ def generate_images_for_blog(blog_title, blog_content):
 def generate_blog_post_text(user_input, model, template=None, tone=None, industry=None):
     try:
         input_type = detect_input_type(user_input)
+        print(f"Input type detected: {input_type}")
         
         if input_type == 'youtube':
             try:
@@ -207,6 +208,8 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
             else:
                 content_context = f"User Request: {user_input}\n\nCreate comprehensive, well-researched content based on this topic or prompt."
         
+        print(f"Content context prepared: {len(content_context)} chars")
+        
         base_prompt = prompts.get_blog_gen_prompt()
         
         if template:
@@ -218,13 +221,17 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         topic_for_optimization = user_input[:100]
         enhanced_prompt = apply_medium_practices_to_prompt(prompt, topic_for_optimization)
         
+        print(f"Calling AI manager with model: {model}")
         response = get_ai_manager().generate_content(enhanced_prompt, content_context, model)
+        print(f"AI response length: {len(response) if response else 0}")
         
         cleaned_content = clean_markdown(response)
         optimized_content = optimize_content_structure(cleaned_content)
+        print(f"Final optimized content length: {len(optimized_content) if optimized_content else 0}")
         
         return optimized_content
     except Exception as e:
+        print(f"Exception in generate_blog_post_text: {str(e)}")
         raise Exception(f"Failed to generate blog post: {str(e)}")
 
 def enhance_blog_post(blog_text):
@@ -334,8 +341,10 @@ def generate_blog():
         input_type = detect_input_type(user_input)
         
         blog_post_text = generate_blog_post_text(user_input, model, template, tone, industry)
+        print(f"Generated blog post length: {len(blog_post_text) if blog_post_text else 0}")
         
         if not blog_post_text or len(blog_post_text.strip()) < 100:
+            print(f"Blog post too short or empty: {blog_post_text[:100] if blog_post_text else 'None'}")
             raise Exception("Failed to generate blog content. AI response was empty or too short.")
         
         if enhance:
