@@ -94,11 +94,13 @@ load_dotenv()
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
-app.config['SESSION_COOKIE_NAME'] = '__Host-session'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_NAME'] = 'session'
+app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 app.config['PREFERRED_URL_SCHEME'] = 'https' if os.environ.get('FLASK_ENV') == 'production' else 'http'
 
 print(f"Flask app name: {app.name}")
@@ -486,7 +488,7 @@ def generate_blog():
         if db:
             print("Supabase manager available, saving blog post...")
             try:
-                db.save_blog_post({
+                result = db.save_blog_post({
                     'title': title,
                     'html_content': blog_post_html,
                     'markdown_content': blog_post_text,
@@ -501,15 +503,18 @@ def generate_blog():
                     'readability_score': seo_analysis.get('readability_score', 0),
                     'seo_recommendations': seo_recommendations
                 })
-                print("Blog post saved to Supabase successfully")
+                if result:
+                    session['db_post_id'] = result.get('id')
+                    print(f"Blog post saved to Supabase successfully with ID: {result.get('id')}")
+                else:
+                    print("Supabase save returned None")
             except Exception as e:
-                print(f"Database save error: {e}")
+                print(f"Supabase save failed (non-critical): {str(e)[:200]}")
         else:
-            print("Supabase manager not available (not configured)")
+            print("Supabase not configured, skipping database save")
         
-        session['current_post_id'] = post_id
         session.permanent = True
-        
+        session['current_post_id'] = post_id
         session['generation_params'] = {
             'user_input': user_input,
             'model': model,
@@ -518,20 +523,14 @@ def generate_blog():
             'industry': industry,
             'enhance': enhance
         }
+        session.modified = True
         
         print(f"Session set with post_id: {post_id}")
-        print(f"Temp file path: {temp_file}")
-        print(f"Temp file exists: {temp_file.exists()}")
+        print(f"Session permanent: {session.permanent}")
+        print(f"Session modified: {session.modified}")
+        print(f"Session data: {dict(session)}")
         
-        db = get_supabase_manager()
         if db:
-            try:
-                saved_post = db.save_blog_post(blog_data)
-                if saved_post:
-                    session['db_post_id'] = saved_post.get('id')
-            except Exception as db_error:
-                print(f"Warning: Failed to save to database: {db_error}")
-            
             try:
                 db.save_generation_log({
                     'user_input': user_input,
@@ -543,13 +542,21 @@ def generate_blog():
                     'success': True,
                     'generation_time': generation_time
                 })
+                print("Generation log saved successfully")
             except Exception as db_error:
-                print(f"Warning: Failed to save generation log: {db_error}")
+                print(f"Generation log save failed (non-critical): {str(db_error)[:200]}")
         
-        return jsonify({
+        response = jsonify({
             'success': True,
-            'redirect': '/blog'
+            'redirect': f'/blog?post_id={post_id}',
+            'post_id': post_id
         })
+        
+        print(f"Response redirect URL: /blog?post_id={post_id}")
+        print(f"Response headers before return: {dict(response.headers)}")
+        print(f"Session cookie should be set in response")
+        
+        return response
         
     except Exception as e:
         import traceback
@@ -583,13 +590,23 @@ def generate_blog():
 
 @app.route('/blog', methods=['GET', 'POST'])
 def blog_post():
-    print(f"Blog post route called! Method: {request.method}")
+    print(f"=" * 80)
+    print(f"BLOG ROUTE CALLED - Method: {request.method}")
+    print(f"=" * 80)
     
     if request.method == 'GET':
-        post_id = session.get('current_post_id')
+        print(f"Request cookies: {dict(request.cookies)}")
+        print(f"Request headers: {dict(request.headers)}")
+        
+        post_id = request.args.get('post_id') or session.get('current_post_id')
         generation_params = session.get('generation_params', {})
-        print(f"Blog GET - post_id from session: {post_id}")
+        
+        print(f"Query param post_id: {request.args.get('post_id')}")
+        print(f"Session post_id: {session.get('current_post_id')}")
+        print(f"Final post_id: {post_id}")
         print(f"Session keys: {list(session.keys())}")
+        print(f"Session permanent: {session.permanent}")
+        print(f"Full session data: {dict(session)}")
         
         if post_id:
             temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
@@ -697,7 +714,7 @@ def blog_post():
             db = get_supabase_manager()
             if db:
                 try:
-                    db.save_blog_post({
+                    result = db.save_blog_post({
                         'title': title,
                         'html_content': blog_post_html,
                         'markdown_content': blog_post_text,
@@ -714,8 +731,10 @@ def blog_post():
                         'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
                         'medium_recommendations': medium_analysis.get('recommendations', [])
                     })
+                    if result:
+                        print(f"Supabase save successful")
                 except Exception as e:
-                    print(f"Database save error: {e}")
+                    print(f"Supabase save failed (non-critical): {str(e)[:200]}")
             
             session['current_post_id'] = post_id
             
