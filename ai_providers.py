@@ -29,6 +29,7 @@ except ImportError:
     GEMINI_AVAILABLE = False
 
 def get_youtube_transcript(youtube_url):
+    print(f"[YouTube] Starting transcript extraction for: {youtube_url}")
     try:
         ydl_opts = {
             'quiet': True,
@@ -43,9 +44,11 @@ def get_youtube_transcript(youtube_url):
             }
         }
         
+        print(f"[YouTube] Attempting yt-dlp extraction...")
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(youtube_url, download=False)
+                print(f"[YouTube] Video info extracted successfully")
                 
                 title = info.get('title', 'Untitled')
                 description = info.get('description', '')
@@ -56,24 +59,33 @@ def get_youtube_transcript(youtube_url):
                 transcript_text = ""
                 
                 if 'en' in subtitles:
+                    print(f"[YouTube] Extracting English subtitles...")
                     transcript_text = _extract_subtitle_text(subtitles['en'])
                 elif 'en' in auto_captions:
+                    print(f"[YouTube] Extracting English auto captions...")
                     transcript_text = _extract_subtitle_text(auto_captions['en'])
                 
+                print(f"[YouTube] Transcript extracted: {len(transcript_text)} chars")
                 video_context = f"Video Title: {title}\n\nDescription: {description}\n\nTranscript:\n{transcript_text}"
                 
                 return video_context
         except Exception as ydl_error:
             error_str = str(ydl_error).lower()
+            print(f"[YouTube] yt-dlp error: {ydl_error}")
             if 'sign in' in error_str or 'bot' in error_str or 'cookie' in error_str or 'authentication' in error_str:
+                print(f"[YouTube] Detected bot/auth error, trying fallback...")
                 fallback = _get_youtube_fallback(youtube_url)
                 if fallback:
+                    print(f"[YouTube] Fallback succeeded: {len(fallback)} chars")
                     return fallback
             raise ydl_error
     except Exception as e:
+        print(f"[YouTube] Primary extraction failed, trying fallback...")
         fallback = _get_youtube_fallback(youtube_url)
         if fallback:
+            print(f"[YouTube] Fallback succeeded: {len(fallback)} chars")
             return fallback
+        print(f"[YouTube] All extraction methods failed")
         raise Exception(f"Failed to extract video content: {str(e)}")
 
 def _get_youtube_fallback(youtube_url):
@@ -222,48 +234,84 @@ class AIProviderManager:
             self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
     
     def generate_content(self, prompt, video_context=None, model=None):
+        print(f"[AI] generate_content called with model: {model}")
+        print(f"[AI] Prompt length: {len(prompt)} chars")
+        print(f"[AI] Context length: {len(video_context) if video_context else 0} chars")
         errors = []
         
         if model and model.startswith('deepseek/'):
+            print(f"[AI] Trying OpenRouter with model: {model}")
             if self.openrouter_api_key:
                 try:
-                    return self._generate_with_openrouter(prompt, video_context, model)
+                    result = self._generate_with_openrouter(prompt, video_context, model)
+                    print(f"[AI] OpenRouter success: {len(result)} chars")
+                    return result
                 except Exception as e:
-                    errors.append(f"OpenRouter: {str(e)}")
+                    error_msg = f"OpenRouter: {str(e)}"
+                    print(f"[AI] {error_msg}")
+                    errors.append(error_msg)
             else:
-                errors.append("OpenRouter: API key not configured")
+                error_msg = "OpenRouter: API key not configured"
+                print(f"[AI] {error_msg}")
+                errors.append(error_msg)
         
         if self.openai_client:
+            print(f"[AI] Trying OpenAI...")
             try:
-                return self._generate_with_openai(prompt, video_context)
+                result = self._generate_with_openai(prompt, video_context)
+                print(f"[AI] OpenAI success: {len(result)} chars")
+                return result
             except Exception as e:
-                errors.append(f"OpenAI: {str(e)}")
+                error_msg = f"OpenAI: {str(e)}"
+                print(f"[AI] {error_msg}")
+                errors.append(error_msg)
         
         if self.gemini_client:
+            print(f"[AI] Trying Gemini...")
             try:
-                return self._generate_with_gemini(prompt, video_context)
+                result = self._generate_with_gemini(prompt, video_context)
+                print(f"[AI] Gemini success: {len(result)} chars")
+                return result
             except Exception as e:
-                errors.append(f"Gemini: {str(e)}")
+                error_msg = f"Gemini: {str(e)}"
+                print(f"[AI] {error_msg}")
+                errors.append(error_msg)
         
         if self.anthropic_client:
+            print(f"[AI] Trying Anthropic...")
             try:
-                return self._generate_with_anthropic(prompt, video_context)
+                result = self._generate_with_anthropic(prompt, video_context)
+                print(f"[AI] Anthropic success: {len(result)} chars")
+                return result
             except Exception as e:
-                errors.append(f"Anthropic: {str(e)}")
+                error_msg = f"Anthropic: {str(e)}"
+                print(f"[AI] {error_msg}")
+                errors.append(error_msg)
         
         if self.openrouter_api_key:
+            print(f"[AI] Trying OpenRouter as fallback...")
             try:
-                return self._generate_with_openrouter(prompt, video_context)
+                result = self._generate_with_openrouter(prompt, video_context)
+                print(f"[AI] OpenRouter success: {len(result)} chars")
+                return result
             except Exception as e:
-                errors.append(f"OpenRouter: {str(e)}")
+                error_msg = f"OpenRouter: {str(e)}"
+                print(f"[AI] {error_msg}")
+                errors.append(error_msg)
         
-        raise Exception(f"All AI providers failed: {'; '.join(errors)}")
+        error_message = f"All AI providers failed: {'; '.join(errors)}"
+        print(f"[AI] {error_message}")
+        raise Exception(error_message)
     
     def _generate_with_openai(self, prompt, video_context):
+        print(f"[OpenAI] Preparing request...")
         if video_context:
             full_prompt = f"{video_context}\n\n{prompt}"
         else:
             full_prompt = prompt
+        
+        print(f"[OpenAI] Full prompt length: {len(full_prompt)} chars")
+        print(f"[OpenAI] Calling API with model: gpt-4o")
         
         response = self.openai_client.chat.completions.create(
             model="gpt-4o",
@@ -275,14 +323,21 @@ class AIProviderManager:
             max_tokens=8192
         )
         
-        return response.choices[0].message.content
+        print(f"[OpenAI] API call successful")
+        result = response.choices[0].message.content
+        print(f"[OpenAI] Response length: {len(result)} chars")
+        return result
     
     def _generate_with_gemini(self, prompt, video_context):
+        print(f"[Gemini] Preparing request...")
         if video_context:
             full_prompt = f"{video_context}\n\n{prompt}"
             contents = [types.Part.from_text(text=full_prompt)]
         else:
             contents = [types.Part.from_text(text=prompt)]
+        
+        print(f"[Gemini] Full prompt length: {len(full_prompt if video_context else prompt)} chars")
+        print(f"[Gemini] Calling API with model: gemini-2.0-flash-exp")
         
         response = self.gemini_client.models.generate_content(
             model='gemini-2.0-flash-exp',
@@ -295,13 +350,20 @@ class AIProviderManager:
             )
         )
         
-        return response.text
+        print(f"[Gemini] API call successful")
+        result = response.text
+        print(f"[Gemini] Response length: {len(result)} chars")
+        return result
     
     def _generate_with_anthropic(self, prompt, video_context):
+        print(f"[Anthropic] Preparing request...")
         if video_context:
             full_prompt = f"{video_context}\n\n{prompt}"
         else:
             full_prompt = prompt
+        
+        print(f"[Anthropic] Full prompt length: {len(full_prompt)} chars")
+        print(f"[Anthropic] Calling API with model: claude-4-sonnet-20250514")
         
         response = self.anthropic_client.messages.create(
             model="claude-4-sonnet-20250514",
@@ -316,11 +378,16 @@ class AIProviderManager:
             ]
         )
         
+        print(f"[Anthropic] API call successful")
+        
         for block in response.content:
             if block.type == "text":
+                print(f"[Anthropic] Response length: {len(block.text)} chars")
                 return block.text
         
-        return response.content[0].text if response.content else ""
+        result = response.content[0].text if response.content else ""
+        print(f"[Anthropic] Response length: {len(result)} chars")
+        return result
     
     def _generate_with_openrouter(self, prompt, video_context, model="deepseek/deepseek-chat-v3.1"):
         if video_context:

@@ -322,18 +322,33 @@ def generate_with_content():
 
 @app.route('/generate', methods=['POST'])
 def generate_blog():
-    print("Generate blog route called!")
+    print("=" * 80)
+    print("GENERATE BLOG ROUTE CALLED")
+    print("=" * 80)
     start_time = time.time()
     
     try:
+        print(f"Request method: {request.method}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"Request content type: {request.content_type}")
+        
         data = request.get_json()
+        print(f"Request JSON data: {data}")
+        
         user_input = data.get('youtube_link', '').strip()
         model = data.get('model', DEFAULT_MODEL)
         enhance = data.get('enhance', False)
         template = data.get('template', None)
         tone = data.get('tone', None)
         industry = data.get('industry', None)
-        print(f"User input: {user_input[:100] if user_input else 'None'}")
+        
+        print(f"Parsed parameters:")
+        print(f"  - user_input: {user_input[:100] if user_input else 'None'}")
+        print(f"  - model: {model}")
+        print(f"  - enhance: {enhance}")
+        print(f"  - template: {template}")
+        print(f"  - tone: {tone}")
+        print(f"  - industry: {industry}")
         
         if not user_input:
             return jsonify({'error': 'Input is required'}), 400
@@ -348,22 +363,35 @@ def generate_blog():
             raise Exception("Failed to generate blog content. AI response was empty or too short.")
         
         if enhance:
+            print("Enhancing blog post...")
             blog_post_text = enhance_blog_post(blog_post_text)
+            print(f"Enhanced blog post length: {len(blog_post_text) if blog_post_text else 0}")
         
+        print("Extracting title from markdown...")
         title = extract_title_from_markdown(blog_post_text)
+        print(f"Extracted title: {title}")
         
+        print("Generating images...")
         try:
             images = generate_images_for_blog(title, blog_post_text)
+            print(f"Images generated: {len([img for img in images if img])} of 2")
         except Exception as img_error:
             print(f"Warning: Image generation failed: {img_error}")
             images = [None, None]
         
+        print("Calculating metadata...")
         reading_time = estimate_reading_time(blog_post_text)
+        print(f"Reading time: {reading_time}")
         key_quotes = extract_key_quotes(blog_post_text)
+        print(f"Key quotes: {len(key_quotes) if key_quotes else 0}")
         engagement_score = calculate_engagement_score(blog_post_text)
+        print(f"Engagement score: {engagement_score}")
         
+        print("Analyzing SEO...")
         seo_analysis = analyze_seo(blog_post_text, title)
+        print(f"SEO analysis: {seo_analysis}")
         seo_recommendations = generate_seo_recommendations(seo_analysis)
+        print(f"SEO recommendations: {len(seo_recommendations) if seo_recommendations else 0}")
         
         blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
         blog_post_html = markdown.markdown(
@@ -385,6 +413,9 @@ def generate_blog():
         )
         
         generation_time = time.time() - start_time
+        print(f"Generation time: {generation_time:.2f}s")
+        
+        print("Converting markdown to HTML...")
         
         blog_data = {
             'title': title,
@@ -402,8 +433,12 @@ def generate_blog():
             'seo_recommendations': seo_recommendations
         }
         
+        print(f"Blog data prepared with {len(blog_data)} fields")
+        
         post_id = str(uuid.uuid4())
         temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
+        print(f"Generated post_id: {post_id}")
+        print(f"Temp file path: {temp_file}")
         
         reading_time_int = 0
         if reading_time:
@@ -412,8 +447,11 @@ def generate_blog():
             else:
                 reading_time_int = int(reading_time)
         
+        print("Analyzing Medium readiness...")
         medium_analysis = analyze_medium_readiness(blog_post_text)
+        print(f"Medium readiness score: {medium_analysis.get('medium_readiness_score', 0)}")
         
+        print("Preparing full blog data for storage...")
         full_blog_data = {
             'title': str(title) if title else '',
             'blog_post_html': str(blog_post_html) if blog_post_html else '',
@@ -432,11 +470,21 @@ def generate_blog():
             'medium_recommendations': medium_analysis.get('recommendations', [])
         }
         
+        print(f"Writing to temp file: {temp_file}")
+        print(f"Temp directory exists: {TEMP_STORAGE_DIR.exists()}")
+        print(f"Temp directory writable: {os.access(TEMP_STORAGE_DIR, os.W_OK)}")
+        
         with open(temp_file, 'w', encoding='utf-8') as f:
             json.dump(full_blog_data, f, ensure_ascii=False)
         
+        print(f"File written successfully")
+        print(f"File exists after write: {temp_file.exists()}")
+        print(f"File size: {temp_file.stat().st_size if temp_file.exists() else 0} bytes")
+        
+        print("Attempting to save to Supabase...")
         db = get_supabase_manager()
         if db:
+            print("Supabase manager available, saving blog post...")
             try:
                 db.save_blog_post({
                     'title': title,
@@ -453,10 +501,14 @@ def generate_blog():
                     'readability_score': seo_analysis.get('readability_score', 0),
                     'seo_recommendations': seo_recommendations
                 })
+                print("Blog post saved to Supabase successfully")
             except Exception as e:
                 print(f"Database save error: {e}")
+        else:
+            print("Supabase manager not available (not configured)")
         
         session['current_post_id'] = post_id
+        session.permanent = True
         
         session['generation_params'] = {
             'user_input': user_input,
@@ -466,6 +518,10 @@ def generate_blog():
             'industry': industry,
             'enhance': enhance
         }
+        
+        print(f"Session set with post_id: {post_id}")
+        print(f"Temp file path: {temp_file}")
+        print(f"Temp file exists: {temp_file.exists()}")
         
         db = get_supabase_manager()
         if db:
@@ -532,13 +588,22 @@ def blog_post():
     if request.method == 'GET':
         post_id = session.get('current_post_id')
         generation_params = session.get('generation_params', {})
+        print(f"Blog GET - post_id from session: {post_id}")
+        print(f"Session keys: {list(session.keys())}")
         
         if post_id:
             temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
+            print(f"Looking for temp file: {temp_file}")
+            print(f"Temp file exists: {temp_file.exists()}")
             if temp_file.exists():
                 with open(temp_file, 'r', encoding='utf-8') as f:
                     blog_data = json.load(f)
+                print(f"Blog data loaded, keys: {list(blog_data.keys())}")
                 return render_template('blog-post.html', **blog_data, generation_params=generation_params)
+            else:
+                print(f"Temp file not found at {temp_file}")
+        else:
+            print(f"No post_id in session")
         
         return redirect(url_for('index'))
     
