@@ -491,13 +491,13 @@
         }
 
         async function copyContent() {
+            const cleanHTML = JSON.parse('{{ blog_post_html|tojson|safe }}');
             const blogContent = document.querySelector('.blog-content');
-            const htmlContent = blogContent.innerHTML;
             const textContent = blogContent.innerText;
             
             try {
                 if (navigator.clipboard && window.ClipboardItem) {
-                    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+                    const htmlBlob = new Blob([cleanHTML], { type: 'text/html' });
                     const textBlob = new Blob([textContent], { type: 'text/plain' });
                     const data = new ClipboardItem({
                         'text/html': htmlBlob,
@@ -506,11 +506,11 @@
                     await navigator.clipboard.write([data]);
                     showNotification('Content copied! Ready to paste in Medium', 'success');
                 } else {
-                    fallbackCopyHTML(htmlContent, textContent);
+                    fallbackCopyHTML(cleanHTML, textContent);
                 }
             } catch (err) {
                 console.error('Copy failed:', err);
-                fallbackCopyHTML(htmlContent, textContent);
+                fallbackCopyHTML(cleanHTML, textContent);
             }
         }
 

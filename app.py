@@ -1,4 +1,5 @@
 import os
+import re
 import base64
 import markdown
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
@@ -396,7 +397,7 @@ def generate_blog():
         print(f"SEO recommendations: {len(seo_recommendations) if seo_recommendations else 0}")
         
         blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
-        blog_post_html = markdown.markdown(
+        blog_post_html_raw = markdown.markdown(
             blog_post_with_mermaid, 
             extensions=[
                 "markdown.extensions.tables",
@@ -413,6 +414,12 @@ def generate_blog():
                 }
             }
         )
+        
+        blog_post_html = re.sub(r' class="[^"]*"', '', blog_post_html_raw)
+        blog_post_html = re.sub(r' id="[^"]*"', '', blog_post_html)
+        blog_post_html = blog_post_html.replace('<div>', '').replace('</div>', '')
+        blog_post_html = re.sub(r'<p>\s*</p>', '', blog_post_html)
+        blog_post_html = blog_post_html.strip()
         
         generation_time = time.time() - start_time
         print(f"Generation time: {generation_time:.2f}s")
@@ -660,7 +667,7 @@ def blog_post():
             seo_recommendations = generate_seo_recommendations(seo_analysis)
             
             blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
-            blog_post_html = markdown.markdown(
+            blog_post_html_raw = markdown.markdown(
                 blog_post_with_mermaid,
                 extensions=[
                     "markdown.extensions.tables",
@@ -677,6 +684,12 @@ def blog_post():
                     }
                 }
             )
+            
+            blog_post_html = re.sub(r' class="[^"]*"', '', blog_post_html_raw)
+            blog_post_html = re.sub(r' id="[^"]*"', '', blog_post_html)
+            blog_post_html = blog_post_html.replace('<div>', '').replace('</div>', '')
+            blog_post_html = re.sub(r'<p>\s*</p>', '', blog_post_html)
+            blog_post_html = blog_post_html.strip()
             
             post_id = str(uuid.uuid4())
             temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
