@@ -6,10 +6,6 @@
     <title>{{ title }} - Medium Post Preview</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
-    </script>
     <style>
         body {
             background: #000000;
@@ -143,42 +139,54 @@
             color: rgba(255, 255, 255, 0.7);
         }
         
-        .blog-content code {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            color: rgba(251, 191, 36, 1);
-        }
-        
         .blog-content pre {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            padding: 1rem;
+            padding: 1.5rem;
             overflow-x: auto;
             margin: 1.5rem 0;
+            position: relative;
         }
         
-        .blog-content pre code,
-        .blog-content .highlight {
+        .blog-content pre code {
             background: transparent;
             padding: 0;
             color: rgba(255, 255, 255, 0.9);
-        }
-        
-        .blog-content .highlight pre {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            display: block;
         }
         
         .blog-content code:not(pre code) {
             background: rgba(255, 255, 255, 0.1);
             padding: 0.2rem 0.4rem;
             border-radius: 4px;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
             font-size: 0.9em;
             color: rgba(251, 191, 36, 1);
+        }
+        
+        .blog-content .highlight {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        .blog-content .highlight pre {
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .blog-content .highlight code {
+            background: transparent;
+            padding: 0;
         }
         
         .blog-content table {
@@ -369,7 +377,7 @@
 
             <div class="space-y-6">
                 
-                <div class="glass rounded-xl p-6 sticky top-24">
+                <div class="glass rounded-xl p-6 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-white mb-4">Post Metrics</h3>
                     <div class="space-y-3">
                         <div class="flex items-center justify-between p-3 glass glass-hover rounded-lg">
@@ -435,6 +443,27 @@
                         {% endif %}
                     </div>
                     
+                    {% if seo_recommendations %}
+                    <div class="mt-6 pt-6 border-t border-white/10">
+                        <h4 class="text-sm font-semibold text-white mb-3 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            SEO Recommendations
+                        </h4>
+                        <ul class="space-y-2 text-xs text-neutral-300">
+                            {% for rec in seo_recommendations %}
+                            <li class="flex items-start space-x-2">
+                                <svg class="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span>{{ rec }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
                     <div class="mt-6 pt-6 border-t border-white/10">
                         <h4 class="text-sm font-semibold text-white mb-3">Actions</h4>
                         <div class="space-y-2">
@@ -459,27 +488,6 @@
                         </div>
                     </div>
                 </div>
-
-                {% if seo_recommendations %}
-                <div class="glass rounded-xl p-6">
-                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                        SEO Recommendations
-                    </h3>
-                    <ul class="space-y-2 text-sm text-neutral-300">
-                        {% for rec in seo_recommendations %}
-                        <li class="flex items-start space-x-2">
-                            <svg class="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            <span>{{ rec }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -491,9 +499,11 @@
         }
 
         async function copyContent() {
-            const cleanHTML = JSON.parse('{{ blog_post_html|tojson|safe }}');
+            const cleanHTML = {{ blog_post_html|tojson }};
             const blogContent = document.querySelector('.blog-content');
             const textContent = blogContent.innerText;
+            
+            console.log('Attempting to copy content...');
             
             try {
                 if (navigator.clipboard && window.ClipboardItem) {
@@ -504,8 +514,10 @@
                         'text/plain': textBlob
                     });
                     await navigator.clipboard.write([data]);
+                    console.log('Copied successfully using Clipboard API');
                     showNotification('Content copied! Ready to paste in Medium', 'success');
                 } else {
+                    console.log('Using fallback copy method');
                     fallbackCopyHTML(cleanHTML, textContent);
                 }
             } catch (err) {

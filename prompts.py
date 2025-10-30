@@ -50,23 +50,24 @@ ENGAGEMENT BOOSTERS (data-backed):
 - Every section must answer "So what?" for the reader
 - Include 2-3 personal mini-stories with NUMBERS
 
-CODE SNIPPETS - MANDATORY FOR CODING/GITHUB CONTENT:
-- If content involves code, programming, or GitHub, you MUST include clean, production-ready code snippets
+CODE SNIPPETS - USE ONLY WHEN ABSOLUTELY NECESSARY:
+- ONLY include code snippets when discussing actual programming code, APIs, or technical implementations
+- DO NOT format regular text, explanations, or examples as code blocks
 - Use proper syntax highlighting: ```python, ```javascript, ```typescript, etc.
 - Code should be real, functional, and well-structured (no placeholder/dummy code)
-- Include intelligent comments only where necessary for clarity
-- Show best practices and industry-standard patterns
-- Break complex code into digestible chunks with explanations between
-- Include error handling and edge cases
-- Add 3-5 code examples throughout the post where relevant
-- Each code snippet should be 10-30 lines (readable and focused)
+- Keep code examples concise (10-30 lines maximum)
+- Add brief explanations OUTSIDE the code block before and after
+- CRITICAL: Write all explanatory text, lists, and regular content as NORMAL MARKDOWN TEXT, not in code blocks
 
-MERMAID DIAGRAMS - MANDATORY FOR TECHNICAL CONTENT:
-- For ANY coding, technical setup, or workflow content, you MUST include beautiful Mermaid diagrams
-- Use proper syntax: ```mermaid
-- Create flowcharts, sequence diagrams, or architecture diagrams
-- Make diagrams visually clear and professionally structured
-- Include multiple diagrams if the content is complex
+VISUAL ELEMENTS - USE TEXT DESCRIPTIONS:
+- DO NOT use Mermaid diagram code blocks
+- Instead, create clear visual descriptions using:
+  * Numbered step-by-step flows
+  * Bullet-point hierarchies
+  * Text-based process descriptions
+  * Clear visual metaphors in plain text
+- Use emojis strategically to create visual flow: ➡️ 🔄 ✅ ❌ 📊 🚀
+- Format complex workflows as numbered lists with clear transitions
 
 RESOURCES & REFERENCES - MANDATORY:
 - At the END of the post, add a "## Resources & References" section

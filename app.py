@@ -396,9 +396,9 @@ def generate_blog():
         seo_recommendations = generate_seo_recommendations(seo_analysis)
         print(f"SEO recommendations: {len(seo_recommendations) if seo_recommendations else 0}")
         
-        blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
-        blog_post_html_raw = markdown.markdown(
-            blog_post_with_mermaid, 
+        print("Converting markdown to HTML...")
+        blog_post_html = markdown.markdown(
+            blog_post_text, 
             extensions=[
                 "markdown.extensions.tables",
                 "markdown.extensions.fenced_code",
@@ -666,9 +666,8 @@ def blog_post():
             seo_analysis = analyze_seo(blog_post_text, title)
             seo_recommendations = generate_seo_recommendations(seo_analysis)
             
-            blog_post_with_mermaid = convert_mermaid_to_html(blog_post_text)
-            blog_post_html_raw = markdown.markdown(
-                blog_post_with_mermaid,
+            blog_post_html = markdown.markdown(
+                blog_post_text,
                 extensions=[
                     "markdown.extensions.tables",
                     "markdown.extensions.fenced_code",
