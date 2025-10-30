@@ -415,10 +415,11 @@ def generate_blog():
             }
         )
         
-        blog_post_html = re.sub(r' class="[^"]*"', '', blog_post_html_raw)
-        blog_post_html = re.sub(r' id="[^"]*"', '', blog_post_html)
-        blog_post_html = blog_post_html.replace('<div>', '').replace('</div>', '')
-        blog_post_html = re.sub(r'<p>\s*</p>', '', blog_post_html)
+        blog_post_html_clean = re.sub(r' class="[^"]*"', '', blog_post_html)
+        blog_post_html_clean = re.sub(r' id="[^"]*"', '', blog_post_html_clean)
+        blog_post_html_clean = blog_post_html_clean.replace('<div>', '').replace('</div>', '')
+        blog_post_html_clean = re.sub(r'<p>\s*</p>', '', blog_post_html_clean)
+        blog_post_html = blog_post_html_clean
         blog_post_html = blog_post_html.strip()
         
         generation_time = time.time() - start_time
@@ -684,10 +685,11 @@ def blog_post():
                 }
             )
             
-            blog_post_html = re.sub(r' class="[^"]*"', '', blog_post_html_raw)
-            blog_post_html = re.sub(r' id="[^"]*"', '', blog_post_html)
-            blog_post_html = blog_post_html.replace('<div>', '').replace('</div>', '')
-            blog_post_html = re.sub(r'<p>\s*</p>', '', blog_post_html)
+            blog_post_html_clean = re.sub(r' class="[^"]*"', '', blog_post_html)
+            blog_post_html_clean = re.sub(r' id="[^"]*"', '', blog_post_html_clean)
+            blog_post_html_clean = blog_post_html_clean.replace('<div>', '').replace('</div>', '')
+            blog_post_html_clean = re.sub(r'<p>\s*</p>', '', blog_post_html_clean)
+            blog_post_html = blog_post_html_clean
             blog_post_html = blog_post_html.strip()
             
             post_id = str(uuid.uuid4())
