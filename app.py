@@ -26,6 +26,8 @@ from history import save_to_history
 from export_handler import export_to_medium, export_to_linkedin, create_twitter_thread, export_to_devto, export_to_hashnode, export_to_ghost, export_to_wordpress, export_to_json, export_to_txt, export_to_notion, export_to_email_html, get_export_formats
 from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status
 from advanced_analytics import analyze_readability, analyze_keywords, analyze_sentence_structure, analyze_tone_sentiment, analyze_engagement_potential, calculate_viral_potential, generate_content_insights, generate_improvement_suggestions
+from file_processor import process_uploaded_file, is_file_supported
+from werkzeug.utils import secure_filename
 from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, get_expand_prompt, get_compress_prompt, get_title_alternatives_prompt, get_meta_description_prompt
 from medium_research_agent import apply_medium_practices_to_prompt, optimize_content_structure, analyze_medium_readiness
 from linkedin_agent import generate_linkedin_post
@@ -36,6 +38,7 @@ from supabase_client import get_supabase_manager
 import time
 import json
 import uuid
+import tempfile
 from pathlib import Path
 from functools import wraps
 from datetime import timedelta
@@ -342,15 +345,46 @@ def generate_blog():
         print(f"Request headers: {dict(request.headers)}")
         print(f"Request content type: {request.content_type}")
         
-        data = request.get_json()
-        print(f"Request JSON data: {data}")
+        user_input = None
+        uploaded_file_content = None
         
-        user_input = data.get('youtube_link', '').strip()
-        model = data.get('model', DEFAULT_MODEL)
-        enhance = data.get('enhance', False)
-        template = data.get('template', None)
-        tone = data.get('tone', None)
-        industry = data.get('industry', None)
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            print("Processing file upload...")
+            if 'file' in request.files:
+                file = request.files['file']
+                if file and file.filename:
+                    filename = secure_filename(file.filename)
+                    print(f"Uploaded file: {filename}")
+                    
+                    temp_path = os.path.join(tempfile.gettempdir(), filename)
+                    file.save(temp_path)
+                    
+                    try:
+                        file_content, file_type = process_uploaded_file(temp_path, filename)
+                        if file_content:
+                            user_input = f"Document content from {filename}:\n\n{file_content}"
+                            print(f"Extracted {len(file_content)} characters from {file_type} file")
+                        else:
+                            return jsonify({'error': f'Could not extract text from {filename}'}), 400
+                    finally:
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
+            
+            model = request.form.get('model', DEFAULT_MODEL)
+            enhance = request.form.get('enhance', 'false').lower() == 'true'
+            template = request.form.get('template', None)
+            tone = request.form.get('tone', None)
+            industry = request.form.get('industry', None)
+        else:
+            data = request.get_json()
+            print(f"Request JSON data: {data}")
+            
+            user_input = data.get('youtube_link', '').strip()
+            model = data.get('model', DEFAULT_MODEL)
+            enhance = data.get('enhance', False)
+            template = data.get('template', None)
+            tone = data.get('tone', None)
+            industry = data.get('industry', None)
         
         print(f"Parsed parameters:")
         print(f"  - user_input: {user_input[:100] if user_input else 'None'}")
@@ -1258,6 +1292,14 @@ def get_templates():
         'tones': list(TONE_PRESETS.keys())
     })
 
+@app.route('/library')
+def library():
+    return render_template('library.html')
+
+@app.route('/batch')
+def batch():
+    return render_template('batch.html')
+
 @app.route('/history')
 def history():
     db = get_supabase_manager()
@@ -1370,19 +1412,17 @@ def api_analytics():
     })
 
 @app.route('/api/search')
-def search_posts():
+def api_search_posts():
     query = request.args.get('q', '')
     if not query:
         return jsonify({'error': 'Query parameter required'}), 400
     
     db = get_supabase_manager()
     if not db:
+        return jsonify({'error': 'Database not configured'}), 503
     
-    print(f"History route: Found {len(posts) if posts else 0} posts")
-    if posts:
-        print(f"First post: {posts[0].get('title', 'No title')}")
-    
-    return render_template('history.html', posts=posts if posts else [])
+    results = db.search_posts(query)
+    return jsonify({'success': True, 'results': results})
 
 @app.route('/api/templates')
 def get_templates():

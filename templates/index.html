@@ -100,6 +100,18 @@
                     <span class="text-lg font-semibold">Zero2Medium</span>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('library') }}" class="feature-pill">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                        Library
+                    </a>
+                    <a href="{{ url_for('batch') }}" class="feature-pill">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        Batch
+                    </a>
                     <a href="{{ url_for('history') }}" class="feature-pill">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
@@ -158,16 +170,36 @@
                             <label for="youtube_link" class="block text-sm font-medium text-neutral-300 mb-3">
                                 Content Source
                             </label>
-                            <textarea 
-                                id="youtube_link" 
-                                name="youtube_link" 
-                                rows="3" 
-                                required
-                                class="w-full px-4 py-4 rounded-xl resize-none"
-                                placeholder="Enter YouTube URL, any web link, or a topic like 'trending AI developments today'..."
-                            ></textarea>
+                            <div class="relative">
+                                <textarea 
+                                    id="youtube_link" 
+                                    name="youtube_link" 
+                                    rows="3" 
+                                    class="w-full px-4 py-4 rounded-xl resize-none"
+                                    placeholder="Enter YouTube URL, any web link, topic, or upload a document..."
+                                ></textarea>
+                                <div class="absolute bottom-3 right-3 flex items-center space-x-2">
+                                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.md,.json,.jpg,.jpeg,.png,.gif,.bmp" onchange="handleFileUpload(event)">
+                                    <button type="button" onclick="document.getElementById('fileInput').click()" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Upload document">
+                                        <svg class="w-5 h-5 text-neutral-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="fileInfo" class="hidden mt-2 text-sm text-green-400 flex items-center space-x-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span id="fileName"></span>
+                                <button type="button" onclick="clearFile()" class="text-red-400 hover:text-red-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
                             <p class="mt-2 text-sm text-neutral-500">
-                                💡 Examples: YouTube videos, articles, or topics like "trending AI news" or "create a post about blockchain"
+                                💡 Enter URL, topic, or upload PDF, DOCX, images, TXT, MD, JSON files
                             </p>
                         </div>
 
@@ -300,7 +332,47 @@
                 <span>Generating... This may take 30-60 seconds</span>
             `;
             
-            const formData = {
+            let formData;
+            const fileInput = document.getElementById('fileInput');
+            
+            if (fileInput.files.length > 0) {
+                formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('template', document.getElementById('template').value);
+                formData.append('tone', document.getElementById('tone').value);
+                formData.append('model', document.getElementById('model').value);
+                formData.append('enhance', document.getElementById('enhance').checked);
+                
+                fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.error || 'Server error occurred');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.redirect) {
+                        window.location.href = data.redirect;
+                    } else if (data.error) {
+                        alert('Error: ' + data.error);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalContent;
+                    }
+                })
+                .catch(error => {
+                    alert(error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalContent;
+                });
+                return;
+            }
+            
+            formData = {
                 youtube_link: document.getElementById('youtube_link').value,
                 template: document.getElementById('template').value,
                 tone: document.getElementById('tone').value,
@@ -342,6 +414,26 @@
                 submitBtn.innerHTML = originalContent;
             });
         });
+        
+        let uploadedFile = null;
+        
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            uploadedFile = file;
+            document.getElementById('fileInfo').classList.remove('hidden');
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('youtube_link').value = '';
+            document.getElementById('youtube_link').placeholder = `File uploaded: ${file.name}`;
+        }
+        
+        function clearFile() {
+            uploadedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').classList.add('hidden');
+            document.getElementById('youtube_link').placeholder = 'Enter YouTube URL, any web link, topic, or upload a document...';
+        }
     </script>
 </body>
 </html>
