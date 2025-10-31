@@ -14,10 +14,9 @@ from util import (
     clean_markdown,
     calculate_engagement_score,
     convert_mermaid_to_html,
-    extract_video_id,
-    analyze_seo,
-    generate_seo_recommendations
+    extract_video_id
 )
+from seo_analyzer import analyze_seo, generate_seo_recommendations
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
