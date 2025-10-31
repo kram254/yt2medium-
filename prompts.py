@@ -50,14 +50,24 @@ ENGAGEMENT BOOSTERS (data-backed):
 - Every section must answer "So what?" for the reader
 - Include 2-3 personal mini-stories with NUMBERS
 
-CODE SNIPPETS - USE ONLY WHEN ABSOLUTELY NECESSARY:
-- ONLY include code snippets when discussing actual programming code, APIs, or technical implementations
-- DO NOT format regular text, explanations, or examples as code blocks
-- Use proper syntax highlighting: ```python, ```javascript, ```typescript, etc.
-- Code should be real, functional, and well-structured (no placeholder/dummy code)
-- Keep code examples concise (10-30 lines maximum)
-- Add brief explanations OUTSIDE the code block before and after
-- CRITICAL: Write all explanatory text, lists, and regular content as NORMAL MARKDOWN TEXT, not in code blocks
+FORMATTING RULES - ABSOLUTELY CRITICAL:
+
+TEXT FORMATTING (99% of your content):
+- Write ALL regular text, paragraphs, and explanations as PLAIN MARKDOWN TEXT
+- DO NOT use backticks (`) or triple backticks (```) for normal text
+- DO NOT put paragraphs, sentences, or explanations in code blocks
+- DO NOT format examples, descriptions, or lists as code
+- Use **bold** for emphasis, *italic* for subtlety
+- Use regular headings: # ## ### 
+- Use regular lists: - or 1. 2. 3.
+- Everything should be readable as normal text
+
+CODE BLOCKS (Only 1% of content - when absolutely required):
+- ONLY use code blocks for actual programming code (JavaScript, Python, etc.)
+- ONLY when showing real, executable code examples
+- NOT for regular text, NOT for explanations, NOT for lists
+- Format: ```language\nactual code here\n```
+- Maximum 1-2 code blocks per post (unless it's a pure coding tutorial)
 
 VISUAL ELEMENTS - USE TEXT DESCRIPTIONS:
 - DO NOT use Mermaid diagram code blocks
@@ -181,11 +191,11 @@ Research and Analysis:
 - Challenge assumptions and present fresh perspectives
 
 Visual Elements to Include:
-- Design conceptual 3D flowcharts to explain complex processes
-- Create workflows that break down step-by-step implementations
-- Use visual metaphors to make abstract concepts tangible
-- Include code snippets with proper syntax highlighting when relevant
-- Add Mermaid diagrams for any technical workflows or architectures
+- Use numbered lists to explain complex processes step-by-step
+- Create text-based workflows with clear transitions (→ ✓ ✗)
+- Use visual metaphors and analogies in plain text
+- Use emojis strategically for visual flow
+- ONLY include code snippets when showing actual programming code
 
 Content Structure - MASTERPIECE LEVEL:
 - Create a detailed outline with 5-7 major sections
@@ -206,24 +216,24 @@ CONTENT STRUCTURE:
 [INTRODUCTION - Establish the problem/opportunity and why it matters to readers personally. Build intrigue.]
 
 ## [First Major Section - Promise or Problem Statement]
-[Develop the first key concept with stories, examples, and insights]
-[Include relevant code snippets or workflows if applicable]
+[Develop the first key concept with stories, examples, and insights using NORMAL TEXT]
+[Use numbered lists or bullet points for clarity]
 
 ## [Second Major Section - The Revelation or Solution]
-[Deliver surprising insights or methods, backed by specifics]
-[Add 3D flowcharts or visual breakdowns where helpful]
+[Deliver surprising insights or methods, backed by specifics in PLAIN TEXT]
+[Use text-based descriptions with emojis for visual flow]
 
 ## [Third Major Section - Deeper Dive or Transformation]
-[Go deeper into implementation or implications]
-[Provide step-by-step workflows and practical examples]
+[Go deeper into implementation or implications using REGULAR PARAGRAPHS]
+[Provide step-by-step explanations as numbered lists]
 
 ## [Fourth Major Section - Advanced Insights or Common Pitfalls]
-[Share nuanced understanding or mistakes to avoid]
-[Include code examples or technical demonstrations when relevant]
+[Share nuanced understanding or mistakes to avoid in NORMAL TEXT]
+[Use bullet points and clear examples]
 
 ## [Fifth Major Section - Implementation or Advanced Techniques]
-[Show practical implementation with real code examples]
-[Demonstrate best practices and production-ready patterns]
+[Explain practical approaches using PLAIN TEXT and clear examples]
+[Only add code blocks if showing actual programming code]
 
 ## [Conclusion Section - The Takeaway]
 [Synthesize insights and provide clear action steps or reflection points]
@@ -252,8 +262,10 @@ FORMAT REQUIREMENTS:
 - Use italics for *emphasis* on critical phrases
 - Use > for powerful quotes or key insights
 - Lists only when presenting 3+ related actionable items
-- Use ```language for code snippets with proper syntax highlighting
-- Use ASCII art or text-based diagrams for flowcharts and workflows
+- Write ALL text as NORMAL PARAGRAPHS - no code blocks for regular text
+- ONLY use ```language blocks for actual programming code
+- Use numbered lists (1. 2. 3.) for step-by-step processes
+- Use bullet points (- or *) for related items
 - Ensure all content is original, informative, and valuable
 - Maintain consistent voice and style throughout
 - Optimize for readability and search engine visibility
@@ -275,9 +287,9 @@ MASTERPIECE CHECKLIST - VERIFY BEFORE SUBMITTING:
 ✓ Includes specific examples, statistics, or case studies
 ✓ Has compelling storytelling elements woven throughout
 ✓ Features 5-7 well-developed sections with smooth transitions
-✓ Contains Mermaid diagrams if technical content
-✓ Includes 3-5 clean, production-ready code snippets if coding content
-✓ Code examples follow best practices and industry standards
+✓ ALL text is written as NORMAL PARAGRAPHS (not code blocks)
+✓ Code blocks ONLY used for actual programming code (if applicable)
+✓ Visual flows explained with numbered lists and emojis
 ✓ Every paragraph adds unique value
 ✓ Conclusion is powerful and actionable
 ✓ Resources & References section is complete and actionable
@@ -288,6 +300,20 @@ MASTERPIECE CHECKLIST - VERIFY BEFORE SUBMITTING:
 Remember: You're creating a MASTERPIECE - content so extraordinarily valuable and engaging that readers can't help but clap, highlight, and share. This should be the best article they've read this month. Make every word count. Create an unforgettable experience, not just an article.
 
 CRITICAL: Ensure minimum 800 words. Count as you write. Add depth, examples, and insights to reach the target.
+
+⚠️ ULTRA-CRITICAL FORMATTING REMINDER ⚠️
+DO NOT wrap regular text in backticks or code blocks!
+❌ WRONG: ```This is a regular sentence```
+✅ RIGHT: This is a regular sentence
+
+❌ WRONG: `regular text` with inline code formatting
+✅ RIGHT: regular text without any special formatting
+
+Code blocks are ONLY for actual code:
+✅ CORRECT: ```python\nprint("Hello")\n```
+❌ WRONG: Using code blocks for explanations, lists, or regular paragraphs
+
+Write everything as NORMAL READABLE TEXT. Make it look like a regular Medium article, not a technical documentation with code everywhere!
 
 Only return the complete blog post in Markdown format. No explanations or meta-commentary.
 """

@@ -61,6 +61,12 @@
         .blog-content {
             color: rgba(255, 255, 255, 0.9);
             line-height: 1.8;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+            font-size: 1.125rem;
+        }
+        
+        .blog-content *:not(pre):not(code) {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
         }
         
         .blog-content h1 {
@@ -70,6 +76,7 @@
             margin-top: 2rem;
             margin-bottom: 1rem;
             line-height: 1.2;
+            font-family: inherit;
         }
         
         .blog-content h2 {
@@ -79,6 +86,7 @@
             margin-top: 2rem;
             margin-bottom: 0.875rem;
             line-height: 1.3;
+            font-family: inherit;
         }
         
         .blog-content h3 {
@@ -100,6 +108,8 @@
         .blog-content p {
             margin-bottom: 1.25rem;
             color: rgba(255, 255, 255, 0.85);
+            font-family: inherit;
+            font-size: inherit;
         }
         
         .blog-content strong {
@@ -129,6 +139,7 @@
         .blog-content li {
             margin-bottom: 0.5rem;
             color: rgba(255, 255, 255, 0.85);
+            font-family: inherit;
         }
         
         .blog-content blockquote {
@@ -499,9 +510,20 @@
         }
 
         async function copyContent() {
-            const cleanHTML = {{ blog_post_html|tojson }};
-            const blogContent = document.querySelector('.blog-content');
-            const textContent = blogContent.innerText;
+            const rawHTML = {{ blog_post_html|tojson }};
+            let cleanHTML = rawHTML;
+            
+            cleanHTML = cleanHTML.replace(/<pre[^>]*>/g, '<p>');
+            cleanHTML = cleanHTML.replace(/<\/pre>/g, '</p>');
+            cleanHTML = cleanHTML.replace(/<code[^>]*>/g, '');
+            cleanHTML = cleanHTML.replace(/<\/code>/g, '');
+            cleanHTML = cleanHTML.replace(/class="[^"]*"/g, '');
+            cleanHTML = cleanHTML.replace(/id="[^"]*"/g, '');
+            cleanHTML = cleanHTML.replace(/style="[^"]*"/g, '');
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = cleanHTML;
+            const textContent = tempDiv.innerText;
             
             console.log('Attempting to copy content...');
             
