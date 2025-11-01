@@ -1,6 +1,5 @@
 import os
 import re
-import base64
 import markdown
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from dotenv import load_dotenv
@@ -13,20 +12,17 @@ from util import (
     validate_youtube_url,
     clean_markdown,
     calculate_engagement_score,
-    convert_mermaid_to_html,
     extract_video_id
 )
 from seo_analyzer import analyze_seo, generate_seo_recommendations
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
 from prompts import get_blog_gen_prompt, get_image_gen_prompt
-from history import save_to_history
 from export_handler import export_to_medium, export_to_linkedin, create_twitter_thread, export_to_devto, export_to_hashnode, export_to_ghost, export_to_wordpress, export_to_json, export_to_txt, export_to_notion, export_to_email_html, get_export_formats
 from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status
 from advanced_analytics import analyze_readability, analyze_keywords, analyze_sentence_structure, analyze_tone_sentiment, analyze_engagement_potential, calculate_viral_potential, generate_content_insights, generate_improvement_suggestions
-from file_processor import process_uploaded_file, is_file_supported
+from file_processor import process_uploaded_file
 from werkzeug.utils import secure_filename
+from content_templates import TEMPLATES, TONE_PRESETS, get_template_prompt
 from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, get_expand_prompt, get_compress_prompt, get_title_alternatives_prompt, get_meta_description_prompt
 from medium_research_agent import apply_medium_practices_to_prompt, optimize_content_structure, analyze_medium_readiness
 from linkedin_agent import generate_linkedin_post
@@ -818,31 +814,12 @@ def health():
     db = get_supabase_manager()
     status = {
         'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
         'database': 'connected' if db else 'not_configured',
-        'features': {
-            'generation': True,
-            'history': db is not None,
-            'analytics': db is not None
-        }
+        'temp_storage': str(TEMP_STORAGE_DIR),
+        'temp_files_count': len(list(TEMP_STORAGE_DIR.glob('*.json')))
     }
     return jsonify(status), 200
-
-@app.route('/test')
-def test():
-    return "Flask is working!"
-
-@app.route('/debug/posts')
-def debug_posts():
-    posts = get_all_temp_posts()
-    temp_files = list(TEMP_STORAGE_DIR.glob('*.json'))
-    return jsonify({
-        'temp_dir': str(TEMP_STORAGE_DIR),
-        'temp_dir_exists': TEMP_STORAGE_DIR.exists(),
-        'json_files_count': len(temp_files),
-        'json_files': [f.name for f in temp_files],
-        'posts_loaded': len(posts),
-        'posts': posts[:3] if posts else []
-    })
 
 @app.route('/auth/medium')
 @require_session
@@ -1423,67 +1400,13 @@ def api_search_posts():
     results = db.search_posts(query)
     return jsonify({'success': True, 'results': results})
 
-@app.route('/api/templates')
-def get_templates():
-    return jsonify({
-        'success': True,
-        'templates': {k: v['name'] for k, v in TEMPLATES.items()},
-        'tones': list(TONE_PRESETS.keys())
-    })
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('index.html'), 404
 
-@app.route('/api/export/<format>', methods=['POST'])
-def export_content(format):
-    try:
-        data = request.get_json()
-        markdown = data.get('markdown', '')
-        title = data.get('title', '')
-        tags = data.get('tags', [])
-        
-        if format == 'medium':
-            exported = export_to_medium(markdown, title)
-        elif format == 'devto':
-            exported = export_to_devto(markdown, title, tags)
-        elif format == 'hashnode':
-            exported = export_to_hashnode(markdown, title, tags)
-        elif format == 'linkedin':
-            exported = export_to_linkedin(markdown, title)
-        elif format == 'substack':
-            exported = export_to_substack(markdown, title)
-        elif format == 'ghost':
-            exported = export_to_ghost(markdown, title, tags)
-        elif format == 'twitter':
-            exported = create_twitter_thread(markdown, title)
-        else:
-            return jsonify({'error': 'Unsupported format'}), 400
-        
-        return jsonify({
-            'success': True,
-            'exported': exported,
-            'format': format
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/github-info', methods=['POST'])
-def github_info():
-    try:
-        data = request.get_json()
-        github_url = data.get('url', '')
-        
-        if not github_url or 'github.com' not in github_url:
-            return jsonify({'error': 'Valid GitHub URL required'}), 400
-        
-        github = get_github_handler()
-        repo_info = github.get_repo_info(github_url)
-        readme = github.get_readme(github_url)
-        
-        return jsonify({
-            'success': True,
-            'repo_info': repo_info,
-            'readme': readme
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     server_port = int(os.environ.get('PORT', '8000'))
