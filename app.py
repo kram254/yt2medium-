@@ -501,12 +501,23 @@ def generate_blog():
         print(f"Medium readiness score: {medium_analysis.get('medium_readiness_score', 0)}")
         
         print("Preparing full blog data for storage...")
+        image_1_data = None
+        image_2_data = None
+        if images[0]:
+            img_str = str(images[0])
+            if len(img_str) < 500000:
+                image_1_data = img_str
+        if images[1]:
+            img_str = str(images[1])
+            if len(img_str) < 500000:
+                image_2_data = img_str
+        
         full_blog_data = {
             'title': str(title) if title else '',
             'blog_post_html': str(blog_post_html) if blog_post_html else '',
             'blog_post_markdown': str(blog_post_text) if blog_post_text else '',
-            'image_data': str(images[0]) if images[0] else None,
-            'image_data_2': str(images[1]) if images[1] else None,
+            'image_data': image_1_data,
+            'image_data_2': image_2_data,
             'reading_time': reading_time,
             'key_quotes': list(key_quotes) if key_quotes else [],
             'engagement_score': int(engagement_score) if engagement_score else 0,
@@ -523,8 +534,15 @@ def generate_blog():
         print(f"Temp directory exists: {TEMP_STORAGE_DIR.exists()}")
         print(f"Temp directory writable: {os.access(TEMP_STORAGE_DIR, os.W_OK)}")
         
-        with open(temp_file, 'w', encoding='utf-8') as f:
-            json.dump(full_blog_data, f, ensure_ascii=False)
+        try:
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
+        except Exception as e:
+            print(f"Error writing temp file: {e}")
+            full_blog_data['image_data'] = None
+            full_blog_data['image_data_2'] = None
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
         
         print(f"File written successfully")
         print(f"File exists after write: {temp_file.exists()}")
@@ -660,10 +678,17 @@ def blog_post():
             print(f"Looking for temp file: {temp_file}")
             print(f"Temp file exists: {temp_file.exists()}")
             if temp_file.exists():
-                with open(temp_file, 'r', encoding='utf-8') as f:
-                    blog_data = json.load(f)
-                print(f"Blog data loaded, keys: {list(blog_data.keys())}")
-                return render_template('blog-post.html', **blog_data, generation_params=generation_params)
+                try:
+                    with open(temp_file, 'r', encoding='utf-8') as f:
+                        blog_data = json.load(f)
+                    print(f"Blog data loaded, keys: {list(blog_data.keys())}")
+                    return render_template('blog-post.html', **blog_data, generation_params=generation_params)
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON: {e}")
+                    return redirect(url_for('index'))
+                except Exception as e:
+                    print(f"Error loading blog data: {e}")
+                    return redirect(url_for('index'))
             else:
                 print(f"Temp file not found at {temp_file}")
         else:
@@ -746,12 +771,23 @@ def blog_post():
             
             medium_analysis = analyze_medium_readiness(blog_post_text)
             
+            image_1_data = None
+            image_2_data = None
+            if images[0]:
+                img_str = str(images[0])
+                if len(img_str) < 500000:
+                    image_1_data = img_str
+            if images[1]:
+                img_str = str(images[1])
+                if len(img_str) < 500000:
+                    image_2_data = img_str
+            
             full_blog_data = {
                 'title': str(title) if title else '',
                 'blog_post_html': str(blog_post_html) if blog_post_html else '',
                 'blog_post_markdown': str(blog_post_text) if blog_post_text else '',
-                'image_data': str(images[0]) if images[0] else None,
-                'image_data_2': str(images[1]) if images[1] else None,
+                'image_data': image_1_data,
+                'image_data_2': image_2_data,
                 'reading_time': reading_time,
                 'key_quotes': list(key_quotes) if key_quotes else [],
                 'engagement_score': int(engagement_score) if engagement_score else 0,
@@ -764,8 +800,15 @@ def blog_post():
                 'medium_recommendations': medium_analysis.get('recommendations', [])
             }
             
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(full_blog_data, f, ensure_ascii=False)
+            try:
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
+            except Exception as e:
+                print(f"Error writing temp file: {e}")
+                full_blog_data['image_data'] = None
+                full_blog_data['image_data_2'] = None
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
             
             db = get_supabase_manager()
             if db:
