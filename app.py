@@ -433,8 +433,12 @@ def generate_blog():
         print(f"SEO recommendations: {len(seo_recommendations) if seo_recommendations else 0}")
         
         print("Converting markdown to HTML...")
+        
+        cleaned_markdown = blog_post_text.replace('```', '')
+        cleaned_markdown = re.sub(r'`([^`]+)`', r'\1', cleaned_markdown)
+        
         blog_post_html = markdown.markdown(
-            blog_post_text, 
+            cleaned_markdown, 
             extensions=[
                 "markdown.extensions.tables",
                 "markdown.extensions.fenced_code",
@@ -451,38 +455,25 @@ def generate_blog():
             }
         )
         
-        blog_post_html_clean = re.sub(r' class="[^"]*"', '', blog_post_html)
-        blog_post_html_clean = re.sub(r' id="[^"]*"', '', blog_post_html_clean)
-        blog_post_html_clean = blog_post_html_clean.replace('<div>', '').replace('</div>', '')
-        blog_post_html_clean = blog_post_html_clean.replace('<div class="codehilite">', '').replace('<div class="highlight">', '')
-        blog_post_html_clean = re.sub(r'<p>\s*</p>', '', blog_post_html_clean)
-        blog_post_html_clean = re.sub(r'<span[^>]*>', '', blog_post_html_clean)
-        blog_post_html_clean = blog_post_html_clean.replace('</span>', '')
-        blog_post_html = blog_post_html_clean
+        print(f"HTML conversion result length: {len(blog_post_html)}")
+        
+        blog_post_html = re.sub(r'<div[^>]*>', '', blog_post_html)
+        blog_post_html = blog_post_html.replace('</div>', '')
+        blog_post_html = re.sub(r'<pre[^>]*>', '', blog_post_html)
+        blog_post_html = blog_post_html.replace('</pre>', '')
+        blog_post_html = re.sub(r'<code[^>]*>', '', blog_post_html)
+        blog_post_html = blog_post_html.replace('</code>', '')
+        blog_post_html = re.sub(r' class="[^"]*"', '', blog_post_html)
+        blog_post_html = re.sub(r' id="[^"]*"', '', blog_post_html)
+        blog_post_html = re.sub(r'<p>\s*</p>', '', blog_post_html)
+        blog_post_html = re.sub(r'<span[^>]*>', '', blog_post_html)
+        blog_post_html = blog_post_html.replace('</span>', '')
         blog_post_html = blog_post_html.strip()
+        
+        print(f"Final HTML length: {len(blog_post_html)}")
         
         generation_time = time.time() - start_time
         print(f"Generation time: {generation_time:.2f}s")
-        
-        print("Converting markdown to HTML...")
-        
-        blog_data = {
-            'title': title,
-            'blog_post_html': blog_post_html,
-            'blog_post_markdown': blog_post_text,
-            'image_data': images[0],
-            'image_data_2': images[1],
-            'reading_time': reading_time,
-            'key_quotes': key_quotes,
-            'engagement_score': engagement_score,
-            'word_count': len(blog_post_text.split()),
-            'seo_score': seo_analysis.get('seo_score', 0),
-            'viral_potential': seo_analysis.get('viral_potential', 0),
-            'readability_score': seo_analysis.get('readability_score', 0),
-            'seo_recommendations': seo_recommendations
-        }
-        
-        print(f"Blog data prepared with {len(blog_data)} fields")
         
         post_id = str(uuid.uuid4())
         temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
@@ -501,16 +492,23 @@ def generate_blog():
         print(f"Medium readiness score: {medium_analysis.get('medium_readiness_score', 0)}")
         
         print("Preparing full blog data for storage...")
+        
         image_1_data = None
         image_2_data = None
         if images[0]:
             img_str = str(images[0])
-            if len(img_str) < 500000:
+            if len(img_str) < 2000000:
                 image_1_data = img_str
+                print(f"Image 1 included: {len(img_str)} chars")
+            else:
+                print(f"Image 1 too large, skipping: {len(img_str)} chars")
         if images[1]:
             img_str = str(images[1])
-            if len(img_str) < 500000:
+            if len(img_str) < 2000000:
                 image_2_data = img_str
+                print(f"Image 2 included: {len(img_str)} chars")
+            else:
+                print(f"Image 2 too large, skipping: {len(img_str)} chars")
         
         full_blog_data = {
             'title': str(title) if title else '',
@@ -534,15 +532,8 @@ def generate_blog():
         print(f"Temp directory exists: {TEMP_STORAGE_DIR.exists()}")
         print(f"Temp directory writable: {os.access(TEMP_STORAGE_DIR, os.W_OK)}")
         
-        try:
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
-        except Exception as e:
-            print(f"Error writing temp file: {e}")
-            full_blog_data['image_data'] = None
-            full_blog_data['image_data_2'] = None
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            json.dump(full_blog_data, f, ensure_ascii=False)
         
         print(f"File written successfully")
         print(f"File exists after write: {temp_file.exists()}")
@@ -731,8 +722,11 @@ def blog_post():
             seo_analysis = analyze_seo(blog_post_text, title)
             seo_recommendations = generate_seo_recommendations(seo_analysis)
             
+            cleaned_markdown = blog_post_text.replace('```', '')
+            cleaned_markdown = re.sub(r'`([^`]+)`', r'\1', cleaned_markdown)
+            
             blog_post_html = markdown.markdown(
-                blog_post_text,
+                cleaned_markdown,
                 extensions=[
                     "markdown.extensions.tables",
                     "markdown.extensions.fenced_code",
@@ -749,14 +743,17 @@ def blog_post():
                 }
             )
             
-            blog_post_html_clean = re.sub(r' class="[^"]*"', '', blog_post_html)
-            blog_post_html_clean = re.sub(r' id="[^"]*"', '', blog_post_html_clean)
-            blog_post_html_clean = blog_post_html_clean.replace('<div>', '').replace('</div>', '')
-            blog_post_html_clean = blog_post_html_clean.replace('<div class="codehilite">', '').replace('<div class="highlight">', '')
-            blog_post_html_clean = re.sub(r'<p>\s*</p>', '', blog_post_html_clean)
-            blog_post_html_clean = re.sub(r'<span[^>]*>', '', blog_post_html_clean)
-            blog_post_html_clean = blog_post_html_clean.replace('</span>', '')
-            blog_post_html = blog_post_html_clean
+            blog_post_html = re.sub(r'<div[^>]*>', '', blog_post_html)
+            blog_post_html = blog_post_html.replace('</div>', '')
+            blog_post_html = re.sub(r'<pre[^>]*>', '', blog_post_html)
+            blog_post_html = blog_post_html.replace('</pre>', '')
+            blog_post_html = re.sub(r'<code[^>]*>', '', blog_post_html)
+            blog_post_html = blog_post_html.replace('</code>', '')
+            blog_post_html = re.sub(r' class="[^"]*"', '', blog_post_html)
+            blog_post_html = re.sub(r' id="[^"]*"', '', blog_post_html)
+            blog_post_html = re.sub(r'<p>\s*</p>', '', blog_post_html)
+            blog_post_html = re.sub(r'<span[^>]*>', '', blog_post_html)
+            blog_post_html = blog_post_html.replace('</span>', '')
             blog_post_html = blog_post_html.strip()
             
             post_id = str(uuid.uuid4())
@@ -775,11 +772,11 @@ def blog_post():
             image_2_data = None
             if images[0]:
                 img_str = str(images[0])
-                if len(img_str) < 500000:
+                if len(img_str) < 2000000:
                     image_1_data = img_str
             if images[1]:
                 img_str = str(images[1])
-                if len(img_str) < 500000:
+                if len(img_str) < 2000000:
                     image_2_data = img_str
             
             full_blog_data = {
@@ -800,15 +797,8 @@ def blog_post():
                 'medium_recommendations': medium_analysis.get('recommendations', [])
             }
             
-            try:
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
-            except Exception as e:
-                print(f"Error writing temp file: {e}")
-                full_blog_data['image_data'] = None
-                full_blog_data['image_data_2'] = None
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    json.dump(full_blog_data, f, ensure_ascii=False, indent=None)
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(full_blog_data, f, ensure_ascii=False)
             
             db = get_supabase_manager()
             if db:

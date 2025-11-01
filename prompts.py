@@ -195,7 +195,7 @@ Visual Elements to Include:
 - Create text-based workflows with clear transitions (→ ✓ ✗)
 - Use visual metaphors and analogies in plain text
 - Use emojis strategically for visual flow
-- ONLY include code snippets when showing actual programming code
+- ONLY use code blocks for actual programming code
 
 Content Structure - MASTERPIECE LEVEL:
 - Create a detailed outline with 5-7 major sections
