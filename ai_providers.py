@@ -423,42 +423,67 @@ class AIProviderManager:
         return result['choices'][0]['message']['content']
     
     def generate_images(self, prompt1, prompt2):
+        print(f"[AI] Starting image generation with {len(prompt1)} and {len(prompt2)} char prompts")
         errors = []
         images = []
         
         if self.openai_client:
+            print("[AI] Trying OpenAI DALL-E...")
             try:
                 img1 = self._generate_image_openai(prompt1)
+                print(f"[AI] OpenAI image 1 generated: {len(str(img1))} chars")
                 images.append(img1)
                 try:
                     img2 = self._generate_image_openai(prompt2)
+                    print(f"[AI] OpenAI image 2 generated: {len(str(img2))} chars")
                     images.append(img2)
-                except:
+                except Exception as e2:
+                    print(f"[AI] OpenAI image 2 failed: {str(e2)}")
                     images.append(None)
+                print(f"[AI] OpenAI returned {len([i for i in images if i])} images")
                 return images
             except Exception as e:
-                errors.append(f"OpenAI DALL-E: {str(e)}")
+                error_msg = f"OpenAI DALL-E: {str(e)}"
+                errors.append(error_msg)
+                print(f"[AI] {error_msg}")
+        else:
+            print("[AI] OpenAI client not available")
         
+        print("[AI] Trying Qwen...")
         try:
             qwen_images = self._generate_images_qwen(prompt1, prompt2)
             if qwen_images and len(qwen_images) >= 2:
+                print(f"[AI] Qwen returned {len([i for i in qwen_images if i])} images")
                 return qwen_images
+            print("[AI] Qwen failed or returned insufficient images")
         except Exception as e:
-            errors.append(f"Qwen: {str(e)}")
+            error_msg = f"Qwen: {str(e)}"
+            errors.append(error_msg)
+            print(f"[AI] {error_msg}")
         
         if self.gemini_client:
+            print("[AI] Trying Gemini Imagen...")
             try:
                 img1 = self._generate_image_gemini(prompt1)
+                print(f"[AI] Gemini image 1 generated: {len(str(img1))} chars")
                 images.append(img1)
                 try:
                     img2 = self._generate_image_gemini(prompt2)
+                    print(f"[AI] Gemini image 2 generated: {len(str(img2))} chars")
                     images.append(img2)
-                except:
+                except Exception as e2:
+                    print(f"[AI] Gemini image 2 failed: {str(e2)}")
                     images.append(None)
+                print(f"[AI] Gemini returned {len([i for i in images if i])} images")
                 return images
             except Exception as e:
-                errors.append(f"Gemini Imagen: {str(e)}")
+                error_msg = f"Gemini Imagen: {str(e)}"
+                errors.append(error_msg)
+                print(f"[AI] {error_msg}")
+        else:
+            print("[AI] Gemini client not available")
         
+        print(f"[AI] All image generation attempts failed. Errors: {errors}")
         return [None, None]
     
     def _generate_image_openai(self, prompt):

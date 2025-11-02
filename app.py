@@ -178,12 +178,22 @@ def index():
 
 def generate_images_for_blog(blog_title, blog_content):
     try:
+        print(f"[IMAGE GEN] Starting image generation for: {blog_title[:50]}")
         prompt1 = prompts.get_image_gen_prompt(blog_title)
+        print(f"[IMAGE GEN] Prompt 1 length: {len(prompt1)} chars")
         prompt2 = prompts.get_content_image_prompt(blog_title, blog_content)
+        print(f"[IMAGE GEN] Prompt 2 length: {len(prompt2)} chars")
         images = get_ai_manager().generate_images(prompt1, prompt2)
+        print(f"[IMAGE GEN] Returned images: {[type(img).__name__ if img else 'None' for img in images]}")
+        if images[0]:
+            print(f"[IMAGE GEN] Image 1 size: {len(str(images[0]))} chars")
+        if images[1]:
+            print(f"[IMAGE GEN] Image 2 size: {len(str(images[1]))} chars")
         return images
     except Exception as e:
-        print(f"Image generation error: {e}")
+        print(f"[IMAGE GEN] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         return [None, None]
 
 def generate_blog_post_text(user_input, model, template=None, tone=None, industry=None):
@@ -414,8 +424,18 @@ def generate_blog():
         try:
             images = generate_images_for_blog(title, blog_post_text)
             print(f"Images generated: {len([img for img in images if img])} of 2")
+            if images[0]:
+                print(f"Image 1 size: {len(images[0])} chars")
+            else:
+                print("Image 1 is None")
+            if images[1]:
+                print(f"Image 2 size: {len(images[1])} chars")
+            else:
+                print("Image 2 is None")
         except Exception as img_error:
             print(f"Warning: Image generation failed: {img_error}")
+            import traceback
+            traceback.print_exc()
             images = [None, None]
         
         print("Calculating metadata...")
@@ -495,20 +515,24 @@ def generate_blog():
         
         image_1_data = None
         image_2_data = None
-        if images[0]:
+        if images and images[0]:
             img_str = str(images[0])
-            if len(img_str) < 2000000:
+            if len(img_str) < 5000000:
                 image_1_data = img_str
-                print(f"Image 1 included: {len(img_str)} chars")
+                print(f"✓ Image 1 included: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
             else:
-                print(f"Image 1 too large, skipping: {len(img_str)} chars")
-        if images[1]:
+                print(f"✗ Image 1 too large, skipping: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
+        else:
+            print("✗ Image 1 not generated")
+        if images and images[1]:
             img_str = str(images[1])
-            if len(img_str) < 2000000:
+            if len(img_str) < 5000000:
                 image_2_data = img_str
-                print(f"Image 2 included: {len(img_str)} chars")
+                print(f"✓ Image 2 included: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
             else:
-                print(f"Image 2 too large, skipping: {len(img_str)} chars")
+                print(f"✗ Image 2 too large, skipping: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
+        else:
+            print("✗ Image 2 not generated")
         
         full_blog_data = {
             'title': str(title) if title else '',
@@ -770,14 +794,24 @@ def blog_post():
             
             image_1_data = None
             image_2_data = None
-            if images[0]:
+            if images and images[0]:
                 img_str = str(images[0])
-                if len(img_str) < 2000000:
+                if len(img_str) < 5000000:
                     image_1_data = img_str
-            if images[1]:
+                    print(f"✓ Image 1 included: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
+                else:
+                    print(f"✗ Image 1 too large: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
+            else:
+                print("✗ Image 1 not generated")
+            if images and images[1]:
                 img_str = str(images[1])
-                if len(img_str) < 2000000:
+                if len(img_str) < 5000000:
                     image_2_data = img_str
+                    print(f"✓ Image 2 included: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
+                else:
+                    print(f"✗ Image 2 too large: {len(img_str)} chars ({len(img_str)/1000000:.2f}MB)")
+            else:
+                print("✗ Image 2 not generated")
             
             full_blog_data = {
                 'title': str(title) if title else '',
