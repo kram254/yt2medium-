@@ -66,7 +66,12 @@ def get_youtube_transcript(youtube_url):
                     transcript_text = _extract_subtitle_text(auto_captions['en'])
                 
                 print(f"[YouTube] Transcript extracted: {len(transcript_text)} chars")
-                video_context = f"Video Title: {title}\n\nDescription: {description}\n\nTranscript:\n{transcript_text}"
+                
+                if transcript_text and len(transcript_text) > 100:
+                    video_context = f"Video Title: {title}\n\nDescription: {description}\n\nTranscript:\n{transcript_text}"
+                else:
+                    print(f"[YouTube] WARNING: No transcript available, using metadata only")
+                    video_context = f"Video Title: {title}\n\nDescription: {description}\n\nCRITICAL INSTRUCTION: The video transcript is unavailable, but you MUST create a comprehensive blog post specifically about the topic indicated by this video title and description. Research and expand on the concepts suggested by the title. Provide deep insights, examples, and practical advice related to this specific topic. DO NOT create generic content - write specifically about what this video title suggests."
                 
                 return video_context
         except Exception as ydl_error:
@@ -121,7 +126,7 @@ def _get_youtube_fallback(youtube_url):
                 description = description_match.group(1) if description_match else ''
                 
                 if title and title != 'Untitled':
-                    return f"Video Title: {title}\n\nDescription: {description}\n\nNote: Full transcript unavailable. Creating content based on video metadata."
+                    return f"Video Title: {title}\n\nDescription: {description}\n\nCRITICAL INSTRUCTION: The video transcript is unavailable, but you MUST create a comprehensive blog post specifically about the topic indicated by this video title and description. Research and expand on the concepts suggested by the title. Provide deep insights, examples, and practical advice related to this specific topic. DO NOT create generic content - write specifically about what this video title suggests."
         except Exception as req_error:
             print(f"Request error: {req_error}")
         

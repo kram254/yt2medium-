@@ -204,9 +204,22 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         if input_type == 'youtube':
             try:
                 content_context = get_youtube_transcript(user_input)
+                print(f"YouTube content extracted: {len(content_context)} chars")
             except Exception as yt_error:
                 print(f"YouTube extraction failed: {yt_error}")
-                content_context = f"YouTube Video: {user_input}\n\nNote: Unable to extract transcript. Creating content based on the video URL. Please provide additional context if needed.\n\nGenerate a comprehensive blog post based on typical content for this type of video."
+                print(f"CRITICAL: Attempting basic metadata extraction...")
+                try:
+                    from ai_providers import _get_youtube_fallback
+                    fallback_content = _get_youtube_fallback(user_input)
+                    if fallback_content and "Video Title:" in fallback_content:
+                        content_context = fallback_content
+                        print(f"Metadata extracted successfully")
+                    else:
+                        content_context = f"YouTube Video URL: {user_input}\n\nIMPORTANT: Create a comprehensive, well-researched blog post about the topic suggested by this YouTube video URL. Research the topic thoroughly and provide valuable, specific insights. DO NOT create generic content."
+                        print(f"Using URL-only fallback")
+                except Exception as fallback_error:
+                    print(f"Fallback also failed: {fallback_error}")
+                    content_context = f"YouTube Video URL: {user_input}\n\nIMPORTANT: Create a comprehensive, well-researched blog post about the topic suggested by this YouTube video URL. Research the topic thoroughly and provide valuable, specific insights. DO NOT create generic content."
         elif input_type == 'github':
             github = get_github_handler()
             readme = github.get_readme(user_input)
