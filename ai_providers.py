@@ -1,11 +1,14 @@
 import os
 import base64
 import re
+import time
+import hashlib
 from dotenv import load_dotenv
 import yt_dlp
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
+from cache_manager import get_cache_manager
 
 load_dotenv()
 
@@ -30,6 +33,15 @@ except ImportError:
 
 def get_youtube_transcript(youtube_url):
     print(f"[YouTube] Starting transcript extraction for: {youtube_url}")
+    
+    video_id = extract_video_id(youtube_url)
+    if video_id:
+        cache = get_cache_manager()
+        cached_transcript = cache.get_youtube_transcript(video_id)
+        if cached_transcript:
+            print(f"[YouTube] Using cached transcript for video {video_id}")
+            return cached_transcript
+    
     try:
         ydl_opts = {
             'quiet': True,
@@ -72,6 +84,11 @@ def get_youtube_transcript(youtube_url):
                 else:
                     print(f"[YouTube] WARNING: No transcript available, using metadata only")
                     video_context = f"Video Title: {title}\n\nDescription: {description}\n\nCRITICAL INSTRUCTION: The video transcript is unavailable, but you MUST create a comprehensive blog post specifically about the topic indicated by this video title and description. Research and expand on the concepts suggested by the title. Provide deep insights, examples, and practical advice related to this specific topic. DO NOT create generic content - write specifically about what this video title suggests."
+                
+                if video_id:
+                    cache = get_cache_manager()
+                    cache.cache_youtube_transcript(video_id, video_context)
+                    print(f"[YouTube] Cached transcript for video {video_id}")
                 
                 return video_context
         except Exception as ydl_error:
@@ -238,6 +255,21 @@ class AIProviderManager:
         if os.getenv('OPENROUTER_API_KEY'):
             self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
     
+    def _retry_with_backoff(self, func, max_retries=3, initial_delay=1):
+        for attempt in range(max_retries):
+            try:
+                return func()
+            except Exception as e:
+                error_str = str(e).lower()
+                if 'rate limit' in error_str or 'too many requests' in error_str or '429' in error_str:
+                    if attempt < max_retries - 1:
+                        delay = initial_delay * (2 ** attempt)
+                        print(f"[AI] Rate limited, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        continue
+                raise e
+        raise Exception("Max retries exceeded")
+    
     def generate_content(self, prompt, video_context=None, model=None):
         print(f"[AI] generate_content called with model: {model}")
         print(f"[AI] Prompt length: {len(prompt)} chars")
@@ -263,7 +295,7 @@ class AIProviderManager:
         if self.openai_client:
             print(f"[AI] Trying OpenAI...")
             try:
-                result = self._generate_with_openai(prompt, video_context)
+                result = self._retry_with_backoff(lambda: self._generate_with_openai(prompt, video_context))
                 print(f"[AI] OpenAI success: {len(result)} chars")
                 return result
             except Exception as e:
@@ -274,7 +306,7 @@ class AIProviderManager:
         if self.gemini_client:
             print(f"[AI] Trying Gemini...")
             try:
-                result = self._generate_with_gemini(prompt, video_context)
+                result = self._retry_with_backoff(lambda: self._generate_with_gemini(prompt, video_context))
                 print(f"[AI] Gemini success: {len(result)} chars")
                 return result
             except Exception as e:
@@ -285,7 +317,7 @@ class AIProviderManager:
         if self.anthropic_client:
             print(f"[AI] Trying Anthropic...")
             try:
-                result = self._generate_with_anthropic(prompt, video_context)
+                result = self._retry_with_backoff(lambda: self._generate_with_anthropic(prompt, video_context))
                 print(f"[AI] Anthropic success: {len(result)} chars")
                 return result
             except Exception as e:

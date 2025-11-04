@@ -87,6 +87,52 @@ def init_db():
         )
     ''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS drafts (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT,
+            source_url TEXT,
+            source_type TEXT,
+            template TEXT,
+            tone TEXT,
+            model TEXT,
+            is_auto_save BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            metadata TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS post_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id TEXT,
+            version_number INTEGER,
+            title TEXT,
+            markdown_content TEXT,
+            html_content TEXT,
+            word_count INTEGER,
+            change_description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS scheduled_posts (
+            id TEXT PRIMARY KEY,
+            post_id TEXT,
+            scheduled_time TIMESTAMP,
+            publish_to TEXT,
+            status TEXT DEFAULT 'scheduled',
+            published_at TIMESTAMP,
+            error_message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts (id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -263,6 +309,194 @@ def update_batch_status(job_id, status, progress=None, result_post_id=None, erro
         WHERE id = ?
     ''', params)
     
+    conn.commit()
+    conn.close()
+
+def save_draft(draft_data):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT OR REPLACE INTO drafts 
+        (id, title, content, source_url, source_type, template, tone, model, is_auto_save, updated_at, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+    ''', (
+        draft_data['id'],
+        draft_data.get('title', 'Untitled Draft'),
+        draft_data.get('content', ''),
+        draft_data.get('source_url', ''),
+        draft_data.get('source_type', ''),
+        draft_data.get('template', ''),
+        draft_data.get('tone', ''),
+        draft_data.get('model', ''),
+        draft_data.get('is_auto_save', 0),
+        json.dumps(draft_data.get('metadata', {}))
+    ))
+    
+    conn.commit()
+    conn.close()
+    return draft_data['id']
+
+def get_draft(draft_id):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM drafts WHERE id = ?', (draft_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return dict(row)
+    return None
+
+def get_all_drafts(limit=50):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM drafts 
+        ORDER BY updated_at DESC 
+        LIMIT ?
+    ''', (limit,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+def delete_draft(draft_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM drafts WHERE id = ?', (draft_id,))
+    conn.commit()
+    conn.close()
+
+def save_post_version(post_id, version_data):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COALESCE(MAX(version_number), 0) FROM post_versions WHERE post_id = ?', (post_id,))
+    max_version = cursor.fetchone()[0]
+    new_version = max_version + 1
+    
+    cursor.execute('''
+        INSERT INTO post_versions 
+        (post_id, version_number, title, markdown_content, html_content, word_count, change_description)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        post_id,
+        new_version,
+        version_data.get('title', ''),
+        version_data.get('markdown_content', ''),
+        version_data.get('html_content', ''),
+        version_data.get('word_count', 0),
+        version_data.get('change_description', '')
+    ))
+    
+    conn.commit()
+    conn.close()
+    return new_version
+
+def get_post_versions(post_id):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM post_versions 
+        WHERE post_id = ? 
+        ORDER BY version_number DESC
+    ''', (post_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+def get_post_version(post_id, version_number):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM post_versions 
+        WHERE post_id = ? AND version_number = ?
+    ''', (post_id, version_number))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return dict(row)
+    return None
+
+def schedule_post(schedule_data):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT OR REPLACE INTO scheduled_posts 
+        (id, post_id, scheduled_time, publish_to, status)
+        VALUES (?, ?, ?, ?, 'scheduled')
+    ''', (
+        schedule_data['id'],
+        schedule_data['post_id'],
+        schedule_data['scheduled_time'],
+        schedule_data.get('publish_to', 'medium')
+    ))
+    
+    conn.commit()
+    conn.close()
+    return schedule_data['id']
+
+def get_scheduled_posts(status='scheduled'):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    if status:
+        cursor.execute('''
+            SELECT * FROM scheduled_posts 
+            WHERE status = ?
+            ORDER BY scheduled_time ASC
+        ''', (status,))
+    else:
+        cursor.execute('''
+            SELECT * FROM scheduled_posts 
+            ORDER BY scheduled_time DESC
+        ''')
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+def update_scheduled_post_status(schedule_id, status, error=None):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    if status == 'published':
+        cursor.execute('''
+            UPDATE scheduled_posts 
+            SET status = ?, published_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (status, schedule_id))
+    else:
+        cursor.execute('''
+            UPDATE scheduled_posts 
+            SET status = ?, error_message = ?
+            WHERE id = ?
+        ''', (status, error, schedule_id))
+    
+    conn.commit()
+    conn.close()
+
+def delete_scheduled_post(schedule_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM scheduled_posts WHERE id = ?', (schedule_id,))
     conn.commit()
     conn.close()
 

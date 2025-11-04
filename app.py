@@ -18,7 +18,10 @@ from seo_analyzer import analyze_seo, generate_seo_recommendations
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
 from prompts import get_blog_gen_prompt, get_image_gen_prompt
 from export_handler import export_to_medium, export_to_linkedin, create_twitter_thread, export_to_devto, export_to_hashnode, export_to_ghost, export_to_wordpress, export_to_json, export_to_txt, export_to_notion, export_to_email_html, get_export_formats
-from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status
+from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status, save_draft, get_draft, get_all_drafts, delete_draft, save_post_version, get_post_versions, get_post_version, schedule_post, get_scheduled_posts, update_scheduled_post_status, delete_scheduled_post
+from cache_manager import get_cache_manager
+from rate_limiter import get_rate_limiter
+from job_queue import get_job_queue
 from advanced_analytics import analyze_readability, analyze_keywords, analyze_sentence_structure, analyze_tone_sentiment, analyze_engagement_potential, calculate_viral_potential, generate_content_insights, generate_improvement_suggestions
 from file_processor import process_uploaded_file
 from werkzeug.utils import secure_filename
@@ -30,6 +33,8 @@ from github_handler import get_github_handler
 from social_auth import get_medium_auth, get_linkedin_auth
 from social_storage import get_social_account_manager
 from supabase_client import get_supabase_manager
+from post_scheduler import get_scheduler
+from progress_tracker import get_progress_tracker
 import time
 import json
 import uuid
@@ -136,14 +141,33 @@ def validate_request_signature(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def rate_limit_check(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user_id = session.get('user_id', 'anonymous')
-        rate_key = f"rate_limit:{user_id}:{request.endpoint}"
-        
-        return f(*args, **kwargs)
-    return decorated_function
+def rate_limit_check(max_requests=10, window=60):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_id = session.get('user_id', request.remote_addr or 'anonymous')
+            endpoint = request.endpoint or 'unknown'
+            
+            rate_limiter = get_rate_limiter()
+            allowed, retry_after, count = rate_limiter.check_rate_limit(
+                user_id, endpoint, max_requests, window
+            )
+            
+            if not allowed:
+                return jsonify({
+                    'error': 'Rate limit exceeded',
+                    'retry_after': retry_after,
+                    'requests': count
+                }), 429
+            
+            response = f(*args, **kwargs)
+            if isinstance(response, tuple):
+                resp, status = response[0], response[1] if len(response) > 1 else 200
+                if isinstance(resp, dict) or hasattr(resp, 'json'):
+                    return response
+            return response
+        return decorated_function
+    return decorator
 
 def get_ai_manager():
     global ai_manager
@@ -260,10 +284,48 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         optimized_content = optimize_content_structure(cleaned_content)
         print(f"Final optimized content length: {len(optimized_content) if optimized_content else 0}")
         
+        if input_type == 'youtube' and content_context and len(content_context) > 100:
+            print("Enhancing blog post with YouTube transcript...")
+            optimized_content = enhance_blog_with_transcript(optimized_content, content_context)
+            print(f"Transcript-enhanced content length: {len(optimized_content) if optimized_content else 0}")
+        
         return optimized_content
     except Exception as e:
         print(f"Exception in generate_blog_post_text: {str(e)}")
         raise Exception(f"Failed to generate blog post: {str(e)}")
+
+def enhance_blog_with_transcript(blog_text, transcript):
+    try:
+        enhancement_prompt = f"""
+You are an expert editor specializing in transforming blog posts using video transcript insights.
+
+Your task: Enhance the wording, depth, and accuracy of this Medium blog post using the YouTube video transcript.
+
+ENHANCEMENT INSTRUCTIONS:
+1. Use specific quotes, examples, and details from the transcript to enrich the content
+2. Replace generic statements with precise information from the video
+3. Add concrete examples and real-world scenarios mentioned in the transcript
+4. Incorporate exact statistics, numbers, and data points from the video
+5. Use the speaker's authentic voice and terminology where appropriate
+6. Expand sections with additional context from the transcript
+7. Ensure all claims are backed by transcript content
+8. Maintain the blog structure while deepening the content
+9. Target 1200-1800 words using transcript details
+10. Keep the writing style natural and engaging
+
+YouTube Transcript:
+{transcript[:8000]}
+
+Blog Post to Enhance:
+{blog_text}
+
+Return the enhanced blog post in Markdown format. No explanations or meta-commentary.
+"""
+        response = get_ai_manager().generate_content(enhancement_prompt)
+        return response if response else blog_text
+    except Exception as e:
+        print(f"Transcript enhancement error: {e}")
+        return blog_text
 
 def enhance_blog_post(blog_text):
     try:
@@ -355,6 +417,7 @@ def generate_with_content():
         return jsonify({'error': 'Generation failed'}), 500
 
 @app.route('/generate', methods=['POST'])
+@rate_limit_check(max_requests=5, window=300)
 def generate_blog():
     print("=" * 80)
     print("GENERATE BLOG ROUTE CALLED")
@@ -1483,6 +1546,166 @@ def api_search_posts():
     results = db.search_posts(query)
     return jsonify({'success': True, 'results': results})
 
+@app.route('/api/drafts', methods=['GET', 'POST'])
+@rate_limit_check(max_requests=20, window=60)
+def api_drafts():
+    if request.method == 'POST':
+        data = request.get_json()
+        draft_id = str(uuid.uuid4())
+        draft_data = {
+            'id': draft_id,
+            'title': data.get('title', 'Untitled Draft'),
+            'content': data.get('content', ''),
+            'source_url': data.get('source_url', ''),
+            'source_type': data.get('source_type', ''),
+            'template': data.get('template', ''),
+            'tone': data.get('tone', ''),
+            'model': data.get('model', ''),
+            'is_auto_save': data.get('is_auto_save', False),
+            'metadata': data.get('metadata', {})
+        }
+        save_draft(draft_data)
+        return jsonify({'success': True, 'draft_id': draft_id})
+    else:
+        drafts = get_all_drafts()
+        return jsonify({'success': True, 'drafts': drafts})
+
+@app.route('/api/drafts/<draft_id>', methods=['GET', 'PUT', 'DELETE'])
+def api_draft_detail(draft_id):
+    if request.method == 'GET':
+        draft = get_draft(draft_id)
+        if draft:
+            return jsonify({'success': True, 'draft': draft})
+        return jsonify({'error': 'Draft not found'}), 404
+    elif request.method == 'PUT':
+        data = request.get_json()
+        draft_data = {
+            'id': draft_id,
+            'title': data.get('title', 'Untitled Draft'),
+            'content': data.get('content', ''),
+            'source_url': data.get('source_url', ''),
+            'source_type': data.get('source_type', ''),
+            'template': data.get('template', ''),
+            'tone': data.get('tone', ''),
+            'model': data.get('model', ''),
+            'is_auto_save': data.get('is_auto_save', False),
+            'metadata': data.get('metadata', {})
+        }
+        save_draft(draft_data)
+        return jsonify({'success': True})
+    else:
+        delete_draft(draft_id)
+        return jsonify({'success': True})
+
+@app.route('/api/posts/<post_id>/versions', methods=['GET', 'POST'])
+def api_post_versions(post_id):
+    if request.method == 'POST':
+        data = request.get_json()
+        version_data = {
+            'title': data.get('title', ''),
+            'markdown_content': data.get('markdown_content', ''),
+            'html_content': data.get('html_content', ''),
+            'word_count': data.get('word_count', 0),
+            'change_description': data.get('change_description', 'Manual save')
+        }
+        version_number = save_post_version(post_id, version_data)
+        return jsonify({'success': True, 'version_number': version_number})
+    else:
+        versions = get_post_versions(post_id)
+        return jsonify({'success': True, 'versions': versions})
+
+@app.route('/api/posts/<post_id>/versions/<int:version_number>')
+def api_get_version(post_id, version_number):
+    version = get_post_version(post_id, version_number)
+    if version:
+        return jsonify({'success': True, 'version': version})
+    return jsonify({'error': 'Version not found'}), 404
+
+@app.route('/api/schedule', methods=['GET', 'POST'])
+@rate_limit_check(max_requests=20, window=60)
+def api_schedule():
+    if request.method == 'POST':
+        data = request.get_json()
+        schedule_id = str(uuid.uuid4())
+        schedule_data = {
+            'id': schedule_id,
+            'post_id': data.get('post_id'),
+            'scheduled_time': data.get('scheduled_time'),
+            'publish_to': data.get('publish_to', 'medium')
+        }
+        schedule_post(schedule_data)
+        return jsonify({'success': True, 'schedule_id': schedule_id})
+    else:
+        status = request.args.get('status', 'scheduled')
+        scheduled = get_scheduled_posts(status)
+        return jsonify({'success': True, 'scheduled_posts': scheduled})
+
+@app.route('/api/schedule/<schedule_id>', methods=['DELETE'])
+def api_cancel_schedule(schedule_id):
+    delete_scheduled_post(schedule_id)
+    return jsonify({'success': True})
+
+@app.route('/api/jobs/<job_id>/status')
+def api_job_status(job_id):
+    queue = get_job_queue()
+    status = queue.get_job_status(job_id)
+    if status:
+        return jsonify({'success': True, 'job': status})
+    return jsonify({'error': 'Job not found'}), 404
+
+@app.route('/api/jobs/<job_id>/cancel', methods=['POST'])
+def api_cancel_job(job_id):
+    queue = get_job_queue()
+    cancelled = queue.cancel_job(job_id)
+    if cancelled:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Job cannot be cancelled'}), 400
+
+@app.route('/api/jobs/stats')
+def api_job_stats():
+    queue = get_job_queue()
+    stats = queue.get_queue_stats()
+    return jsonify({'success': True, 'stats': stats})
+
+@app.route('/api/cache/clear', methods=['POST'])
+@rate_limit_check(max_requests=5, window=300)
+def api_clear_cache():
+    cache = get_cache_manager()
+    cache.clear_all()
+    return jsonify({'success': True, 'message': 'Cache cleared'})
+
+@app.route('/api/progress/<job_id>')
+def api_progress(job_id):
+    tracker = get_progress_tracker()
+    progress = tracker.get_progress(job_id)
+    if progress:
+        return jsonify({'success': True, 'progress': progress})
+    return jsonify({'error': 'Progress not found'}), 404
+
+@app.route('/api/progress/<job_id>/stream')
+def api_progress_stream(job_id):
+    def generate():
+        tracker = get_progress_tracker()
+        max_checks = 300
+        check_count = 0
+        
+        while check_count < max_checks:
+            progress = tracker.get_progress(job_id)
+            if progress:
+                yield f"data: {json.dumps(progress)}\n\n"
+                
+                if progress.get('progress', 0) >= 100:
+                    break
+            else:
+                yield f"data: {json.dumps({'stage': 'waiting', 'progress': 0, 'message': 'Waiting for progress...'})}\n\n"
+            
+            time.sleep(1)
+            check_count += 1
+        
+        yield f"data: {json.dumps({'stage': 'done', 'progress': 100, 'message': 'Complete'})}\n\n"
+    
+    return app.response_class(generate(), mimetype='text/event-stream')
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template('index.html'), 404
@@ -1492,6 +1715,11 @@ def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
+    scheduler = get_scheduler()
+    scheduler.start()
+    
+    queue = get_job_queue()
+    
     server_port = int(os.environ.get('PORT', '8000'))
     debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
     print("=" * 60)
@@ -1501,4 +1729,9 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"Starting Flask app on port {server_port}")
     print("=" * 60)
-    app.run(debug=debug_mode, port=server_port, host='0.0.0.0')
+    
+    try:
+        app.run(debug=debug_mode, port=server_port, host='0.0.0.0')
+    finally:
+        scheduler.stop()
+        queue.shutdown()
