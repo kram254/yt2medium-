@@ -325,7 +325,7 @@ class AIProviderManager:
                 {"role": "user", "content": full_prompt}
             ],
             temperature=0.9,
-            max_tokens=8192
+            max_tokens=16384
         )
         
         print(f"[OpenAI] API call successful")
@@ -351,7 +351,7 @@ class AIProviderManager:
                 temperature=0.9,
                 top_p=0.95,
                 top_k=40,
-                max_output_tokens=8192,
+                max_output_tokens=16384,
             )
         )
         
@@ -372,7 +372,7 @@ class AIProviderManager:
         
         response = self.anthropic_client.messages.create(
             model="claude-4-sonnet-20250514",
-            max_tokens=16000,
+            max_tokens=32000,
             temperature=1.0,
             thinking={
                 "type": "enabled",
@@ -419,7 +419,7 @@ class AIProviderManager:
                     }
                 ],
                 "temperature": 0.9,
-                "max_tokens": 8192
+                "max_tokens": 16384
             }
         )
         

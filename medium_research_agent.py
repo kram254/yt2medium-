@@ -86,6 +86,9 @@ REQUIREMENTS:
 3. Include 3-5 specific numbers/data points
 4. Break into scannable chunks with clear subheadings
 5. End with 3 clear action steps
+6. MINIMUM 1000 words - TARGET 1200-1800 words
+7. Create 6-8 major sections, each 200-350 words minimum
+8. Extract and use ALL details from provided context (YouTube transcript, supporting links)
 
 Make this IRRESISTIBLE to Medium readers with 2000+ clap potential.
 """

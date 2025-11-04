@@ -293,6 +293,9 @@ ENHANCEMENT FOCUS:
 6. Make content concrete, visual, and falsifiable
 7. Use realistic examples (no foo/bar/baz placeholders)
 8. Add code snippets, workflows, or visual explanations where helpful
+9. EXPAND content - do NOT compress or shorten
+10. If the post is under 1000 words, add more examples, case studies, and detailed explanations
+11. Target 1200-1800 words for comprehensive depth
 
 Original post:
 {blog_text}
