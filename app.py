@@ -299,19 +299,23 @@ def enhance_blog_with_transcript(blog_text, transcript):
         enhancement_prompt = f"""
 You are an expert editor specializing in transforming blog posts using video transcript insights.
 
+🚨 CRITICAL: The blog post and transcript MUST be about the SAME topic. Do not change the topic. Stay focused.
+
 Your task: Enhance the wording, depth, and accuracy of this Medium blog post using the YouTube video transcript.
 
 ENHANCEMENT INSTRUCTIONS:
-1. Use specific quotes, examples, and details from the transcript to enrich the content
-2. Replace generic statements with precise information from the video
-3. Add concrete examples and real-world scenarios mentioned in the transcript
-4. Incorporate exact statistics, numbers, and data points from the video
-5. Use the speaker's authentic voice and terminology where appropriate
-6. Expand sections with additional context from the transcript
-7. Ensure all claims are backed by transcript content
-8. Maintain the blog structure while deepening the content
-9. Target 1200-1800 words using transcript details
-10. Keep the writing style natural and engaging
+1. VERIFY the blog post is about the same topic as the transcript - if not, rewrite to match the transcript
+2. Use specific quotes, examples, and details from the transcript to enrich the content
+3. Replace generic statements with precise information from the video
+4. Add concrete examples and real-world scenarios mentioned in the transcript
+5. Incorporate exact statistics, numbers, and data points from the video
+6. Use the speaker's authentic voice and terminology where appropriate
+7. Expand sections with additional context from the transcript
+8. Ensure all claims are backed by transcript content
+9. Maintain the blog structure while deepening the content
+10. Target 1200-1800 words using transcript details
+11. Keep the writing style natural and engaging
+12. DO NOT deviate from the transcript topic - this is mandatory
 
 YouTube Transcript:
 {transcript[:8000]}

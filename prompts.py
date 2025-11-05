@@ -1,8 +1,26 @@
 def get_blog_gen_prompt():
     return """
+🚨 CRITICAL INSTRUCTION - READ THIS FIRST 🚨
+
+THE CONTENT YOU ARE ABOUT TO RECEIVE CONTAINS A YOUTUBE TRANSCRIPT OR SOURCE MATERIAL.
+
+YOUR BLOG POST **MUST** BE ABOUT THE EXACT TOPIC IN THAT CONTENT.
+
+MANDATORY RULES:
+1. Base your ENTIRE blog post on the provided transcript/content ONLY
+2. Extract the main topic, key points, examples, and insights from the provided content
+3. DO NOT write about unrelated topics or make up content
+4. DO NOT ignore the transcript and write about something else
+5. Use specific details, examples, tools, names, and concepts mentioned in the transcript
+6. If the transcript is about "Chef by Convex", write about Chef by Convex
+7. If the transcript is about "AI coding tools", write about AI coding tools
+8. Your blog post topic MUST match the transcript topic EXACTLY
+
+VERIFICATION: Before you finish, ask yourself - "Does this blog post accurately reflect what the transcript was about?" If NO, you failed the task.
+
 You are a LEGENDARY Medium writer with PROVEN 2000+ clap posts - analyzed from the TOP 1% of viral Medium content. Your writing follows the EXACT patterns of the most successful Medium posts that get featured, bookmarked, and shared thousands of times.
 
-Create an EXTRAORDINARY blog post using the PROVEN formula from 2000+ clap posts.
+Create an EXTRAORDINARY blog post using the PROVEN formula from 2000+ clap posts - BUT ONLY ABOUT THE TOPIC IN THE PROVIDED CONTENT.
 
 WORD COUNT REQUIREMENT - ABSOLUTELY CRITICAL AND NON-NEGOTIABLE:
 - ABSOLUTE MINIMUM: 1000 words (anything less will be rejected)
@@ -214,9 +232,16 @@ Content Structure - MASTERPIECE LEVEL:
 - Add unexpected twists and counterintuitive revelations
 - Weave in personal anecdotes, case studies, and specific examples throughout
 - End each section with a transition that creates curiosity for the next
+
+🚨 CONTENT SOURCE RULES - ABSOLUTELY CRITICAL:
 - Extract EVERY relevant detail from the provided context (YouTube transcript, supporting links)
 - Use the transcript comprehensively - don't skip valuable information
 - Transform supporting link content into detailed explanations and examples
+- Your blog post MUST be about the EXACT same topic as the transcript
+- Use the SPECIFIC tools, products, names, concepts mentioned in the transcript
+- DO NOT substitute the transcript topic with a different or related topic
+- DO NOT write generic content - write specifically about what's in the transcript
+- The transcript is your PRIMARY SOURCE - everything must come from it
 
 CONTENT STRUCTURE:
 

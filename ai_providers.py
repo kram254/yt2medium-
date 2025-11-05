@@ -343,7 +343,17 @@ class AIProviderManager:
     def _generate_with_openai(self, prompt, video_context):
         print(f"[OpenAI] Preparing request...")
         if video_context:
-            full_prompt = f"{video_context}\n\n{prompt}"
+            full_prompt = f"""{'='*80}
+SOURCE CONTENT - THIS IS WHAT YOUR BLOG POST MUST BE ABOUT:
+{'='*80}
+
+{video_context}
+
+{'='*80}
+WRITING INSTRUCTIONS (Apply these to the content above):
+{'='*80}
+
+{prompt}"""
         else:
             full_prompt = prompt
         
@@ -368,7 +378,17 @@ class AIProviderManager:
     def _generate_with_gemini(self, prompt, video_context):
         print(f"[Gemini] Preparing request...")
         if video_context:
-            full_prompt = f"{video_context}\n\n{prompt}"
+            full_prompt = f"""{'='*80}
+SOURCE CONTENT - THIS IS WHAT YOUR BLOG POST MUST BE ABOUT:
+{'='*80}
+
+{video_context}
+
+{'='*80}
+WRITING INSTRUCTIONS (Apply these to the content above):
+{'='*80}
+
+{prompt}"""
             contents = [types.Part.from_text(text=full_prompt)]
         else:
             contents = [types.Part.from_text(text=prompt)]
@@ -395,7 +415,17 @@ class AIProviderManager:
     def _generate_with_anthropic(self, prompt, video_context):
         print(f"[Anthropic] Preparing request...")
         if video_context:
-            full_prompt = f"{video_context}\n\n{prompt}"
+            full_prompt = f"""{'='*80}
+SOURCE CONTENT - THIS IS WHAT YOUR BLOG POST MUST BE ABOUT:
+{'='*80}
+
+{video_context}
+
+{'='*80}
+WRITING INSTRUCTIONS (Apply these to the content above):
+{'='*80}
+
+{prompt}"""
         else:
             full_prompt = prompt
         
@@ -428,7 +458,17 @@ class AIProviderManager:
     
     def _generate_with_openrouter(self, prompt, video_context, model="deepseek/deepseek-chat-v3.1"):
         if video_context:
-            full_prompt = f"{video_context}\n\n{prompt}"
+            full_prompt = f"""{'='*80}
+SOURCE CONTENT - THIS IS WHAT YOUR BLOG POST MUST BE ABOUT:
+{'='*80}
+
+{video_context}
+
+{'='*80}
+WRITING INSTRUCTIONS (Apply these to the content above):
+{'='*80}
+
+{prompt}"""
         else:
             full_prompt = prompt
         

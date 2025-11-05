@@ -89,6 +89,7 @@ REQUIREMENTS:
 6. MINIMUM 1000 words - TARGET 1200-1800 words
 7. Create 6-8 major sections, each 200-350 words minimum
 8. Extract and use ALL details from provided context (YouTube transcript, supporting links)
+9. Write ONLY about the topic in the provided content - DO NOT substitute with a different topic
 
 Make this IRRESISTIBLE to Medium readers with 2000+ clap potential.
 """
