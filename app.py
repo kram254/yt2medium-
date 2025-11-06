@@ -265,6 +265,16 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         
         print(f"Content context prepared: {len(content_context)} chars")
         
+        max_content_chars = 80000
+        if len(content_context) > max_content_chars:
+            first_part_size = int(max_content_chars * 0.6)
+            last_part_size = int(max_content_chars * 0.3)
+            first_part = content_context[:first_part_size]
+            last_part = content_context[-last_part_size:]
+            truncation_notice = f"\n\n[Content truncated: Original {len(content_context)} chars, showing {first_part_size + last_part_size} chars]\n\n"
+            content_context = first_part + truncation_notice + last_part
+            print(f"Content truncated to: {len(content_context)} chars")
+        
         base_prompt = prompts.get_blog_gen_prompt()
         
         if template:
@@ -1331,6 +1341,34 @@ def compress_section():
             'compressed': compressed
         })
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generate-storyboard', methods=['POST'])
+def generate_storyboard():
+    try:
+        data = request.get_json()
+        title = data.get('title', '')
+        content = data.get('content', '')
+        
+        if not title or not content:
+            return jsonify({'error': 'Title and content required'}), 400
+        
+        from prompts import get_storyboard_diagram_prompt
+        
+        prompt = get_storyboard_diagram_prompt(title, content[:1000])
+        print(f"[STORYBOARD] Generating diagram for: {title[:50]}")
+        
+        storyboard_image = get_ai_manager().generate_images(prompt, None)
+        
+        if storyboard_image and storyboard_image[0]:
+            return jsonify({
+                'success': True,
+                'image': storyboard_image[0]
+            })
+        else:
+            return jsonify({'error': 'Failed to generate storyboard'}), 500
+    except Exception as e:
+        print(f"[STORYBOARD] Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/generate-linkedin', methods=['POST'])

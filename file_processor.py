@@ -87,6 +87,20 @@ def extract_text_from_markdown(file_path):
         print(f"Error reading Markdown: {e}")
         return None
 
+def truncate_large_content(text_content, max_chars=80000):
+    if not text_content or len(text_content) <= max_chars:
+        return text_content
+    
+    first_part_size = int(max_chars * 0.6)
+    last_part_size = int(max_chars * 0.3)
+    
+    first_part = text_content[:first_part_size]
+    last_part = text_content[-last_part_size:]
+    
+    truncation_notice = f"\n\n[... Content truncated due to length. Original: {len(text_content)} chars, Showing: {first_part_size + last_part_size} chars ...]\n\n"
+    
+    return first_part + truncation_notice + last_part
+
 def process_uploaded_file(file_path, filename):
     mime_type, _ = mimetypes.guess_type(filename)
     extension = Path(filename).suffix.lower()
@@ -121,6 +135,8 @@ def process_uploaded_file(file_path, filename):
                 file_type = "raw_text"
             except:
                 return None, file_type
+    
+    text_content = truncate_large_content(text_content)
     
     return text_content, file_type
 

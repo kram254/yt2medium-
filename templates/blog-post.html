@@ -496,6 +496,12 @@
                                 </svg>
                                 <span>Generate LinkedIn Post</span>
                             </button>
+                            <button onclick="generateStoryboard()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 glass glass-hover rounded-lg transition-all hover:bg-purple-600/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path>
+                                </svg>
+                                <span>Generate Storyboard</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -628,6 +634,72 @@
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) modal.remove();
             });
+        }
+
+        async function generateStoryboard() {
+            const title = JSON.parse('{{ title|tojson|safe }}');
+            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+            
+            showNotification('Generating contextual storyboard diagram...', 'info');
+            
+            try {
+                const response = await fetch('/api/generate-storyboard', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: content
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.image) {
+                    showStoryboardModal(data.image);
+                } else {
+                    showNotification('Failed to generate storyboard: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error generating storyboard diagram', 'error');
+            }
+        }
+
+        function showStoryboardModal(imageData) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="glass rounded-xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <h3 class="text-2xl font-bold text-white mb-4">Contextual Storyboard Diagram</h3>
+                    <div class="bg-black/30 rounded-lg p-4 mb-6">
+                        <img src="${imageData}" alt="Storyboard Diagram" class="w-full rounded-lg"/>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="downloadStoryboard('${imageData}')" class="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all">
+                            Download Image
+                        </button>
+                        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-3 glass glass-hover text-white rounded-lg transition-all">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        function downloadStoryboard(imageData) {
+            const link = document.createElement('a');
+            link.href = imageData;
+            link.download = 'storyboard-diagram.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showNotification('Storyboard diagram downloaded!', 'success');
         }
 
         function copyLinkedInPost(post) {

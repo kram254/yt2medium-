@@ -105,10 +105,13 @@ VISUAL ELEMENTS - USE TEXT DESCRIPTIONS:
 
 RESOURCES & REFERENCES - MANDATORY:
 - At the END of the post, add a "## Resources & References" section
-- List all relevant documentation, official sites, GitHub repos, and tools mentioned
-- Format as clean bulleted list with descriptions
-- Include: Official docs, GitHub repos, helpful tools, related articles
-- Make it actionable - readers should be able to click and explore
+- ONLY include links that were EXPLICITLY mentioned in the source content (transcript/article)
+- DO NOT make up links, placeholder URLs, or example links
+- DO NOT include generic links like example.com, github.com/example, sample-site.com
+- ONLY add this section if there are REAL, VERIFIABLE links from the source
+- If NO real links exist in the source, write: "This article is based on general knowledge and industry practices."
+- Format real links as: [Tool/Resource Name](actual-url) - Brief description
+- Verify each link is actually mentioned or referenced in the source content
 
 HUMAN WRITING STYLE - MANDATORY RULES:
 
@@ -275,11 +278,18 @@ CONTENT STRUCTURE:
 [Synthesize insights and provide clear action steps or reflection points]
 
 ## Resources & References
-[MANDATORY: List all documentation, GitHub repos, tools, and helpful resources]
-- Official Documentation: [Link with description]
-- GitHub Repository: [Link with description]
-- Related Tools: [Links with descriptions]
-- Further Reading: [Links with descriptions]
+[ONLY include REAL links explicitly mentioned in the source content]
+[DO NOT create placeholder links like example.com or github.com/example]
+[If no real links exist in source, state: "This article is based on general knowledge and industry practices."]
+
+Example of CORRECT format (only if link exists in source):
+- [Official Documentation](real-url-from-source) - Description
+- [GitHub Repository](real-github-url-from-source) - Description
+
+Example of WRONG format (NEVER do this):
+❌ https://example.com
+❌ https://github.com/example/project
+❌ https://sample-docs.com
 
 WRITING GUIDELINES:
 - Write at an 8th-grade reading level for accessibility
@@ -329,7 +339,7 @@ MASTERPIECE CHECKLIST - VERIFY BEFORE SUBMITTING:
 ✓ Visual flows explained with numbered lists and emojis
 ✓ Every paragraph adds unique value
 ✓ Conclusion is powerful and actionable
-✓ Resources & References section is complete and actionable
+✓ Resources & References section only includes REAL links from source (no fake URLs)
 ✓ Title is irresistible and click-worthy
 ✓ Writing feels human, not AI-generated
 ✓ Content is so good readers will want to share it
@@ -365,54 +375,43 @@ Only return the complete blog post in Markdown format. No explanations or meta-c
 
 def get_image_gen_prompt(blog_title):
     return f"""
-Create an absolutely stunning, futuristic 3D blog header image for a Medium article titled "{blog_title}".
+Create a professional, illustrative featured image for a Medium article titled "{blog_title}".
 
-VISUAL STYLE - CRITICAL:
-- Glassy, translucent 3D elements with depth and layers
-- Futuristic holographic UI elements and interfaces
-- Smooth gradients: cyan, electric blue, purple, pink, orange accents
-- Glossy reflective surfaces with rim lighting
-- Atmospheric perspective with depth of field
-- Floating geometric shapes and particles
-- Neon glows and light trails
-- Dark space/tech background (deep blues, blacks)
-- Volumetric lighting and god rays
-- Glass morphism aesthetic
+CRITICAL: The image MUST visually represent the core concept or topic of the article. This is NOT a generic tech image.
 
-3D COMPOSITION:
-- Isometric or cinematic perspective
-- Multiple layers of depth
-- Glowing wireframe grids or technical diagrams
-- Floating holographic displays
-- Sleek robotic or human silhouettes
-- Abstract data visualization elements
-- Interconnected nodes and networks
-- Crystalline or fluid 3D forms
+CONTENT-FIRST APPROACH:
+- Analyze the title to identify the main subject/topic
+- Create visual metaphors or representations of that specific topic
+- If it's about a tool/product, show that tool in context
+- If it's about a concept, create a clear visual analogy
+- If it's about a process, illustrate the key steps or workflow
+- Make the image IMMEDIATELY recognizable as being about THIS specific topic
 
-COLOR PALETTE:
-- Primary: Cyan (#00D4FF), Electric Blue (#0066FF)
-- Secondary: Purple (#9D4EDD), Magenta (#FF006E)
-- Accents: Orange (#FF6B35), Teal (#06FFA5)
-- Background: Deep space blue (#0A0E27), Pure black
-- Highlights: White glows, light blue (#B8F3FF)
+STYLE GUIDELINES:
+- Modern, clean, professional aesthetic
+- Appropriate for Medium's editorial style
+- Clear focal point that represents the main topic
+- Balanced composition with visual hierarchy
+- Use relevant colors that match the topic's industry/field
+- Professional photography style or clean illustration style
+- Not overly abstract - should be immediately understandable
 
-LIGHTING:
-- Rim lighting on all 3D objects
-- Neon edge glows
-- Soft ambient occlusion
-- Volumetric fog/atmosphere
-- Point lights with colored gels
-- Bloom and lens flares
+TECHNICAL REQUIREMENTS:
+- NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY in the image
+- High quality, sharp, professional
+- Wide banner ratio (16:9) suitable for blog headers
+- Well-lit with natural or professional lighting
+- Clean background that doesn't distract from the subject
+- Photorealistic or high-quality illustration style
 
-TECHNICAL:
-- NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY
-- Ultra high quality 3D rendering
-- Photorealistic materials
-- Wide banner ratio (16:9)
-- Cinema 4D / Blender quality
-- Sharp focus on foreground, subtle blur on background
+EXAMPLES OF GOOD ILLUSTRATIVE IMAGES:
+- AI article: Show AI/robots/neural networks in action
+- Coding article: Show code editor, terminal, or developer workspace
+- Business article: Show office environment, meetings, or business concepts
+- Tools article: Show the specific tool being used in context
+- Process article: Show the steps or stages visually
 
-Create a visually stunning masterpiece that looks like it was rendered in Cinema 4D or Blender with professional lighting and materials.
+The image should make viewers say "I can immediately tell what this article is about."
 """
 
 def get_title_enhancement_prompt(original_title):
@@ -463,61 +462,105 @@ CONCLUSION: [specific suggestion]
 
 def get_content_image_prompt(blog_title, blog_content_excerpt):
     return f"""
-Create a breathtaking 3D workflow diagram or futuristic visualization for "{blog_title}".
+Create a professional, illustrative supporting image for the article "{blog_title}".
 
-Content: {blog_content_excerpt[:500]}
+Article Content Context: {blog_content_excerpt[:500]}
 
-STYLE - 3D GLASSY FUTURISTIC:
-- Glassy translucent 3D blocks/cards floating in space
-- Holographic interface panels with technical readouts
-- Interconnected nodes with glowing connection lines
-- Smooth gradients: cyan, blue, purple, pink, orange
-- Glossy surfaces with rim lighting and reflections
-- Dark atmospheric background (deep blue/black space)
-- Neon accent colors and glowing edges
-- Glass morphism with frosted glass effects
+CRITICAL: This image must ILLUSTRATE a key concept, process, or element from the article content. Make it content-specific and meaningful.
 
-3D WORKFLOW DIAGRAM ELEMENTS:
-- Floating 3D boxes/cubes representing steps or components
-- Curved glowing lines connecting elements
-- Arrows or flow indicators with particle effects
-- Holographic labels or icons (no readable text)
-- Layered depth with atmospheric perspective
-- Geometric wireframe grids
-- Isometric or 3/4 perspective view
-- Human silhouettes interacting with UI (optional)
+CONTENT-BASED IMAGE REQUIREMENTS:
+- Analyze the content excerpt to identify the main concept or process
+- Create a visual representation of that specific concept
+- If showing a workflow, make it clear and easy to follow
+- If showing a tool/technology, depict it in realistic use
+- If showing a comparison, make the contrast visually clear
+- Make the image educational and informative, not just decorative
 
-IF TECHNICAL CONTENT:
-- Code-inspired visual patterns
-- Matrix-style data streams
-- Terminal/console aesthetic elements
-- API/network connection visualizations
-- Database or server representations as glowing nodes
-- 3D flowchart with decision branches
+STYLE GUIDELINES:
+- Professional illustration or photography style
+- Clean, uncluttered composition
+- Clear visual hierarchy and flow
+- Use colors that enhance understanding, not distract
+- Modern but accessible aesthetic
+- Medium editorial quality
+
+GOOD EXAMPLES BASED ON CONTENT TYPE:
+- Workflow/Process: Clear step-by-step visual progression
+- Tool/Software: The tool in action with context
+- Concept Explanation: Visual metaphor or diagram that clarifies
+- Comparison: Side-by-side or before/after visualization
+- Architecture: System diagram or component relationships
+- Tutorial: Key step or result being demonstrated
+
+TECHNICAL REQUIREMENTS:
+- NO TEXT, NO WORDS, NO LETTERS, NO TYPOGRAPHY in the image
+- High quality and professional
+- Landscape or square format
+- Well-composed and balanced
+- Professional lighting
+- Clear focal point
+
+The image should ADD VALUE to the article by helping readers better understand a key concept or process discussed in the content.
+"""
+
+def get_storyboard_diagram_prompt(blog_title, blog_content_excerpt):
+    return f"""
+Create a detailed information storyboard/system architecture diagram for the article "{blog_title}".
+
+Content Context: {blog_content_excerpt[:800]}
+
+CRITICAL: This must be a CONTEXTUAL diagram that visualizes the architecture, workflow, or system described in the article.
+
+DIAGRAM REQUIREMENTS:
+- Create a technical architecture diagram or workflow visualization
+- Show key components, modules, or steps mentioned in the content
+- Illustrate how different parts connect and interact
+- Include data flows, process flows, or system relationships
+- Make it educational and informative about the specific topic
+- Use visual hierarchy to show importance and relationships
+
+STYLE - PROFESSIONAL TECHNICAL DIAGRAM:
+- Clean, technical illustration style
+- Multiple distinct sections/components with boxes or modules
+- Clear arrows showing flow, connections, or relationships
+- Color-coded sections for different categories or types
+- Icons or symbols representing different components
+- Organized layout with logical grouping
+- Professional infographic aesthetic
+- Similar to system architecture diagrams, flowcharts, or technical blueprints
+
+VISUAL ELEMENTS TO INCLUDE:
+- Component boxes/modules with visual distinction
+- Directional arrows showing flow or relationships
+- Different colored sections for different subsystems
+- Icons representing tools, processes, or data
+- Grouped elements showing hierarchy or categories
+- Clear visual separation between different parts
+- Process pipelines or data flows if applicable
 
 COLOR SCHEME:
-- Primary: Electric blue (#0066FF), Cyan (#00D4FF)
-- Secondary: Purple (#9D4EDD), Magenta (#FF006E)
-- Accents: Orange (#FF6B35), Mint (#06FFA5)
-- Glow: White, light cyan highlights
-- Background: Space blue (#0A0E27), black gradient
+- Use distinct colors for different component types
+- Pastel backgrounds for section grouping
+- Bold colors for important components
+- Professional color palette (blues, greens, oranges, purples)
+- High contrast for readability
+- Consistent color coding throughout
 
-LIGHTING & EFFECTS:
-- Volumetric lighting rays
-- Rim lighting on all 3D objects
-- Soft glow/bloom effects
-- Depth of field blur
-- Atmospheric haze
-- Light particles floating
-- Neon edge highlights
+CONTENT TYPES TO VISUALIZE:
+- System Architecture: Show components, services, data flow
+- Workflow Process: Show steps, stages, decision points
+- Training Pipeline: Show data flow, model training, evaluation
+- Tool Ecosystem: Show tools, integrations, connections
+- Agent Framework: Show agents, communication, coordination
+- Data Pipeline: Show ingestion, processing, storage, retrieval
 
-TECHNICAL:
-- NO READABLE TEXT OR TYPOGRAPHY
-- Cinema 4D / Blender rendering quality
-- Photorealistic 3D materials
-- Landscape format
-- Ultra high quality
-- Professional post-production effects
+TECHNICAL REQUIREMENTS:
+- Landscape format (16:9 or similar)
+- High quality, professional appearance
+- Clear labels and text for components
+- Visual clarity with good spacing
+- Professional technical documentation style
+- Readable even when scaled down
 
-Create a stunning 3D visualization that looks like a professional tech company's marketing material - clean, futuristic, and absolutely gorgeous.
+The diagram should look like a professional system architecture diagram from a technical whitepaper or documentation, clearly explaining the structure and flow of the topic discussed in the article.
 """
