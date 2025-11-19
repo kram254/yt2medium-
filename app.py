@@ -1748,6 +1748,89 @@ def api_progress_stream(job_id):
     
     return app.response_class(generate(), mimetype='text/event-stream')
 
+@app.route('/kario-socials')
+def kario_socials():
+    return render_template('kario-socials.html')
+
+@app.route('/api/social-generate', methods=['POST'])
+@rate_limit_check(max_requests=20, window=300)
+def api_social_generate():
+    try:
+        data = request.json
+        title = data.get('title', '')
+        content = data.get('content', '')
+        platforms = data.get('platforms', [])
+        
+        from social_automation import get_social_automation
+        social = get_social_automation()
+        
+        ai_manager = get_ai_manager()
+        
+        platform = platforms[0] if platforms else 'twitter'
+        generated_content = social.generate_platform_content(title, content, platform, ai_manager)
+        
+        return jsonify({'success': True, 'generated_content': generated_content})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/social-publish', methods=['POST'])
+@rate_limit_check(max_requests=10, window=300)
+def api_social_publish():
+    try:
+        data = request.json
+        content = data.get('content', '')
+        platforms = data.get('platforms', [])
+        
+        if not content or not platforms:
+            return jsonify({'success': False, 'error': 'Content and platforms required'}), 400
+        
+        from social_automation import get_social_automation
+        social = get_social_automation()
+        
+        result = social.publish_to_multiple_platforms(platforms, content)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/social-schedule', methods=['POST'])
+@rate_limit_check(max_requests=20, window=300)
+def api_social_schedule():
+    try:
+        data = request.json
+        content = data.get('content', '')
+        platforms = data.get('platforms', [])
+        date = data.get('date', '')
+        time = data.get('time', '')
+        
+        if not all([content, platforms, date, time]):
+            return jsonify({'success': False, 'error': 'All fields required'}), 400
+        
+        from datetime import datetime
+        scheduled_time = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        
+        from social_automation import get_social_automation
+        social = get_social_automation()
+        
+        results = []
+        for platform in platforms:
+            result = social.schedule_post(platform, content, scheduled_time)
+            results.append(result)
+        
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/social-platforms-status')
+def api_social_platforms_status():
+    try:
+        from social_automation import get_social_automation
+        social = get_social_automation()
+        status = social.get_all_platforms_status()
+        return jsonify({'success': True, 'platforms': status})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template('index.html'), 404
