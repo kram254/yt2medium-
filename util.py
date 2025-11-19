@@ -67,6 +67,17 @@ def validate_input(user_input):
         return False
     return True
 
+def extract_urls(text):
+    if not text:
+        return []
+    pattern = r'https?://[^\s]+'
+    return re.findall(pattern, text)
+
+def remove_urls_from_text(text):
+    if not text:
+        return ''
+    return re.sub(r'https?://[^\s]+', '', text)
+
 def clean_markdown(text):
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = text.strip()
