@@ -522,19 +522,22 @@
     </div>
 
     <script>
+        // Toggle the edit panel visibility for regenerating posts
         function toggleEditMode() {
             const panel = document.getElementById('editPanel');
             panel.classList.toggle('hidden');
         }
 
+        // Copy blog content to clipboard in both HTML and plain text formats for Medium
         async function copyContent() {
             try {
                 console.log('Starting copyContent function');
-                const rawHTML = JSON.parse('{{ blog_post_html|tojson|safe }}');
+                // Get HTML content directly from template (tojson already produces valid JSON)
+                const rawHTML = {{ blog_post_html|tojson|safe }};
                 console.log('HTML parsed successfully, length:', rawHTML.length);
                 
+                // Clean HTML for Medium compatibility - remove code blocks, classes, IDs, and styles
                 let cleanHTML = rawHTML;
-                
                 cleanHTML = cleanHTML.replace(/<pre[^>]*>/g, '<p>');
                 cleanHTML = cleanHTML.replace(/<\/pre>/g, '</p>');
                 cleanHTML = cleanHTML.replace(/<code[^>]*>/g, '');
@@ -543,6 +546,7 @@
                 cleanHTML = cleanHTML.replace(/id="[^"]*"/g, '');
                 cleanHTML = cleanHTML.replace(/style="[^"]*"/g, '');
                 
+                // Extract plain text version for compatibility
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cleanHTML;
                 const textContent = tempDiv.innerText;
@@ -550,6 +554,7 @@
                 console.log('Content cleaned, attempting to copy...');
                 
                 try {
+                    // Use modern Clipboard API if available for better format preservation
                     if (navigator.clipboard && window.ClipboardItem) {
                         const htmlBlob = new Blob([cleanHTML], { type: 'text/html' });
                         const textBlob = new Blob([textContent], { type: 'text/plain' });
@@ -561,6 +566,7 @@
                         console.log('Copied successfully using Clipboard API');
                         showNotification('Content copied! Ready to paste in Medium', 'success');
                     } else {
+                        // Fallback for older browsers
                         console.log('Using fallback copy method');
                         fallbackCopyHTML(cleanHTML, textContent);
                     }
@@ -574,6 +580,7 @@
             }
         }
 
+        // Fallback copy method for browsers that don't support Clipboard API
         function fallbackCopyHTML(htmlContent, textContent) {
             const listener = function(e) {
                 e.clipboardData.setData('text/html', htmlContent);
@@ -586,12 +593,15 @@
             showNotification('Content copied! Ready to paste in Medium', 'success');
         }
 
+        // Download blog post as Markdown file (.md)
         function downloadMarkdown() {
             try {
                 console.log('Starting downloadMarkdown function');
-                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                // Get markdown content directly from template
+                const content = {{ blog_post_markdown|tojson|safe }};
                 console.log('Markdown content parsed, length:', content.length);
                 
+                // Create blob and trigger download
                 const blob = new Blob([content], { type: 'text/markdown' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -600,7 +610,7 @@
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                URL.revokeObjectURL(url); // Clean up memory
                 console.log('Download initiated successfully');
                 showNotification('Markdown file downloaded!', 'success');
             } catch (error) {
@@ -609,15 +619,18 @@
             }
         }
 
+        // Generate an optimized LinkedIn post from blog content using AI
         async function generateLinkedInPost() {
             try {
                 console.log('Starting generateLinkedInPost function');
-                const title = JSON.parse('{{ title|tojson|safe }}');
-                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                // Get blog data from template
+                const title = {{ title|tojson|safe }};
+                const content = {{ blog_post_markdown|tojson|safe }};
                 console.log('Data parsed, title:', title.substring(0, 50));
                 
                 showNotification('Generating LinkedIn post optimized for engagement...', 'info');
                 
+                // Call backend API to generate LinkedIn-optimized content
                 const response = await fetch('/api/generate-linkedin', {
                     method: 'POST',
                     headers: {
@@ -632,6 +645,7 @@
                 console.log('API response received, status:', response.status);
                 const data = await parseJsonResponse(response);
                 
+                // Display generated LinkedIn post in modal
                 if (data.success) {
                     console.log('LinkedIn post generated successfully');
                     showLinkedInModal(data.linkedin_post);
@@ -645,6 +659,7 @@
             }
         }
 
+        // Display LinkedIn post in a modal with copy functionality
         function showLinkedInModal(linkedinPost) {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -670,15 +685,18 @@
             });
         }
 
+        // Generate a visual storyboard diagram from blog content
         async function generateStoryboard() {
             try {
                 console.log('Starting generateStoryboard function');
-                const title = JSON.parse('{{ title|tojson|safe }}');
-                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                // Get blog data from template
+                const title = {{ title|tojson|safe }};
+                const content = {{ blog_post_markdown|tojson|safe }};
                 console.log('Data parsed for storyboard');
                 
                 showNotification('Generating contextual storyboard diagram...', 'info');
                 
+                // Call backend API to generate storyboard image
                 const response = await fetch('/api/generate-storyboard', {
                     method: 'POST',
                     headers: {
@@ -693,6 +711,7 @@
                 console.log('Storyboard API response status:', response.status);
                 const data = await parseJsonResponse(response);
                 
+                // Display generated storyboard in modal
                 if (data.success && data.image) {
                     console.log('Storyboard generated successfully');
                     showStoryboardModal(data.image);
@@ -706,6 +725,7 @@
             }
         }
 
+        // Display storyboard diagram in a modal with download functionality
         function showStoryboardModal(imageData) {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -731,6 +751,7 @@
             });
         }
 
+        // Download storyboard image to user's device
         function downloadStoryboard(imageData) {
             const link = document.createElement('a');
             link.href = imageData;
@@ -741,6 +762,7 @@
             showNotification('Storyboard diagram downloaded!', 'success');
         }
 
+        // Show modal to select diagram type (flowchart, mindmap, process, infographic)
         function showDiagramTypeModal() {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -797,12 +819,16 @@
             });
         }
 
+        // Generate specific type of diagram (flowchart, mindmap, process, or infographic)
         async function generateDiagram(diagramType) {
+            // Close the type selection modal
             document.querySelector('.fixed')?.remove();
             
-            const title = JSON.parse('{{ title|tojson|safe }}');
-            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+            // Get blog data from template
+            const title = {{ title|tojson|safe }};
+            const content = {{ blog_post_markdown|tojson|safe }};
             
+            // Map diagram types to display names
             const typeNames = {
                 'flowchart': 'Flowchart',
                 'mindmap': 'Mind Map',
@@ -813,6 +839,7 @@
             showNotification(`Generating ${typeNames[diagramType]}... This may take a moment.`, 'info');
             
             try {
+                // Call backend API to generate diagram
                 const response = await fetch('/api/generate-diagram', {
                     method: 'POST',
                     headers: {
@@ -827,17 +854,19 @@
                 
                 const data = await parseJsonResponse(response);
                 
+                // Display generated diagram in modal
                 if (data.success && data.diagram_url) {
                     showDiagramModal(data.diagram_url, typeNames[diagramType], data.mermaid_code);
                 } else {
                     showNotification('Failed to generate diagram: ' + (data.error || 'Unknown error'), 'error');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error generating diagram:', error);
                 showNotification(error.message || 'Error generating diagram', 'error');
             }
         }
 
+        // Display generated diagram in modal with download and copy code options
         function showDiagramModal(diagramUrl, diagramType, mermaidCode) {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -866,6 +895,7 @@
             });
         }
 
+        // Download diagram image to user's device
         function downloadDiagram(imageUrl, diagramType) {
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -876,10 +906,12 @@
             showNotification(`${diagramType} downloaded!`, 'success');
         }
 
+        // Copy Mermaid diagram code to clipboard for editing
         function copyDiagramCode(mermaidCode) {
             navigator.clipboard.writeText(mermaidCode).then(() => {
                 showNotification('Mermaid code copied to clipboard!', 'success');
             }).catch(() => {
+                // Fallback for older browsers
                 const textarea = document.createElement('textarea');
                 textarea.value = mermaidCode;
                 document.body.appendChild(textarea);
@@ -890,6 +922,7 @@
             });
         }
 
+        // Parse JSON responses from API calls with proper error handling
         async function parseJsonResponse(response) {
             const raw = await response.text();
             if (!raw) {
@@ -907,6 +940,7 @@
             return data;
         }
 
+        // Copy generated LinkedIn post to clipboard
         function copyLinkedInPost(post) {
             const textBlob = new Blob([post], { type: 'text/plain' });
             const data = new ClipboardItem({
@@ -916,6 +950,7 @@
                 showNotification('LinkedIn post copied to clipboard!', 'success');
                 document.querySelector('.fixed').remove();
             }).catch(() => {
+                // Fallback for older browsers
                 const textarea = document.createElement('textarea');
                 textarea.value = post;
                 document.body.appendChild(textarea);
@@ -927,17 +962,21 @@
             });
         }
 
+        // Open Auto Social page with blog data for multi-platform post generation
         function openAutoSocial() {
             try {
                 console.log('Starting openAutoSocial function');
-                const title = JSON.parse('{{ title|tojson|safe }}');
-                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                // Get blog data from template
+                const title = {{ title|tojson|safe }};
+                const content = {{ blog_post_markdown|tojson|safe }};
                 console.log('Data parsed for Auto Social');
                 
+                // Store in localStorage to pass to Auto Social page
                 localStorage.setItem('kario_social_title', title);
                 localStorage.setItem('kario_social_content', content);
                 console.log('Data saved to localStorage');
                 
+                // Navigate to Auto Social page
                 window.location.href = '/kario-socials';
             } catch (error) {
                 console.error('Error in openAutoSocial:', error);
@@ -945,8 +984,10 @@
             }
         }
 
+        // Display toast notification to user (success, error, or info)
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
+            // Set color based on notification type
             let bgClass = 'bg-blue-500';
             if (type === 'success') bgClass = 'bg-green-500';
             else if (type === 'error') bgClass = 'bg-red-500';
@@ -956,6 +997,7 @@
             notification.textContent = message;
             document.body.appendChild(notification);
             
+            // Auto-hide after 3 seconds with fade-out animation
             setTimeout(() => {
                 notification.style.transform = 'translateY(100px)';
                 notification.style.opacity = '0';
@@ -1013,9 +1055,11 @@
             });
         });
 
+        // Initialize and verify all functions and data are loaded correctly
         console.log('All button functions loaded successfully');
         console.log('Testing data availability...');
         try {
+            // Verify template data is available (checking string representation)
             const testTitle = '{{ title|tojson|safe }}';
             const testMarkdown = '{{ blog_post_markdown|tojson|safe }}';
             const testHTML = '{{ blog_post_html|tojson|safe }}';
