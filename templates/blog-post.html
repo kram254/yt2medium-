@@ -528,41 +528,49 @@
         }
 
         async function copyContent() {
-            const rawHTML = JSON.parse('{{ blog_post_html|tojson|safe }}');
-            let cleanHTML = rawHTML;
-            
-            cleanHTML = cleanHTML.replace(/<pre[^>]*>/g, '<p>');
-            cleanHTML = cleanHTML.replace(/<\/pre>/g, '</p>');
-            cleanHTML = cleanHTML.replace(/<code[^>]*>/g, '');
-            cleanHTML = cleanHTML.replace(/<\/code>/g, '');
-            cleanHTML = cleanHTML.replace(/class="[^"]*"/g, '');
-            cleanHTML = cleanHTML.replace(/id="[^"]*"/g, '');
-            cleanHTML = cleanHTML.replace(/style="[^"]*"/g, '');
-            
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = cleanHTML;
-            const textContent = tempDiv.innerText;
-            
-            console.log('Attempting to copy content...');
-            
             try {
-                if (navigator.clipboard && window.ClipboardItem) {
-                    const htmlBlob = new Blob([cleanHTML], { type: 'text/html' });
-                    const textBlob = new Blob([textContent], { type: 'text/plain' });
-                    const data = new ClipboardItem({
-                        'text/html': htmlBlob,
-                        'text/plain': textBlob
-                    });
-                    await navigator.clipboard.write([data]);
-                    console.log('Copied successfully using Clipboard API');
-                    showNotification('Content copied! Ready to paste in Medium', 'success');
-                } else {
-                    console.log('Using fallback copy method');
+                console.log('Starting copyContent function');
+                const rawHTML = JSON.parse('{{ blog_post_html|tojson|safe }}');
+                console.log('HTML parsed successfully, length:', rawHTML.length);
+                
+                let cleanHTML = rawHTML;
+                
+                cleanHTML = cleanHTML.replace(/<pre[^>]*>/g, '<p>');
+                cleanHTML = cleanHTML.replace(/<\/pre>/g, '</p>');
+                cleanHTML = cleanHTML.replace(/<code[^>]*>/g, '');
+                cleanHTML = cleanHTML.replace(/<\/code>/g, '');
+                cleanHTML = cleanHTML.replace(/class="[^"]*"/g, '');
+                cleanHTML = cleanHTML.replace(/id="[^"]*"/g, '');
+                cleanHTML = cleanHTML.replace(/style="[^"]*"/g, '');
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cleanHTML;
+                const textContent = tempDiv.innerText;
+                
+                console.log('Content cleaned, attempting to copy...');
+                
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        const htmlBlob = new Blob([cleanHTML], { type: 'text/html' });
+                        const textBlob = new Blob([textContent], { type: 'text/plain' });
+                        const data = new ClipboardItem({
+                            'text/html': htmlBlob,
+                            'text/plain': textBlob
+                        });
+                        await navigator.clipboard.write([data]);
+                        console.log('Copied successfully using Clipboard API');
+                        showNotification('Content copied! Ready to paste in Medium', 'success');
+                    } else {
+                        console.log('Using fallback copy method');
+                        fallbackCopyHTML(cleanHTML, textContent);
+                    }
+                } catch (err) {
+                    console.error('Copy failed:', err);
                     fallbackCopyHTML(cleanHTML, textContent);
                 }
-            } catch (err) {
-                console.error('Copy failed:', err);
-                fallbackCopyHTML(cleanHTML, textContent);
+            } catch (error) {
+                console.error('Error in copyContent:', error);
+                showNotification('Failed to copy content: ' + error.message, 'error');
             }
         }
 
@@ -579,26 +587,37 @@
         }
 
         function downloadMarkdown() {
-            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
-            const blob = new Blob([content], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'blog-post.md';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showNotification('Markdown file downloaded!', 'success');
+            try {
+                console.log('Starting downloadMarkdown function');
+                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                console.log('Markdown content parsed, length:', content.length);
+                
+                const blob = new Blob([content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'blog-post.md';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log('Download initiated successfully');
+                showNotification('Markdown file downloaded!', 'success');
+            } catch (error) {
+                console.error('Error in downloadMarkdown:', error);
+                showNotification('Failed to download: ' + error.message, 'error');
+            }
         }
 
         async function generateLinkedInPost() {
-            const title = JSON.parse('{{ title|tojson|safe }}');
-            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
-            
-            showNotification('Generating LinkedIn post optimized for engagement...', 'info');
-            
             try {
+                console.log('Starting generateLinkedInPost function');
+                const title = JSON.parse('{{ title|tojson|safe }}');
+                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                console.log('Data parsed, title:', title.substring(0, 50));
+                
+                showNotification('Generating LinkedIn post optimized for engagement...', 'info');
+                
                 const response = await fetch('/api/generate-linkedin', {
                     method: 'POST',
                     headers: {
@@ -610,15 +629,18 @@
                     })
                 });
                 
+                console.log('API response received, status:', response.status);
                 const data = await parseJsonResponse(response);
                 
                 if (data.success) {
+                    console.log('LinkedIn post generated successfully');
                     showLinkedInModal(data.linkedin_post);
                 } else {
+                    console.error('LinkedIn generation failed:', data.error);
                     showNotification('Failed to generate LinkedIn post: ' + data.error, 'error');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error in generateLinkedInPost:', error);
                 showNotification(error.message || 'Error generating LinkedIn post', 'error');
             }
         }
@@ -649,12 +671,14 @@
         }
 
         async function generateStoryboard() {
-            const title = JSON.parse('{{ title|tojson|safe }}');
-            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
-            
-            showNotification('Generating contextual storyboard diagram...', 'info');
-            
             try {
+                console.log('Starting generateStoryboard function');
+                const title = JSON.parse('{{ title|tojson|safe }}');
+                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                console.log('Data parsed for storyboard');
+                
+                showNotification('Generating contextual storyboard diagram...', 'info');
+                
                 const response = await fetch('/api/generate-storyboard', {
                     method: 'POST',
                     headers: {
@@ -666,16 +690,19 @@
                     })
                 });
                 
+                console.log('Storyboard API response status:', response.status);
                 const data = await parseJsonResponse(response);
                 
                 if (data.success && data.image) {
+                    console.log('Storyboard generated successfully');
                     showStoryboardModal(data.image);
                 } else {
+                    console.error('Storyboard generation failed:', data.error);
                     showNotification('Failed to generate storyboard: ' + (data.error || 'Unknown error'), 'error');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                showNotification('Error generating storyboard diagram', 'error');
+                console.error('Error in generateStoryboard:', error);
+                showNotification('Error generating storyboard: ' + error.message, 'error');
             }
         }
 
@@ -901,25 +928,42 @@
         }
 
         function openAutoSocial() {
-            const title = JSON.parse('{{ title|tojson|safe }}');
-            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
-            
-            localStorage.setItem('kario_social_title', title);
-            localStorage.setItem('kario_social_content', content);
-            
-            window.location.href = '/kario-socials';
+            try {
+                console.log('Starting openAutoSocial function');
+                const title = JSON.parse('{{ title|tojson|safe }}');
+                const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+                console.log('Data parsed for Auto Social');
+                
+                localStorage.setItem('kario_social_title', title);
+                localStorage.setItem('kario_social_content', content);
+                console.log('Data saved to localStorage');
+                
+                window.location.href = '/kario-socials';
+            } catch (error) {
+                console.error('Error in openAutoSocial:', error);
+                showNotification('Failed to open Auto Social: ' + error.message, 'error');
+            }
         }
 
-        function showNotification(message, type) {
+        function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
-            notification.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} transition-all transform translate-y-0 opacity-100 z-50`;
+            let bgClass = 'bg-blue-500';
+            if (type === 'success') bgClass = 'bg-green-500';
+            else if (type === 'error') bgClass = 'bg-red-500';
+            else if (type === 'info') bgClass = 'bg-blue-500';
+            
+            notification.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white ${bgClass} transition-all transform translate-y-0 opacity-100 z-50`;
             notification.textContent = message;
             document.body.appendChild(notification);
             
             setTimeout(() => {
                 notification.style.transform = 'translateY(100px)';
                 notification.style.opacity = '0';
-                setTimeout(() => document.body.removeChild(notification), 300);
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
             }, 3000);
         }
 
@@ -968,6 +1012,19 @@
                 submitBtn.innerHTML = originalContent;
             });
         });
+
+        console.log('All button functions loaded successfully');
+        console.log('Testing data availability...');
+        try {
+            const testTitle = '{{ title|tojson|safe }}';
+            const testMarkdown = '{{ blog_post_markdown|tojson|safe }}';
+            const testHTML = '{{ blog_post_html|tojson|safe }}';
+            console.log('Title available:', testTitle.length > 0);
+            console.log('Markdown available:', testMarkdown.length > 0);
+            console.log('HTML available:', testHTML.length > 0);
+        } catch (e) {
+            console.error('Error checking data availability:', e);
+        }
     </script>
 </body>
 </html>
