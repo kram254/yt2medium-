@@ -12,7 +12,9 @@ from util import (
     validate_youtube_url,
     clean_markdown,
     calculate_engagement_score,
-    extract_video_id
+    extract_video_id,
+    extract_urls,
+    remove_urls_from_text
 )
 from seo_analyzer import analyze_seo, generate_seo_recommendations
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
@@ -35,6 +37,7 @@ from social_storage import get_social_account_manager
 from supabase_client import get_supabase_manager
 from post_scheduler import get_scheduler
 from progress_tracker import get_progress_tracker
+from diagram_generator import get_diagram_generator
 import time
 import json
 import uuid
@@ -221,50 +224,94 @@ def generate_images_for_blog(blog_title, blog_content):
         return [None, None]
 
 def generate_blog_post_text(user_input, model, template=None, tone=None, industry=None):
+    """
+    Generate blog post from user input which may contain:
+    - Multiple URLs (articles, YouTube videos, GitHub repos)
+    - Plain text/transcript
+    - Or a mix of all three
+    
+    This function extracts and combines content from ALL sources to create a comprehensive context.
+    """
     try:
-        input_type = detect_input_type(user_input)
-        print(f"Input type detected: {input_type}")
+        # Extract all URLs from the input (supports multiple URLs in one input)
+        urls = extract_urls(user_input)
+        print(f"[INPUT] Found {len(urls)} URLs in input")
         
-        if input_type == 'youtube':
-            try:
-                content_context = get_youtube_transcript(user_input)
-                print(f"YouTube content extracted: {len(content_context)} chars")
-            except Exception as yt_error:
-                print(f"YouTube extraction failed: {yt_error}")
-                print(f"CRITICAL: Attempting basic metadata extraction...")
+        # Extract any text that isn't a URL (e.g., user commentary, transcript)
+        additional_text = remove_urls_from_text(user_input).strip()
+        if additional_text:
+            print(f"[INPUT] Found {len(additional_text)} chars of additional text")
+        
+        # Collect content from all sources into one combined context
+        content_parts = []
+        has_youtube_content = False  # Track if we have YouTube content for enhancement later
+        
+        # Process each URL individually (article, YouTube, GitHub, etc.)
+        for url in urls:
+            print(f"[INPUT] Processing URL: {url[:80]}...")
+            url_type = detect_input_type(url)
+            print(f"[INPUT] URL type: {url_type}")
+            
+            # Handle YouTube videos - extract full transcript
+            if url_type == 'youtube':
                 try:
-                    from ai_providers import _get_youtube_fallback
-                    fallback_content = _get_youtube_fallback(user_input)
-                    if fallback_content and "Video Title:" in fallback_content:
-                        content_context = fallback_content
-                        print(f"Metadata extracted successfully")
-                    else:
-                        content_context = f"YouTube Video URL: {user_input}\n\nIMPORTANT: Create a comprehensive, well-researched blog post about the topic suggested by this YouTube video URL. Research the topic thoroughly and provide valuable, specific insights. DO NOT create generic content."
-                        print(f"Using URL-only fallback")
-                except Exception as fallback_error:
-                    print(f"Fallback also failed: {fallback_error}")
-                    content_context = f"YouTube Video URL: {user_input}\n\nIMPORTANT: Create a comprehensive, well-researched blog post about the topic suggested by this YouTube video URL. Research the topic thoroughly and provide valuable, specific insights. DO NOT create generic content."
-        elif input_type == 'github':
-            github = get_github_handler()
-            readme = github.get_readme(user_input)
-            if readme:
-                content_context = f"GitHub Repository Content:\n\n{readme}"
-            else:
-                content_context = f"GitHub Repository: {user_input}\n\nCreate content based on this GitHub repository."
-        elif input_type == 'url':
-            try:
-                content_context = scrape_web_content(user_input)
-            except Exception as url_error:
-                print(f"URL scraping failed: {url_error}")
-                content_context = f"Web URL: {user_input}\n\nNote: Unable to scrape content. Create a blog post based on the URL topic."
-        else:
+                    yt_content = get_youtube_transcript(url)
+                    content_parts.append(f"=== YOUTUBE VIDEO CONTENT ===\n{yt_content}")
+                    has_youtube_content = True  # Mark that we have YouTube content
+                    print(f"[INPUT] YouTube content extracted: {len(yt_content)} chars")
+                except Exception as yt_error:
+                    print(f"[INPUT] YouTube extraction failed: {yt_error}")
+                    try:
+                        from ai_providers import _get_youtube_fallback
+                        fallback = _get_youtube_fallback(url)
+                        if fallback:
+                            content_parts.append(f"=== YOUTUBE VIDEO (METADATA) ===\n{fallback}")
+                            print(f"[INPUT] YouTube metadata extracted")
+                    except:
+                        content_parts.append(f"=== YOUTUBE VIDEO ===\nURL: {url}\nNote: Transcript unavailable")
+            
+            # Handle GitHub repositories - extract README
+            elif url_type == 'github':
+                try:
+                    github = get_github_handler()
+                    readme = github.get_readme(url)
+                    if readme:
+                        content_parts.append(f"=== GITHUB REPOSITORY ===\n{readme}")
+                        print(f"[INPUT] GitHub content extracted: {len(readme)} chars")
+                except Exception as gh_error:
+                    print(f"[INPUT] GitHub extraction failed: {gh_error}")
+                    content_parts.append(f"=== GITHUB REPOSITORY ===\nURL: {url}")
+            
+            # Handle regular web URLs - scrape article content
+            elif url_type == 'url':
+                try:
+                    web_content = scrape_web_content(url)
+                    content_parts.append(f"=== WEB ARTICLE ===\n{web_content}")
+                    print(f"[INPUT] Web content extracted: {len(web_content)} chars")
+                except Exception as url_error:
+                    print(f"[INPUT] Web scraping failed: {url_error}")
+                    content_parts.append(f"=== WEB ARTICLE ===\nURL: {url}\nNote: Unable to scrape content")
+        
+        # Add any additional text provided by the user (commentary, transcript, notes)
+        if additional_text and len(additional_text) > 10:
+            content_parts.append(f"=== USER PROVIDED CONTEXT ===\n{additional_text}")
+        
+        # If no URLs were found, treat entire input as topic/text request
+        if not content_parts:
+            print(f"[INPUT] No URLs found, treating as topic")
             if any(keyword in user_input.lower() for keyword in ['trending', 'latest', 'today', 'recent', 'current']):
                 content_context = research_trending_topic(user_input, get_ai_manager())
             else:
                 content_context = f"User Request: {user_input}\n\nCreate comprehensive, well-researched content based on this topic or prompt."
+        else:
+            # Combine all content sources into one unified context
+            # This allows blog posts about multiple related sources (e.g., article + video)
+            content_context = "\n\n".join(content_parts)
+            print(f"[INPUT] Combined content from {len(content_parts)} sources")
         
-        print(f"Content context prepared: {len(content_context)} chars")
+        print(f"[INPUT] Total content context: {len(content_context)} chars")
         
+        # Apply content length limits to avoid token limit issues
         max_content_chars = 80000
         if len(content_context) > max_content_chars:
             first_part_size = int(max_content_chars * 0.6)
@@ -294,7 +341,8 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         optimized_content = optimize_content_structure(cleaned_content)
         print(f"Final optimized content length: {len(optimized_content) if optimized_content else 0}")
         
-        if input_type == 'youtube' and content_context and len(content_context) > 100:
+        # Apply transcript enhancement if we have YouTube content
+        if has_youtube_content and content_context and len(content_context) > 100:
             print("Enhancing blog post with YouTube transcript...")
             optimized_content = enhance_blog_with_transcript(optimized_content, content_context)
             print(f"Transcript-enhanced content length: {len(optimized_content) if optimized_content else 0}")
@@ -1369,6 +1417,43 @@ def generate_storyboard():
             return jsonify({'error': 'Failed to generate storyboard'}), 500
     except Exception as e:
         print(f"[STORYBOARD] Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generate-diagram', methods=['POST'])
+def generate_diagram():
+    """
+    Generate flowcharts, mind maps, or infographics from blog content.
+    Uses AI to create Mermaid diagrams and renders them as images.
+    """
+    try:
+        data = request.get_json()
+        title = data.get('title', '')
+        content = data.get('content', '')
+        diagram_type = data.get('type', 'flowchart')  # flowchart, mindmap, process, infographic
+        
+        if not title or not content:
+            return jsonify({'error': 'Title and content required'}), 400
+        
+        if diagram_type not in ['flowchart', 'mindmap', 'process', 'infographic']:
+            return jsonify({'error': 'Invalid diagram type'}), 400
+        
+        print(f"[DIAGRAM] Generating {diagram_type} for: {title[:50]}")
+        
+        # Get diagram generator with AI manager
+        diagram_gen = get_diagram_generator(get_ai_manager())
+        
+        # Generate diagram
+        result = diagram_gen.generate_flowchart_from_content(title, content, diagram_type)
+        
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify({'error': result.get('error', 'Failed to generate diagram')}), 500
+            
+    except Exception as e:
+        print(f"[DIAGRAM] Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/generate-linkedin', methods=['POST'])

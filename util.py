@@ -68,12 +68,28 @@ def validate_input(user_input):
     return True
 
 def extract_urls(text):
+    """
+    Extract all URLs from text.
+    Supports multiple URLs in a single input string.
+    
+    Example:
+        Input: "Check out https://example.com and https://youtube.com/watch?v=123"
+        Output: ['https://example.com', 'https://youtube.com/watch?v=123']
+    """
     if not text:
         return []
     pattern = r'https?://[^\s]+'
     return re.findall(pattern, text)
 
 def remove_urls_from_text(text):
+    """
+    Remove all URLs from text, leaving only the plain text content.
+    Useful for extracting user commentary or transcript text when URLs are also present.
+    
+    Example:
+        Input: "This video https://youtube.com/watch is about AI hacking..."
+        Output: "This video  is about AI hacking..."
+    """
     if not text:
         return ''
     return re.sub(r'https?://[^\s]+', '', text)

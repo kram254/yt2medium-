@@ -1,10 +1,22 @@
 def get_section_rewrite_prompt(section_content, instruction):
-    return f"""Rewrite this section according to the instruction:
+    return f"""Rewrite this section according to the instruction while following human-like writing rules:
 
 Section Content:
 {section_content}
 
 Instruction: {instruction}
+
+HUMAN WRITING RULES:
+- Eliminate corporate jargon and marketing fluff
+- Be confident and direct (no softening phrases like "I think," "maybe," "could")
+- Use active voice over passive voice
+- Avoid banned words: "leverage," "utilize," "delve," "facilitate," "seamless," "robust," "innovative," "game-changing," "best practices," "blazing fast"
+- Replace vague words with specific facts and metrics
+- No AI patterns: "Let's dive into," "In today's fast-paced," "Great question," "Hope this helps"
+- No essay closers: "In conclusion," "Overall," "To summarize"
+- Use contractions for natural tone (I'll, won't, can't)
+- Use straight quotes (' and ") instead of smart quotes
+- Use Oxford commas consistently
 
 Return ONLY the rewritten section in Markdown format. Maintain the same heading level and structure.
 """
@@ -23,11 +35,20 @@ def get_tone_adjustment_prompt(content, target_tone):
     
     instruction = tone_instructions.get(target_tone, f'Adjust the tone to be more {target_tone}')
     
-    return f"""Adjust the tone of this content:
+    return f"""Adjust the tone of this content while maintaining human-like writing:
 
 {content}
 
 {instruction}
+
+HUMAN WRITING RULES (apply to all tone adjustments):
+- Avoid corporate jargon: no "leverage," "utilize," "robust," "seamless," "innovative," "game-changing"
+- Be specific: replace vague words with concrete facts and metrics
+- No AI patterns: avoid "Let's dive into," "In today's fast-paced," "Hope this helps"
+- Use contractions for natural tone (I'll, won't, can't)
+- Eliminate softening phrases ("I think," "maybe," "could," "perhaps," "arguably")
+- No essay closers: "In conclusion," "Overall," "To summarize"
+- Use active voice over passive voice
 
 Maintain all key information and structure. Return the complete adjusted content in Markdown format.
 """
@@ -40,11 +61,19 @@ def get_expand_prompt(section_content, target_words=None):
 {section_content}
 
 Add:
-- More specific examples
-- Deeper explanations
-- Additional context
-- Supporting details
-- Practical insights
+- More specific examples with concrete metrics and data
+- Deeper explanations without corporate jargon
+- Additional context using real-world scenarios
+- Supporting details that are falsifiable and verifiable
+- Practical insights readers can implement
+
+HUMAN WRITING RULES:
+- Use specific facts instead of vague superlatives
+- Avoid banned words: "leverage," "utilize," "delve," "robust," "seamless," "innovative"
+- No AI patterns like "Let's dive into" or "In today's fast-paced world"
+- Be confident and direct (no "I think," "maybe," "perhaps")
+- Use contractions for natural tone
+- Replace placeholder examples (foo/bar) with realistic ones
 
 Return the expanded section in Markdown format.
 """
@@ -75,11 +104,18 @@ Content Preview:
 
 Create titles that are:
 - 60-80 characters long
-- Use power words that drive clicks
-- Promise value or transformation
-- Create curiosity
-- Are specific and concrete
+- Use power words that drive clicks (avoid corporate jargon)
+- Promise value or transformation with specific claims
+- Create curiosity without clickbait
+- Are specific and concrete (no vague words like "great" or "numerous")
 - Use numbers where appropriate
+- Make a clear promise so readers know what they'll get
+- Tap into relevant, controversial points backed by data
+
+AVOID in titles:
+- Corporate jargon: "game-changing," "innovative," "disruptive," "best practices"
+- Vague phrases: "The future of," "Modern approaches to"
+- Generic promises without specifics
 
 Return as a numbered list (1-10) with just the titles, no explanations.
 """
@@ -124,11 +160,18 @@ def get_alternative_angle_prompt(section_content):
 {section_content}
 
 Consider:
-- Contrarian viewpoint
-- Different industry perspective
-- Alternative use case
-- Counterintuitive approach
-- Fresh metaphor or framing
+- Contrarian viewpoint backed by specific data
+- Different industry perspective with concrete examples
+- Alternative use case from real-world scenarios
+- Counterintuitive approach with verifiable claims
+- Fresh metaphor or framing that's immediately understandable
+
+HUMAN WRITING RULES:
+- Avoid corporate jargon and marketing fluff
+- Be specific with facts and metrics (no vague language)
+- No AI patterns or essay closers
+- Use active voice and contractions for natural tone
+- Make claims concrete, visual, and falsifiable
 
 Return the rewritten section in Markdown format.
 """
@@ -161,9 +204,17 @@ Context:
 
 Examples should be:
 - Specific and realistic (no foo/bar placeholders)
-- From real-world scenarios
-- Easy to understand
-- Immediately actionable
+- From real-world scenarios with verifiable details
+- Easy to understand without corporate jargon
+- Immediately actionable with clear metrics when possible
+- Written in natural, human-like language
+
+HUMAN WRITING RULES:
+- Use specific facts and data instead of vague superlatives
+- Avoid banned words: "leverage," "utilize," "robust," "seamless," "innovative"
+- No AI patterns or softening phrases
+- Write with confidence using active voice
+- Use contractions for warmth (I'll, won't, can't)
 
 Return the examples with brief explanations in Markdown format.
 """

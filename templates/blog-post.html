@@ -502,6 +502,12 @@
                                 </svg>
                                 <span>Generate Storyboard</span>
                             </button>
+                            <button onclick="showDiagramTypeModal()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 glass glass-hover rounded-lg transition-all hover:bg-green-600/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                                <span>Generate Diagram</span>
+                            </button>
                             <button onclick="openAutoSocial()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg transition-all font-semibold">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
@@ -706,6 +712,155 @@
             link.click();
             document.body.removeChild(link);
             showNotification('Storyboard diagram downloaded!', 'success');
+        }
+
+        function showDiagramTypeModal() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="glass rounded-xl p-8 max-w-2xl w-full">
+                    <h3 class="text-2xl font-bold text-white mb-4">Choose Diagram Type</h3>
+                    <p class="text-neutral-300 mb-6">Select the type of diagram you want to generate from your blog content:</p>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <button onclick="generateDiagram('flowchart')" class="p-6 glass glass-hover rounded-lg transition-all hover:bg-blue-600/20 text-left">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                <span class="font-semibold text-white">Flowchart</span>
+                            </div>
+                            <p class="text-sm text-neutral-400">Visual process flow with decision points and connections</p>
+                        </button>
+                        <button onclick="generateDiagram('mindmap')" class="p-6 glass glass-hover rounded-lg transition-all hover:bg-purple-600/20 text-left">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                                </svg>
+                                <span class="font-semibold text-white">Mind Map</span>
+                            </div>
+                            <p class="text-sm text-neutral-400">Hierarchical concept map showing relationships</p>
+                        </button>
+                        <button onclick="generateDiagram('process')" class="p-6 glass glass-hover rounded-lg transition-all hover:bg-green-600/20 text-left">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
+                                <span class="font-semibold text-white">Process Diagram</span>
+                            </div>
+                            <p class="text-sm text-neutral-400">Sequential workflow or timeline visualization</p>
+                        </button>
+                        <button onclick="generateDiagram('infographic')" class="p-6 glass glass-hover rounded-lg transition-all hover:bg-orange-600/20 text-left">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                <span class="font-semibold text-white">Infographic</span>
+                            </div>
+                            <p class="text-sm text-neutral-400">Data visualization with key stats and facts</p>
+                        </button>
+                    </div>
+                    <button onclick="this.closest('.fixed').remove()" class="w-full px-4 py-3 glass glass-hover text-white rounded-lg transition-all">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        async function generateDiagram(diagramType) {
+            document.querySelector('.fixed')?.remove();
+            
+            const title = JSON.parse('{{ title|tojson|safe }}');
+            const content = JSON.parse('{{ blog_post_markdown|tojson|safe }}');
+            
+            const typeNames = {
+                'flowchart': 'Flowchart',
+                'mindmap': 'Mind Map',
+                'process': 'Process Diagram',
+                'infographic': 'Infographic'
+            };
+            
+            showNotification(`Generating ${typeNames[diagramType]}... This may take a moment.`, 'info');
+            
+            try {
+                const response = await fetch('/api/generate-diagram', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: content,
+                        type: diagramType
+                    })
+                });
+                
+                const data = await parseJsonResponse(response);
+                
+                if (data.success && data.diagram_url) {
+                    showDiagramModal(data.diagram_url, typeNames[diagramType], data.mermaid_code);
+                } else {
+                    showNotification('Failed to generate diagram: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification(error.message || 'Error generating diagram', 'error');
+            }
+        }
+
+        function showDiagramModal(diagramUrl, diagramType, mermaidCode) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="glass rounded-xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+                    <h3 class="text-2xl font-bold text-white mb-4">${diagramType}</h3>
+                    <div class="bg-white rounded-lg p-6 mb-6 overflow-auto">
+                        <img src="${diagramUrl}" alt="${diagramType}" class="max-w-full mx-auto"/>
+                    </div>
+                    <div class="flex gap-3 flex-wrap">
+                        <button onclick="downloadDiagram('${diagramUrl}', '${diagramType}')" class="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all">
+                            Download Image
+                        </button>
+                        <button onclick="copyDiagramCode(\`${mermaidCode.replace(/`/g, '\\`')}\`)" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
+                            Copy Mermaid Code
+                        </button>
+                        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-3 glass glass-hover text-white rounded-lg transition-all">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        function downloadDiagram(imageUrl, diagramType) {
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = `${diagramType.toLowerCase().replace(' ', '-')}-diagram.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showNotification(`${diagramType} downloaded!`, 'success');
+        }
+
+        function copyDiagramCode(mermaidCode) {
+            navigator.clipboard.writeText(mermaidCode).then(() => {
+                showNotification('Mermaid code copied to clipboard!', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = mermaidCode;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification('Mermaid code copied to clipboard!', 'success');
+            });
         }
 
         async function parseJsonResponse(response) {

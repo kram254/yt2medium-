@@ -156,11 +156,12 @@ STYLE: Comprehensive, authoritative, reference-quality with 1500+ words.
 TONE_PRESETS = {
     'professional': """
 Tone: Professional and polished
-- Use industry-standard terminology
+- Use specific terminology without jargon
 - Formal but not stuffy
-- Data-driven and evidence-based
+- Data-driven and evidence-based with concrete metrics
 - Objective and balanced perspective
-- Corporate-friendly language
+- Clear, direct language without corporate buzzwords
+- Avoid jargon like "leverage," "utilize," "robust," "seamless"
 """,
     
     'conversational': """
@@ -246,12 +247,12 @@ Tone: Authoritative and expert
 }
 
 INDUSTRY_STYLES = {
-    'tech': 'Focus on innovation, scalability, and developer experience. Use technical terms confidently.',
-    'business': 'Focus on ROI, strategy, and growth. Use business metrics and KPIs.',
-    'startup': 'Focus on speed, iteration, and problem-solving. Embrace failure and learning.',
-    'creative': 'Focus on inspiration, aesthetics, and storytelling. Use vivid imagery.',
-    'science': 'Focus on research, methodology, and evidence. Reference studies and data.',
-    'personal_development': 'Focus on transformation, mindset, and action. Use motivational language.'
+    'tech': 'Focus on what works, how fast it runs, and what developers can build. Use technical terms confidently without jargon.',
+    'business': 'Focus on ROI with specific numbers, clear strategy, and measurable growth. Use concrete metrics and KPIs.',
+    'startup': 'Focus on speed, iteration, and solving real problems. Share failures and lessons learned.',
+    'creative': 'Focus on inspiration, aesthetics, and compelling stories. Use vivid imagery without fluff.',
+    'science': 'Focus on research, clear methodology, and verifiable evidence. Reference specific studies and data.',
+    'personal_development': 'Focus on real transformation with actionable steps. Use motivational language backed by examples.'
 }
 
 def get_template_prompt(template_key, tone_key=None, industry=None):
@@ -266,5 +267,20 @@ def get_template_prompt(template_key, tone_key=None, industry=None):
     
     if industry and industry in INDUSTRY_STYLES:
         prompt_parts.append(f"\nIndustry Focus: {INDUSTRY_STYLES[industry]}")
+    
+    human_writing_rules = """
+
+HUMAN WRITING ENFORCEMENT:
+- Eliminate corporate jargon (no "leverage," "utilize," "robust," "seamless," "innovative," "game-changing")
+- Be specific with facts and metrics instead of vague superlatives
+- Avoid AI patterns: no "Let's dive into," "In today's fast-paced," "Hope this helps"
+- Use contractions for natural tone (I'll, won't, can't)
+- No softening phrases ("I think," "maybe," "perhaps," "arguably")
+- Use active voice and confident, direct language
+- Replace vague words with concrete examples and data
+- Make claims falsifiable and verifiable
+"""
+    
+    prompt_parts.append(human_writing_rules)
     
     return '\n\n'.join(prompt_parts)

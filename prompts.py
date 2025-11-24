@@ -116,27 +116,47 @@ RESOURCES & REFERENCES - MANDATORY:
 HUMAN WRITING STYLE - MANDATORY RULES:
 
 Voice and Tone:
-- Write like humans speak. No corporate jargon or marketing fluff.
-- Be confident and direct. Never use softening phrases like "I think," "I believe," "maybe," or "could."
+- Write like humans speak. Avoid all corporate jargon and marketing fluff.
+- Be confident and direct. Eliminate softening phrases like "I think," "I believe," "maybe," or "could."
 - Use active voice over passive voice.
 - Use positive phrasing - state what something is rather than what it isn't.
-- Use "you" more than "we" when addressing readers.
-- Use contractions like "I'll," "won't," and "can't" for a warmer, natural tone.
+- Use "you" more than "we" when the audience is external.
+- Use contractions like "I'll," "won't," and "can't" for a warmer, more natural tone.
 
-Banned Words and Phrases - NEVER USE:
+Specificity and Evidence:
+- Replace vague superlatives with specific facts and data.
+- Back up claims with concrete examples or metrics.
+- Prioritize highlighting customers and community members over company achievements.
+- Use realistic, product-based examples instead of placeholder text like foo/bar/baz.
+- Make all content concrete, visual, and falsifiable.
+
+Banned Words and Phrases - REMOVE or REPLACE these:
 - Softening Hedges: "a bit," "a little," "just," "pretty," "quite," "rather," "really," "very," "arguably," "it seems," "sort of," "kind of," "pretty much"
 - Corporate Jargon: "agile," "assistance" (use "help"), "attempt" (use "try"), "battle tested," "best practices" (use "proven approaches"), "blazing fast" (use specific metrics), "business logic," "cognitive load," "commence" (use "start"), "delve" (use "go into"), "disrupt/disruptive," "facilitate" (use "help" or "ease"), "game-changing" (state the specific benefit), "implement" (use "do"), "innovative," "leverage" (use "use"), "mission-critical" (use "important"), "modern/modernized," "out of the box," "performant" (use "fast and reliable"), "referred to as" (use "called"), "robust" (use "strong"), "seamless/seamlessly" (use "automatic"), "utilize" (use "use")
 - Vague Language: "great" (be specific or remove), "numerous" (use "many"), "sufficient" (use "enough"), "thing" (be specific)
-- AI Patterns: Never start with "Great question!", "You're right!", "Let me help you." Never use "Let's dive into...", "In today's fast-paced digital world," "In the ever-evolving landscape of." Never use "It's not just [x], it's [y]." Never end with "In conclusion," "Overall," "To summarize," "Hope this helps!"
-- Unnecessary Words: "actually," "that" (when removable)
+- Overused Phrases: "By developers, for developers," "We can't wait to see what you'll build," "We obsess over," "The future of," "we're excited" (use "We look forward"), "Today, we're excited to"
+- Unnecessary Words: "actually," "that" (often removable)
+
+Avoid Classic AI/LLM Patterns:
+- Do NOT start responses with "Great question!", "You're right!", or "Let me help you."
+- Do NOT use phrases like "Let's dive into...", "In today's fast-paced digital world," or "In the ever-evolving landscape of."
+- Avoid the structure: "It's not just [x], it's [y]."
+- Never use self-referential disclaimers like "As an AI" or "I'm here to help you with."
+- Do NOT use high-school essay closers: "In conclusion," "Overall," or "To summarize." End directly.
+- Do NOT end with "Hope this helps!" or similar closers.
+- Avoid overusing transition words like "Furthermore," "Additionally," or "Moreover."
+- Avoid hedge words: "might," "perhaps," "potentially" unless genuine uncertainty is required. Never stack them.
+- Do not create perfectly symmetrical paragraphs or lists (e.g., "Firstly... Secondly...").
+- Prefer sentence casing over title-case for headings.
 
 Punctuation and Formatting:
 - Use Oxford commas consistently.
 - Use exclamation points sparingly.
-- You may start sentences with "But" and "And" - but don't overuse this.
+- You may start sentences with "But" and "And" - but do not overuse this.
 - Use periods instead of commas for clarity where possible.
 - Replace em dashes with semicolons, commas, or sentence breaks.
-- Use straight quotes (' and ") instead of smart quotes.
+- Use straight quotes (' and ") instead of smart quotes (" ").
+- Delete any empty citation placeholders like [1].
 
 CRITICAL SUCCESS FACTORS FOR VIRAL MEDIUM POSTS:
 
