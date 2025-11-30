@@ -349,6 +349,7 @@
                 <div class="mt-6 flex flex-col md:flex-row md:justify-end md:space-x-3 space-y-2 md:space-y-0">
                     <button type="button" id="surpriseCancel" class="w-full md:w-auto px-4 py-2 rounded-lg border border-white/10 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
                     <button type="button" id="surpriseAnother" class="w-full md:w-auto px-4 py-2 rounded-lg bg-neutral-800 text-sm hover:bg-neutral-700">Try another topic</button>
+                    <button type="button" id="surpriseCopyPrompt" class="w-full md:w-auto px-4 py-2 rounded-lg bg-neutral-100 text-sm text-black hover:bg-white">Copy Prompt to Clipboard</button>
                     <button type="button" id="surpriseUse" class="w-full md:w-auto px-4 py-2 rounded-lg glow-button text-sm text-black bg-white">Looks great  use this</button>
                 </div>
             </div>
@@ -503,6 +504,7 @@
         let surprisePreview = null;
         let surpriseExcludedTopics = [];
         let surpriseBtnOriginalHtml = '';
+        let surprisePromptLoading = false;
         
         function handleFileUpload(event) {
             const file = event.target.files[0];
@@ -678,11 +680,102 @@
                 triggerSurpriseRequest();
             });
         }
+
+        function copyTextToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+            return new Promise(function(resolve, reject) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    resolve();
+                } catch (e) {
+                    reject(e);
+                }
+                document.body.removeChild(textarea);
+            });
+        }
+
+        function triggerSurprisePromptGeneration() {
+            if (!surprisePreview) {
+                return;
+            }
+            const btn = document.getElementById('surpriseCopyPrompt');
+            if (!btn || surprisePromptLoading) {
+                return;
+            }
+            surprisePromptLoading = true;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '🔍 Searching for what\'s hot today...';
+            setTimeout(function() {
+                if (surprisePromptLoading) {
+                    btn.textContent = '📝 Crafting your prompt...';
+                }
+            }, 1200);
+            const topicHint = surprisePreview.title || surprisePreview.topic || surprisePreview.primary_keyword || '';
+            const body = {
+                user_preferences: {
+                    topics_of_interest: [],
+                    excluded_topics: surpriseExcludedTopics,
+                    preferred_post_length: 'medium',
+                    technical_level: 'intermediate'
+                },
+                topic_hint: topicHint
+            };
+            fetch('/api/surprise-me/generate-prompt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(err) {
+                        throw new Error(err.error || 'Server error occurred');
+                    });
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                if (!data || !data.success || !data.prompt) {
+                    throw new Error('Unexpected response from server');
+                }
+                const promptText = JSON.stringify(data.prompt, null, 2);
+                const textarea = document.getElementById('youtube_link');
+                if (textarea) {
+                    textarea.value = promptText;
+                }
+                return copyTextToClipboard(promptText).then(function() {
+                    btn.textContent = '📋 Prompt copied';
+                    setTimeout(function() {
+                        btn.textContent = originalText;
+                    }, 2000);
+                });
+            })
+            .catch(function(error) {
+                alert(error.message || 'Unable to generate prompt right now.');
+                btn.textContent = originalText;
+            })
+            .finally(function() {
+                surprisePromptLoading = false;
+                btn.disabled = false;
+            });
+        }
         
         const surpriseClose = document.getElementById('surpriseClose');
         const surpriseCancel = document.getElementById('surpriseCancel');
         const surpriseUse = document.getElementById('surpriseUse');
         const surpriseAnother = document.getElementById('surpriseAnother');
+        const surpriseCopyPrompt = document.getElementById('surpriseCopyPrompt');
         
         if (surpriseClose) {
             surpriseClose.addEventListener('click', function() {
@@ -723,6 +816,12 @@
                 hideSurpriseModal();
                 setSurpriseButtonIdle(false);
                 triggerSurpriseRequest();
+            });
+        }
+
+        if (surpriseCopyPrompt) {
+            surpriseCopyPrompt.addEventListener('click', function() {
+                triggerSurprisePromptGeneration();
             });
         }
     </script>

@@ -126,6 +126,60 @@ ai_manager = None
 
 DEFAULT_MODEL = 'gpt-4o'
 
+BANNED_PROMPT_PHRASES = [
+    "Let's dive into",
+    "In today's fast-paced world",
+    "In the ever-evolving landscape",
+    "In conclusion",
+    "Overall",
+    "Hope this helps",
+    "cutting-edge",
+    "unlock the power of",
+    "game-changing",
+    "seamless experience",
+    "I think",
+    "I believe",
+    "maybe",
+    "could potentially",
+    "revolutionary",
+    "disruptive",
+    "seamless",
+    "leverage",
+    "robust",
+    "delve into",
+    "great question",
+    "solutions",
+    "ecosystem",
+    "best-in-class",
+    "next-generation",
+    "enterprise-grade",
+    "world-class",
+    "might potentially",
+    "could possibly",
+    "seems to perhaps",
+    "may be able to"
+]
+
+def _remove_banned_phrases(text):
+    if not isinstance(text, str) or not text:
+        return text
+    result = text
+    for phrase in BANNED_PROMPT_PHRASES:
+        result = re.sub(re.escape(phrase), '', result, flags=re.IGNORECASE)
+    result = re.sub(r'\s{2,}', ' ', result).strip()
+    return result
+
+def _sanitize_prompt_value(value):
+    if isinstance(value, dict):
+        return {k: _sanitize_prompt_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_prompt_value(v) for v in value]
+    if isinstance(value, str):
+        v = re.sub(r'https?://\S+', '', value)
+        v = _remove_banned_phrases(v)
+        return v
+    return value
+
 def require_session(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -244,6 +298,7 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
             print(f"[INPUT] Found {len(additional_text)} chars of additional text")
         
         # Collect content from all sources into one combined context
+        # This allows blog posts about multiple related sources (e.g., article + video)
         content_parts = []
         has_youtube_content = False  # Track if we have YouTube content for enhancement later
         
@@ -710,6 +765,88 @@ def surprise_me():
     except Exception as e:
         print(f"Surprise Me error: {e}")
         return jsonify({'error': "Oops! The AI got too excited. Let's try that again."}), 500
+
+@app.route('/api/surprise-me/prompt', methods=['POST'])
+@app.route('/api/surprise-me/generate-prompt', methods=['POST'])
+@require_session
+def surprise_me_prompt():
+    try:
+        start_time = time.time()
+        data = request.get_json() or {}
+        user_preferences = data.get('user_preferences') or {}
+        topics_of_interest = user_preferences.get('topics_of_interest') or []
+        excluded_topics = user_preferences.get('excluded_topics') or []
+        technical_level = user_preferences.get('technical_level') or 'intermediate'
+        audience = user_preferences.get('audience') or 'independent AI developers and small product teams'
+        tone_value = user_preferences.get('tone') or 'two_friends'
+        topic_hint = data.get('topic_hint') or user_preferences.get('topic_hint')
+        current_date = datetime.now().strftime("%B %d, %Y")
+        base_prompt = (
+            "You are helping a human write a publication-ready Medium article about modern AI development.\n"
+            "Today is " + current_date + ". Prioritize topics announced in the last 48-72 hours.\n"
+            "Select one genuinely trending topic related to AI engineering, open-source tools, Python, modern agent frameworks, or workflow automation.\n"
+            "Use only information that would be discoverable via real-time web search, GitHub trending (daily), the Hacker News front page, Reddit communities such as r/MachineLearning and r/LocalLLaMA, Product Hunt launches, and major AI release notes.\n"
+            "If a concrete topic_hint is provided, prefer that exact tool, library, or framework as long as it is actually trending.\n"
+            "Return a single JSON object only. Do not include any markdown, prose outside JSON, or explanations.\n"
+            "The JSON must follow this structure strictly:\n"
+            "article_metadata: object with topic, angle, source_url, source_date, publish_date, estimated_read_time, target_audience, technical_level.\n"
+            "headline_options: array of 3 objects with headline text under 80 characters, each naming the specific tool and stating a concrete benefit.\n"
+            "opening_hook: object with sentence_1, sentence_2, sentence_3 written as 2-3 short, conversational sentences.\n"
+            "main_content_blocks: array of objects. Each object has block_type, title, purpose, and content.\n"
+            "Use these block_types: what_it_is, why_now, key_features, how_it_works, real_world_use, how_it_compares.\n"
+            "code_examples: array of Python-focused objects with title, language, code, and explanation. Code must be realistic and syntactically valid.\n"
+            "practical_applications: array of 2-3 objects with title, scenario, inputs, and outputs.\n"
+            "comparison_context: object describing at least two alternatives, their strengths, and tradeoffs.\n"
+            "conclusion: object with summary, who_should_read, and next_steps (an array of 2-3 concrete actions).\n"
+            "seo_keywords: object with primary_keyword, secondary_keywords, meta_description, and suggested_tags.\n"
+            "Writing style: two friends talking about a specific piece of tech they just discovered. Confident, direct, specific, no corporate jargon.\n"
+            "Do not include any URLs or links anywhere in the JSON. If you must reference a source, describe it generically without a URL.\n"
+        )
+        base_prompt += "Audience: " + str(audience) + ".\n"
+        base_prompt += "Technical level: " + str(technical_level) + ".\n"
+        if topics_of_interest:
+            base_prompt += "User interests: " + ", ".join(str(x) for x in topics_of_interest) + ".\n"
+        if excluded_topics:
+            base_prompt += "Avoid these topics or tools entirely: " + ", ".join(str(x) for x in excluded_topics) + ".\n"
+        if topic_hint:
+            base_prompt += "Topic hint to prefer if it is trending: " + str(topic_hint) + ".\n"
+        ai_result = get_ai_manager().generate_content(base_prompt, model=DEFAULT_MODEL)
+        parsed = None
+        try:
+            parsed = json.loads(ai_result)
+        except Exception:
+            if isinstance(ai_result, str):
+                first = ai_result.find("{")
+                last = ai_result.rfind("}")
+                if first != -1 and last != -1 and last > first:
+                    snippet = ai_result[first : last + 1]
+                    try:
+                        parsed = json.loads(snippet)
+                    except Exception:
+                        parsed = None
+        if not isinstance(parsed, dict):
+            return jsonify({'error': 'Failed to build JSON prompt. Please try again.'}), 500
+        sanitized = _sanitize_prompt_value(parsed)
+        db = get_supabase_manager()
+        if db:
+            try:
+                meta = sanitized.get('meta') if isinstance(sanitized, dict) else {}
+                db.save_generation_log({
+                    'user_input': str(meta.get('topic') if isinstance(meta, dict) else ''),
+                    'input_type': 'surprise_full_prompt',
+                    'model': DEFAULT_MODEL,
+                    'template': '',
+                    'tone': tone_value,
+                    'enhanced': True,
+                    'success': True,
+                    'generation_time': time.time() - start_time
+                })
+            except Exception as db_error:
+                print(f"Surprise Me full prompt log failed: {db_error}")
+        return jsonify({'success': True, 'prompt': sanitized})
+    except Exception as e:
+        print(f"Surprise Me full prompt error: {e}")
+        return jsonify({'error': "Unable to build a JSON prompt right now. Please try again."}), 500
 
 @app.route('/generate', methods=['POST'])
 @rate_limit_check(max_requests=5, window=300)
