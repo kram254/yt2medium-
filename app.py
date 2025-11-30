@@ -39,6 +39,7 @@ from post_scheduler import get_scheduler
 from progress_tracker import get_progress_tracker
 from diagram_generator import get_diagram_generator
 import time
+import random
 import json
 import uuid
 import tempfile
@@ -477,6 +478,238 @@ def generate_with_content():
     except Exception as e:
         print(f"Generate with content error: {e}")
         return jsonify({'error': 'Generation failed'}), 500
+
+@app.route('/api/surprise-me', methods=['POST'])
+@require_session
+def surprise_me():
+    try:
+        start_time = time.time()
+        data = request.get_json() or {}
+        user_preferences = data.get('user_preferences') or {}
+        topics_of_interest = user_preferences.get('topics_of_interest') or []
+        excluded_topics = user_preferences.get('excluded_topics') or []
+        preferred_post_length = user_preferences.get('preferred_post_length') or 'medium'
+        technical_level = user_preferences.get('technical_level') or 'intermediate'
+        cache = get_cache_manager()
+        cached_topics = cache.get('surprise_me_trending_v1')
+        topics_payload = cached_topics if isinstance(cached_topics, dict) else None
+        if not topics_payload:
+            ai_prompt = (
+                "You are a research agent that discovers genuinely trending topics for AI developers.\n"
+                "Use the following virtual data sources: real_time_web_search, github_trending, reddit, "
+                "hacker_news, twitter_trends, arxiv_recent_papers.\n"
+                "Focus on AI development, open-source tools, Python ecosystem, agents, and workflow automation.\n"
+                "Return a JSON object with a 'topics' array. Each topic must have: "
+                "id, title, topic, angle_type, angle, source_url, score, key_points, "
+                "primary_keyword, secondary_keywords, virality_reason.\n"
+                "score is a float between 0 and 1 based on recency, engagement, novelty, relevance, virality_potential.\n"
+                "Only include topics with score >= 0.5.\n"
+                "Angle types must be one of: breaking_news, practical_tutorial, comparison_analysis, "
+                "deep_dive_review, trend_analysis, problem_solution, future_implications.\n"
+                "Use the user's interests to bias your choices.\n"
+            )
+            if topics_of_interest:
+                ai_prompt += "User interests: " + ", ".join(str(x) for x in topics_of_interest) + "\n"
+            if excluded_topics:
+                ai_prompt += "Avoid these topics or tools: " + ", ".join(str(x) for x in excluded_topics) + "\n"
+            ai_result = get_ai_manager().generate_content(ai_prompt)
+            parsed = None
+            try:
+                parsed = json.loads(ai_result)
+            except Exception:
+                if isinstance(ai_result, str):
+                    first = ai_result.find("{")
+                    last = ai_result.rfind("}")
+                    if first != -1 and last != -1 and last > first:
+                        snippet = ai_result[first : last + 1]
+                        try:
+                            parsed = json.loads(snippet)
+                        except Exception:
+                            parsed = None
+            topics_payload = parsed if isinstance(parsed, dict) else None
+            if topics_payload and isinstance(topics_payload.get('topics'), list):
+                cache.set('surprise_me_trending_v1', topics_payload, ttl=300)
+        evergreen_topics = [
+            {
+                "id": "evergreen-open-source-agents",
+                "title": "The Open-Source AI Agent Stacks Every Developer Should Know",
+                "topic": "Practical comparison of open-source AI agent frameworks and workflow builders for Python developers.",
+                "angle_type": "comparison_analysis",
+                "angle": "X vs Y: Which open-source AI agent stack should you choose for production?",
+                "source_url": "https://github.com",
+                "score": 0.75,
+                "key_points": [
+                    "How modern agent frameworks differ in architecture and capabilities",
+                    "What matters when you choose between orchestrators, toolkits, and workflow engines",
+                    "Real-world setups used by indie hackers and small teams"
+                ],
+                "primary_keyword": "open source ai agents",
+                "secondary_keywords": ["python agents", "workflow automation", "llm orchestration"],
+                "virality_reason": "High interest in practical, open-source alternatives to closed AI platforms."
+            },
+            {
+                "id": "evergreen-llm-eval-tooling",
+                "title": "Stop Shipping Blind: Modern LLM Evaluation Tools for Python Teams",
+                "topic": "Hands-on overview of open-source LLM evaluation and monitoring tools for production apps.",
+                "angle_type": "problem_solution",
+                "angle": "Finally, a practical toolkit for catching LLM failures before your users do.",
+                "source_url": "https://github.com",
+                "score": 0.7,
+                "key_points": [
+                    "Why evals and monitoring are essential once your app has real users",
+                    "How to wire evaluation tools into an existing Python codebase",
+                    "Example workflows for regression testing prompts and models"
+                ],
+                "primary_keyword": "llm evaluation",
+                "secondary_keywords": ["prompt regression", "observability", "ai monitoring"],
+                "virality_reason": "Solves a painful, common problem for anyone deploying LLM features."
+            },
+            {
+                "id": "evergreen-python-structured-outputs",
+                "title": "Structured Outputs in Python: Making LLMs Behave Like Real APIs",
+                "topic": "Using modern libraries and patterns to make LLMs return reliable, typed JSON for production systems.",
+                "angle_type": "practical_tutorial",
+                "angle": "How to get started with structured LLM outputs without breaking your existing stack.",
+                "source_url": "https://python.org",
+                "score": 0.72,
+                "key_points": [
+                    "Core patterns for validating and enforcing JSON schemas from LLM responses",
+                    "How to plug structured outputs into existing REST or background workers",
+                    "Common failure modes and strategies to harden your pipeline"
+                ],
+                "primary_keyword": "structured outputs",
+                "secondary_keywords": ["pydantic", "json schema", "llm tooling"],
+                "virality_reason": "Highly actionable topic that maps directly to real-world engineering pain."
+            }
+        ]
+        topics_list = []
+        if topics_payload and isinstance(topics_payload.get('topics'), list):
+            topics_list = topics_payload['topics']
+        if excluded_topics:
+            filtered = []
+            excluded_lower = {str(x).lower() for x in excluded_topics}
+            for item in topics_list:
+                title = str(item.get('title', '')).lower()
+                topic_text = str(item.get('topic', '')).lower()
+                identifier = str(item.get('id', '')).lower()
+                if title in excluded_lower or topic_text in excluded_lower or identifier in excluded_lower:
+                    continue
+                filtered.append(item)
+            topics_list = filtered
+        if not topics_list:
+            topics_list = evergreen_topics
+        def extract_score(item):
+            value = item.get('score') or item.get('trend_score') or item.get('total_score')
+            if isinstance(value, str):
+                try:
+                    value = float(value)
+                except Exception:
+                    value = 0.0
+            if value is None:
+                value = 0.0
+            if value > 1.0:
+                return float(value) / 100.0
+            return float(value)
+        enriched = []
+        for item in topics_list:
+            s = extract_score(item)
+            item_score = s if s >= 0 else 0.0
+            item_copy = dict(item)
+            item_copy['_score'] = item_score
+            enriched.append(item_copy)
+        if not enriched:
+            return jsonify({'error': 'No hot topics found right now. Try again in a few minutes!'}), 503
+        enriched.sort(key=lambda x: x.get('_score', 0.0), reverse=True)
+        top_candidates = enriched[:5]
+        weights = [c.get('_score', 0.0) or 0.01 for c in top_candidates]
+        total_weight = sum(weights)
+        if total_weight <= 0:
+            weights = [1 for _ in top_candidates]
+            total_weight = float(len(top_candidates))
+        normalized = [w / total_weight for w in weights]
+        chosen = random.choices(top_candidates, weights=normalized, k=1)[0]
+        angle_type = str(chosen.get('angle_type') or 'trend_analysis')
+        if angle_type not in [
+            'breaking_news',
+            'practical_tutorial',
+            'comparison_analysis',
+            'deep_dive_review',
+            'trend_analysis',
+            'problem_solution',
+            'future_implications'
+        ]:
+            angle_type = 'trend_analysis'
+        template_map = {
+            'breaking_news': '',
+            'practical_tutorial': 'tutorial',
+            'comparison_analysis': 'comparison',
+            'deep_dive_review': 'deep_dive',
+            'trend_analysis': '',
+            'problem_solution': 'case_study',
+            'future_implications': 'opinion'
+        }
+        tone_map = {
+            'breaking_news': 'professional',
+            'practical_tutorial': 'technical',
+            'comparison_analysis': 'professional',
+            'deep_dive_review': 'academic',
+            'trend_analysis': 'professional',
+            'problem_solution': 'conversational',
+            'future_implications': 'energetic'
+        }
+        preferred_length_lower = str(preferred_post_length).lower()
+        if preferred_length_lower == 'short':
+            estimated_minutes = 5
+        elif preferred_length_lower == 'long':
+            estimated_minutes = 15
+        else:
+            estimated_minutes = 8
+        level = str(technical_level).lower()
+        if level in ['beginner', 'intermediate', 'advanced']:
+            preview_level = level
+        else:
+            preview_level = 'intermediate'
+        preview = {
+            'id': str(chosen.get('id') or chosen.get('primary_keyword') or chosen.get('title') or ''),
+            'title': str(chosen.get('title') or chosen.get('topic') or 'New AI trend for Medium readers'),
+            'topic': str(chosen.get('topic') or ''),
+            'angle': str(chosen.get('angle') or chosen.get('virality_reason') or ''),
+            'angle_type': angle_type,
+            'source_url': str(chosen.get('source_url') or ''),
+            'key_points': list(chosen.get('key_points') or []),
+            'estimated_read_time': int(estimated_minutes),
+            'primary_keyword': str(chosen.get('primary_keyword') or ''),
+            'secondary_keywords': list(chosen.get('secondary_keywords') or []),
+            'content_template_value': template_map.get(angle_type, ''),
+            'writing_tone_value': tone_map.get(angle_type, 'professional'),
+            'ai_model_value': DEFAULT_MODEL,
+            'advanced_enhancement': angle_type in ['deep_dive_review', 'future_implications'],
+            'technical_level': preview_level
+        }
+        db = get_supabase_manager()
+        if db:
+            try:
+                db.save_generation_log({
+                    'user_input': preview.get('topic'),
+                    'input_type': 'surprise_preview',
+                    'model': preview.get('ai_model_value'),
+                    'template': preview.get('content_template_value'),
+                    'tone': preview.get('writing_tone_value'),
+                    'enhanced': preview.get('advanced_enhancement'),
+                    'success': True,
+                    'generation_time': time.time() - start_time
+                })
+            except Exception as db_error:
+                print(f"Surprise Me log failed: {db_error}")
+        response_payload = {
+            'success': True,
+            'preview': preview,
+            'generation_ready': True
+        }
+        return jsonify(response_payload)
+    except Exception as e:
+        print(f"Surprise Me error: {e}")
+        return jsonify({'error': "Oops! The AI got too excited. Let's try that again."}), 500
 
 @app.route('/generate', methods=['POST'])
 @rate_limit_check(max_requests=5, window=300)
