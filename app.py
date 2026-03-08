@@ -1,7 +1,7 @@
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, g
 import os
 import re
 import markdown
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from dotenv import load_dotenv
 from datetime import datetime
 import prompts
@@ -183,11 +183,141 @@ def _sanitize_prompt_value(value):
 def require_session(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            session['user_id'] = str(uuid.uuid4())
-            session.permanent = True
+        access_token = session.get('access_token')
+        if not access_token:
+            if request.is_json:
+                return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('login', next=request.url))
+
+        supabase = get_supabase_manager()
+        if not supabase:
+            if request.is_json:
+                return jsonify({'error': 'Database not configured'}), 503
+            return redirect(url_for('login'))
+
+        user_response = supabase.get_user(access_token)
+
+        if not user_response or not user_response.user:
+            # Try refreshing the token before giving up
+            refresh_token = session.get('refresh_token')
+            if refresh_token:
+                new_session = supabase.refresh_session(refresh_token)
+                if new_session and hasattr(new_session, 'session') and new_session.session:
+                    session['access_token'] = new_session.session.access_token
+                    session['refresh_token'] = new_session.session.refresh_token
+                    session['user_id'] = new_session.user.id
+                    session['user_email'] = new_session.user.email
+                    g.user = new_session.user
+                    g.user_id = new_session.user.id
+                    return f(*args, **kwargs)
+
+            session.clear()
+            if request.is_json:
+                return jsonify({'error': 'Session expired'}), 401
+            return redirect(url_for('login'))
+
+        g.user = user_response.user
+        g.user_id = user_response.user.id
+        # Keep session user_id in sync
+        session['user_id'] = user_response.user.id
         return f(*args, **kwargs)
     return decorated_function
+
+# ── Authentication Routes ───────────────────────────────────────────
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not email or not password:
+            return render_template('signup.html', error="Email and password required")
+            
+        supabase = get_supabase_manager()
+        res = supabase.sign_up(email, password)
+        
+        if res and res.user:
+            return render_template('login.html', message="Check your email for a confirmation link!")
+        else:
+            return render_template('signup.html', error="Signup failed. Account might already exist.")
+            
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        supabase = get_supabase_manager()
+        res = supabase.sign_in(email, password)
+        
+        if res and res.session:
+            session.permanent = True
+            session['access_token'] = res.session.access_token
+            session['refresh_token'] = res.session.refresh_token
+            session['user_id'] = res.user.id
+            session['user_email'] = res.user.email
+            
+            next_url = request.args.get('next')
+            return redirect(next_url or url_for('index'))
+        else:
+            return render_template('login.html', error="Invalid email or password")
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    supabase = get_supabase_manager()
+    supabase.sign_out()
+    return redirect(url_for('login'))
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        supabase = get_supabase_manager()
+        supabase.reset_password(email)
+        return render_template('forgot-password.html', message="If an account exists, a reset link has been sent.")
+    return render_template('forgot-password.html')
+
+@app.route('/auth/google')
+def auth_google():
+    """Initiate Google OAuth via Supabase."""
+    supabase = get_supabase_manager()
+    if not supabase:
+        return redirect(url_for('login'))
+    callback_url = url_for('auth_callback', _external=True)
+    result = supabase.sign_in_with_google(redirect_url=callback_url)
+    if result and hasattr(result, 'url') and result.url:
+        return redirect(result.url)
+    return redirect(url_for('login'))
+
+@app.route('/auth/callback')
+def auth_callback():
+    """Handle Supabase Auth redirects (OAuth & email confirmation)."""
+    code = request.args.get('code')
+    if code:
+        supabase = get_supabase_manager()
+        if supabase:
+            result = supabase.exchange_code_for_session(code)
+            if result and hasattr(result, 'session') and result.session:
+                session.permanent = True
+                session['access_token'] = result.session.access_token
+                session['refresh_token'] = result.session.refresh_token
+                session['user_id'] = result.user.id
+                session['user_email'] = result.user.email
+                return redirect(url_for('index'))
+    return redirect(url_for('login'))
+
+# ── Main Routes ─────────────────────────────────────────────────────
+
+@app.route('/')
+@require_session
+def index():
+    return render_template('index.html', user=g.user)
 
 def validate_request_signature(f):
     @wraps(f)
@@ -253,10 +383,6 @@ def get_ai_manager():
     
     return ai_manager
 
-@app.route('/', methods=['GET'])
-def index():
-    print("Index route called!")
-    return render_template('index.html')
 
 def generate_images_for_blog(blog_title, blog_content):
     try:
@@ -543,30 +669,46 @@ def surprise_me():
         user_preferences = data.get('user_preferences') or {}
         topics_of_interest = user_preferences.get('topics_of_interest') or []
         excluded_topics = user_preferences.get('excluded_topics') or []
-        preferred_post_length = user_preferences.get('preferred_post_length') or 'medium'
-        technical_level = user_preferences.get('technical_level') or 'intermediate'
+        current_date = datetime.now().strftime("%B %d, %Y")
         cache = get_cache_manager()
-        cached_topics = cache.get('surprise_me_trending_v1')
-        topics_payload = cached_topics if isinstance(cached_topics, dict) else None
-        if not topics_payload:
+        cached_cards = cache.get('surprise_me_v2')
+        cards_payload = cached_cards if isinstance(cached_cards, list) else None
+        if not cards_payload:
             ai_prompt = (
-                "You are a research agent that discovers genuinely trending topics for AI developers.\n"
-                "Use the following virtual data sources: real_time_web_search, github_trending, reddit, "
-                "hacker_news, twitter_trends, arxiv_recent_papers.\n"
-                "Focus on AI development, open-source tools, Python ecosystem, agents, and workflow automation.\n"
-                "Return a JSON object with a 'topics' array. Each topic must have: "
-                "id, title, topic, angle_type, angle, source_url, score, key_points, "
-                "primary_keyword, secondary_keywords, virality_reason.\n"
-                "score is a float between 0 and 1 based on recency, engagement, novelty, relevance, virality_potential.\n"
-                "Only include topics with score >= 0.5.\n"
-                "Angle types must be one of: breaking_news, practical_tutorial, comparison_analysis, "
-                "deep_dive_review, trend_analysis, problem_solution, future_implications.\n"
-                "Use the user's interests to bias your choices.\n"
+                f"You are an expert AI/ML content strategist and trend researcher. Today is {current_date}.\n"
+                "Your job: identify the TOP 3 most trending, newsworthy, developer-relevant topics in AI, ML, LLMs, "
+                "Python, and open-source tooling right now — as if you had access to X/Twitter trends, YouTube trending, "
+                "GitHub trending, Hacker News front page, and Reddit r/MachineLearning.\n"
+                "For each topic, generate a complete, ready-to-use Medium blog post prompt.\n\n"
+                "Return ONLY a raw JSON object with no markdown fences, no prose, no explanation.\n"
+                'The JSON must have exactly this structure:\n'
+                '{"cards": [\n'
+                '  {"rank": 1, "rank_badge": "#1 Trending", "headline": "punchy 6-10 word title", '
+                '"subtext": "one sentence hook", "why_now": "what makes this timely", '
+                '"platforms": ["x_twitter", "youtube"], "composite_score": 88, '
+                '"estimated_read_time": "9 min read", "keywords": ["kw1", "kw2"], '
+                '"chat_input_prompt": "Write a complete publish-ready Medium blog post titled [SPECIFIC TITLE]. '
+                'Angle: [SPECIFIC ANGLE]. The article must cover: (1) Hook with bold technical claim, '
+                '(2) Background and why this matters now, (3) Technical deep dive with Python code example, '
+                '(4) Real-world use cases, (5) Critical perspective with limitations, '
+                '(6) Actionable takeaways for this week. Tone: technical but accessible, first-person, no fluff. '
+                'Target reader: senior developer or ML engineer. Length: 1800-2400 words. '
+                'Medium tags: [TAG1, TAG2, TAG3, TAG4, TAG5]. End with a strong CTA."},'
+                '  {"rank": 2, "rank_badge": "#2 Trending", ...same shape...},'
+                '  {"rank": 3, "rank_badge": "#3 Trending", ...same shape...}'
+                ']}\n\n'
+                "Rules:\n"
+                "- All 3 topics must be DIFFERENT with no overlap.\n"
+                "- composite_score must be a number 60-100.\n"
+                "- chat_input_prompt must be at least 350 characters, name the specific tool/paper/model, "
+                "include the angle, full outline, tone, length target, and Medium tags.\n"
+                "- platforms array values must be from: x_twitter, youtube, instagram only.\n"
+                f"- Focus on releases or trends from the past 7 days as of {current_date}.\n"
             )
             if topics_of_interest:
-                ai_prompt += "User interests: " + ", ".join(str(x) for x in topics_of_interest) + "\n"
+                ai_prompt += "User interests (bias selection toward these): " + ", ".join(str(x) for x in topics_of_interest) + "\n"
             if excluded_topics:
-                ai_prompt += "Avoid these topics or tools: " + ", ".join(str(x) for x in excluded_topics) + "\n"
+                ai_prompt += "Excluded topics (do NOT suggest): " + ", ".join(str(x) for x in excluded_topics) + "\n"
             ai_result = get_ai_manager().generate_content(ai_prompt)
             parsed = None
             try:
@@ -581,190 +723,106 @@ def surprise_me():
                             parsed = json.loads(snippet)
                         except Exception:
                             parsed = None
-            topics_payload = parsed if isinstance(parsed, dict) else None
-            if topics_payload and isinstance(topics_payload.get('topics'), list):
-                cache.set('surprise_me_trending_v1', topics_payload, ttl=300)
-        evergreen_topics = [
+            if isinstance(parsed, dict) and isinstance(parsed.get('cards'), list) and len(parsed['cards']) >= 1:
+                cards_payload = parsed['cards']
+                cache.set('surprise_me_v2', cards_payload, ttl=300)
+        evergreen_cards = [
             {
-                "id": "evergreen-open-source-agents",
-                "title": "The Open-Source AI Agent Stacks Every Developer Should Know",
-                "topic": "Practical comparison of open-source AI agent frameworks and workflow builders for Python developers.",
-                "angle_type": "comparison_analysis",
-                "angle": "X vs Y: Which open-source AI agent stack should you choose for production?",
-                "source_url": "https://github.com",
-                "score": 0.75,
-                "key_points": [
-                    "How modern agent frameworks differ in architecture and capabilities",
-                    "What matters when you choose between orchestrators, toolkits, and workflow engines",
-                    "Real-world setups used by indie hackers and small teams"
-                ],
-                "primary_keyword": "open source ai agents",
-                "secondary_keywords": ["python agents", "workflow automation", "llm orchestration"],
-                "virality_reason": "High interest in practical, open-source alternatives to closed AI platforms."
+                "rank": 1,
+                "rank_badge": "#1 Trending",
+                "headline": "The Open-Source AI Agent Stacks Every Developer Should Know",
+                "subtext": "Stop paying for wrappers — here are the agent frameworks quietly replacing closed platforms.",
+                "why_now": "LangGraph, CrewAI, AutoGen, and Agno are all fighting for the top spot in production Python stacks right now.",
+                "platforms": ["x_twitter", "youtube", "instagram"],
+                "composite_score": 88,
+                "estimated_read_time": "9 min read",
+                "keywords": ["open source ai agents", "python agents", "llm orchestration"],
+                "chat_input_prompt": "Write a complete, publish-ready Medium blog post titled 'The Open-Source AI Agent Stacks Every Developer Should Know in 2025'. Angle: A senior Python developer cutting through the noise to rank the top open-source agent frameworks by real production utility, not hype. The article must cover: (1) Hook -- open with a bold claim about why most developers are overpaying for closed AI wrappers, (2) What an agent stack actually is and why the architecture choice matters, (3) A side-by-side breakdown of LangGraph, CrewAI, AutoGen, and Agno -- their strengths, weaknesses, and ideal use cases, (4) A concrete Python code example showing how to build a simple research agent in the top-ranked framework, (5) Production considerations -- latency, cost, observability, and reliability tradeoffs, (6) Critical perspective -- when you should just use an API instead of a full agent framework, (7) Actionable takeaways: 5 things to benchmark before committing to a stack. Tone: technical but accessible, first-person, direct, no corporate jargon. Target reader: senior developer or ML engineer. Length: 2000-2400 words. Medium tags: Artificial Intelligence, Python, LLM, Open Source, Machine Learning. End with a CTA inviting readers to share their production stack."
             },
             {
-                "id": "evergreen-llm-eval-tooling",
-                "title": "Stop Shipping Blind: Modern LLM Evaluation Tools for Python Teams",
-                "topic": "Hands-on overview of open-source LLM evaluation and monitoring tools for production apps.",
-                "angle_type": "problem_solution",
-                "angle": "Finally, a practical toolkit for catching LLM failures before your users do.",
-                "source_url": "https://github.com",
-                "score": 0.7,
-                "key_points": [
-                    "Why evals and monitoring are essential once your app has real users",
-                    "How to wire evaluation tools into an existing Python codebase",
-                    "Example workflows for regression testing prompts and models"
-                ],
-                "primary_keyword": "llm evaluation",
-                "secondary_keywords": ["prompt regression", "observability", "ai monitoring"],
-                "virality_reason": "Solves a painful, common problem for anyone deploying LLM features."
+                "rank": 2,
+                "rank_badge": "#2 Trending",
+                "headline": "Stop Shipping Blind: LLM Evaluation Tools for Python Teams",
+                "subtext": "Your model is in production and you have no idea if it's degrading — here's how to fix that.",
+                "why_now": "A wave of open-source LLM eval tooling just dropped as teams discover prompt regressions are invisible without proper evals.",
+                "platforms": ["x_twitter", "youtube"],
+                "composite_score": 82,
+                "estimated_read_time": "8 min read",
+                "keywords": ["llm evaluation", "prompt testing", "ai monitoring"],
+                "chat_input_prompt": "Write a complete, publish-ready Medium blog post titled 'Stop Shipping Blind: The Modern LLM Evaluation Stack for Python Teams'. Angle: A battle-hardened ML engineer explaining why evals are the most underrated practice in AI engineering and showing exactly how to set them up in a real Python project. The article must cover: (1) Hook -- open with a scenario where a silent prompt regression caused a production incident nobody caught for three days, (2) Why traditional software testing completely fails for LLM applications, (3) A breakdown of the three categories of evals: functional correctness, quality scoring, and regression detection, (4) A hands-on Python code example using an open-source eval framework such as RAGAS, DeepEval, or LangSmith to set up a basic eval pipeline, (5) How to wire evals into a CI/CD pipeline so they run on every prompt change, (6) Critical perspective -- the limits of automated evals and when you still need human review, (7) Actionable setup checklist: what to instrument in your LLM app this week. Tone: direct, technical, first-person, written like a practitioner. Target reader: ML engineer or backend developer deploying LLM features. Length: 1900-2300 words. Medium tags: Machine Learning, Python, LLMOps, Production AI, Software Engineering. End with a CTA asking readers what their eval stack looks like."
             },
             {
-                "id": "evergreen-python-structured-outputs",
-                "title": "Structured Outputs in Python: Making LLMs Behave Like Real APIs",
-                "topic": "Using modern libraries and patterns to make LLMs return reliable, typed JSON for production systems.",
-                "angle_type": "practical_tutorial",
-                "angle": "How to get started with structured LLM outputs without breaking your existing stack.",
-                "source_url": "https://python.org",
-                "score": 0.72,
-                "key_points": [
-                    "Core patterns for validating and enforcing JSON schemas from LLM responses",
-                    "How to plug structured outputs into existing REST or background workers",
-                    "Common failure modes and strategies to harden your pipeline"
-                ],
-                "primary_keyword": "structured outputs",
-                "secondary_keywords": ["pydantic", "json schema", "llm tooling"],
-                "virality_reason": "Highly actionable topic that maps directly to real-world engineering pain."
+                "rank": 3,
+                "rank_badge": "#3 Trending",
+                "headline": "Structured Outputs in Python: Making LLMs Behave Like Real APIs",
+                "subtext": "Parsing LLM responses with string splits is a production disaster -- here's the grown-up solution.",
+                "why_now": "OpenAI native structured output mode plus Pydantic v2 and Instructor has made reliable JSON from LLMs achievable and teams are migrating fast.",
+                "platforms": ["x_twitter", "instagram"],
+                "composite_score": 77,
+                "estimated_read_time": "7 min read",
+                "keywords": ["structured outputs", "pydantic", "llm json"],
+                "chat_input_prompt": "Write a complete, publish-ready Medium blog post titled 'Structured Outputs in Python: Making LLMs Behave Like Real APIs'. Angle: A Python developer explaining how to eliminate fragile string parsing from LLM pipelines using structured output libraries with real, runnable code. The article must cover: (1) Hook -- open with the universal developer pain of shipping a prompt to production and watching it return malformed JSON at 2am, (2) The three eras of LLM output parsing: regex hacks, prompt-engineering JSON, and native structured outputs, (3) A deep dive into the Instructor library and how it wraps OpenAI, Anthropic, and Gemini with Pydantic validation, (4) Two complete Python code examples showing the old fragile approach versus the structured output approach, (5) How to handle validation errors, retries, and partial outputs gracefully, (6) Performance and cost implications -- does structured mode actually cost more tokens, (7) When to use JSON mode versus function calling versus native structured outputs. Tone: technical, practical, first-person, no hand-waving. Target reader: Python developer building LLM-powered features. Length: 1800-2200 words. Medium tags: Python, AI, LLM, Pydantic, Software Engineering. End with a CTA encouraging readers to refactor one fragile parser this week."
             }
         ]
-        topics_list = []
-        if topics_payload and isinstance(topics_payload.get('topics'), list):
-            topics_list = topics_payload['topics']
-        if excluded_topics:
-            filtered = []
-            excluded_lower = {str(x).lower() for x in excluded_topics}
-            for item in topics_list:
-                title = str(item.get('title', '')).lower()
-                topic_text = str(item.get('topic', '')).lower()
-                identifier = str(item.get('id', '')).lower()
-                if title in excluded_lower or topic_text in excluded_lower or identifier in excluded_lower:
-                    continue
-                filtered.append(item)
-            topics_list = filtered
-        if not topics_list:
-            topics_list = evergreen_topics
-        def extract_score(item):
-            value = item.get('score') or item.get('trend_score') or item.get('total_score')
-            if isinstance(value, str):
-                try:
-                    value = float(value)
-                except Exception:
-                    value = 0.0
-            if value is None:
-                value = 0.0
-            if value > 1.0:
-                return float(value) / 100.0
-            return float(value)
-        enriched = []
-        for item in topics_list:
-            s = extract_score(item)
-            item_score = s if s >= 0 else 0.0
-            item_copy = dict(item)
-            item_copy['_score'] = item_score
-            enriched.append(item_copy)
-        if not enriched:
-            return jsonify({'error': 'No hot topics found right now. Try again in a few minutes!'}), 503
-        enriched.sort(key=lambda x: x.get('_score', 0.0), reverse=True)
-        top_candidates = enriched[:5]
-        weights = [c.get('_score', 0.0) or 0.01 for c in top_candidates]
-        total_weight = sum(weights)
-        if total_weight <= 0:
-            weights = [1 for _ in top_candidates]
-            total_weight = float(len(top_candidates))
-        normalized = [w / total_weight for w in weights]
-        chosen = random.choices(top_candidates, weights=normalized, k=1)[0]
-        angle_type = str(chosen.get('angle_type') or 'trend_analysis')
-        if angle_type not in [
-            'breaking_news',
-            'practical_tutorial',
-            'comparison_analysis',
-            'deep_dive_review',
-            'trend_analysis',
-            'problem_solution',
-            'future_implications'
-        ]:
-            angle_type = 'trend_analysis'
-        template_map = {
-            'breaking_news': '',
-            'practical_tutorial': 'tutorial',
-            'comparison_analysis': 'comparison',
-            'deep_dive_review': 'deep_dive',
-            'trend_analysis': '',
-            'problem_solution': 'case_study',
-            'future_implications': 'opinion'
-        }
-        tone_map = {
-            'breaking_news': 'professional',
-            'practical_tutorial': 'technical',
-            'comparison_analysis': 'professional',
-            'deep_dive_review': 'academic',
-            'trend_analysis': 'professional',
-            'problem_solution': 'conversational',
-            'future_implications': 'energetic'
-        }
-        preferred_length_lower = str(preferred_post_length).lower()
-        if preferred_length_lower == 'short':
-            estimated_minutes = 5
-        elif preferred_length_lower == 'long':
-            estimated_minutes = 15
+        raw_cards = cards_payload if isinstance(cards_payload, list) and len(cards_payload) >= 1 else None
+        valid_platforms = {"x_twitter", "youtube", "instagram"}
+        def sanitize_card(card, fallback):
+            if not isinstance(card, dict):
+                return dict(fallback)
+            out = {}
+            out['rank'] = int(card.get('rank') or fallback['rank'])
+            out['rank_badge'] = str(card.get('rank_badge') or fallback['rank_badge'])
+            out['headline'] = str(card.get('headline') or fallback['headline'])[:200]
+            out['subtext'] = str(card.get('subtext') or fallback['subtext'])[:300]
+            out['why_now'] = str(card.get('why_now') or fallback.get('why_now', ''))[:400]
+            raw_platforms = card.get('platforms') or fallback['platforms']
+            if not isinstance(raw_platforms, list):
+                raw_platforms = ['x_twitter', 'youtube']
+            out['platforms'] = [p for p in raw_platforms if p in valid_platforms] or ['x_twitter']
+            try:
+                score = int(float(card.get('composite_score') or fallback['composite_score']))
+            except Exception:
+                score = fallback['composite_score']
+            out['composite_score'] = max(50, min(100, score))
+            out['estimated_read_time'] = str(card.get('estimated_read_time') or fallback['estimated_read_time'])
+            out['keywords'] = list(card.get('keywords') or fallback['keywords'])[:8]
+            prompt = str(card.get('chat_input_prompt') or fallback['chat_input_prompt'])
+            if len(prompt) < 100:
+                prompt = fallback['chat_input_prompt']
+            out['chat_input_prompt'] = prompt
+            return out
+        if raw_cards:
+            while len(raw_cards) < 3:
+                raw_cards.append(evergreen_cards[len(raw_cards) % 3])
+            if excluded_topics:
+                excluded_lower = {str(x).lower() for x in excluded_topics}
+                filtered = [c for c in raw_cards if str(c.get('headline', '')).lower() not in excluded_lower]
+                raw_cards = filtered if filtered else raw_cards
+            final_cards = [sanitize_card(raw_cards[i], evergreen_cards[i]) for i in range(min(3, len(raw_cards)))]
         else:
-            estimated_minutes = 8
-        level = str(technical_level).lower()
-        if level in ['beginner', 'intermediate', 'advanced']:
-            preview_level = level
-        else:
-            preview_level = 'intermediate'
-        preview = {
-            'id': str(chosen.get('id') or chosen.get('primary_keyword') or chosen.get('title') or ''),
-            'title': str(chosen.get('title') or chosen.get('topic') or 'New AI trend for Medium readers'),
-            'topic': str(chosen.get('topic') or ''),
-            'angle': str(chosen.get('angle') or chosen.get('virality_reason') or ''),
-            'angle_type': angle_type,
-            'source_url': str(chosen.get('source_url') or ''),
-            'key_points': list(chosen.get('key_points') or []),
-            'estimated_read_time': int(estimated_minutes),
-            'primary_keyword': str(chosen.get('primary_keyword') or ''),
-            'secondary_keywords': list(chosen.get('secondary_keywords') or []),
-            'content_template_value': template_map.get(angle_type, ''),
-            'writing_tone_value': tone_map.get(angle_type, 'professional'),
-            'ai_model_value': DEFAULT_MODEL,
-            'advanced_enhancement': angle_type in ['deep_dive_review', 'future_implications'],
-            'technical_level': preview_level
-        }
+            final_cards = [dict(c) for c in evergreen_cards]
+        for i, card in enumerate(final_cards):
+            card['rank'] = i + 1
         db = get_supabase_manager()
         if db:
             try:
                 db.save_generation_log({
-                    'user_input': preview.get('topic'),
-                    'input_type': 'surprise_preview',
-                    'model': preview.get('ai_model_value'),
-                    'template': preview.get('content_template_value'),
-                    'tone': preview.get('writing_tone_value'),
-                    'enhanced': preview.get('advanced_enhancement'),
+                    'user_input': 'surprise_me_v2',
+                    'input_type': 'surprise_me_cards',
+                    'model': DEFAULT_MODEL,
+                    'template': '',
+                    'tone': 'multiagent',
+                    'enhanced': True,
                     'success': True,
                     'generation_time': time.time() - start_time
-                })
+                }, user_id=g.user_id)
             except Exception as db_error:
-                print(f"Surprise Me log failed: {db_error}")
-        response_payload = {
-            'success': True,
-            'preview': preview,
-            'generation_ready': True
-        }
-        return jsonify(response_payload)
+                print(f"Surprise Me v2 log failed: {db_error}")
+        return jsonify({'success': True, 'cards': final_cards})
     except Exception as e:
-        print(f"Surprise Me error: {e}")
+        print(f"Surprise Me v2 error: {e}")
         return jsonify({'error': "Oops! The AI got too excited. Let's try that again."}), 500
+
 
 @app.route('/api/surprise-me/prompt', methods=['POST'])
 @app.route('/api/surprise-me/generate-prompt', methods=['POST'])
@@ -849,6 +907,7 @@ def surprise_me_prompt():
         return jsonify({'error': "Unable to build a JSON prompt right now. Please try again."}), 500
 
 @app.route('/generate', methods=['POST'])
+@require_session
 @rate_limit_check(max_requests=5, window=300)
 def generate_blog():
     print("=" * 80)
@@ -1132,7 +1191,7 @@ def generate_blog():
                     'enhanced': enhance,
                     'success': True,
                     'generation_time': generation_time
-                })
+                }, user_id=g.user_id)
                 print("Generation log saved successfully")
             except Exception as db_error:
                 print(f"Generation log save failed (non-critical): {str(db_error)[:200]}")
@@ -1173,13 +1232,14 @@ def generate_blog():
                     'success': False,
                     'error': str(e),
                     'generation_time': generation_time
-                })
+                }, user_id=g.user_id)
             except Exception as db_error:
                 print(f"Warning: Failed to save error log: {db_error}")
         
         return jsonify({'error': error_message}), 500
 
 @app.route('/blog', methods=['GET', 'POST'])
+@require_session
 def blog_post():
     print(f"=" * 80)
     print(f"BLOG ROUTE CALLED - Method: {request.method}")
@@ -1364,7 +1424,7 @@ def blog_post():
                         'seo_recommendations': seo_recommendations,
                         'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
                         'medium_recommendations': medium_analysis.get('recommendations', [])
-                    })
+                    }, user_id=g.user_id)
                     if result:
                         print(f"Supabase save successful")
                 except Exception as e:
@@ -1379,6 +1439,7 @@ def blog_post():
     return render_template('index.html')
 
 @app.route('/export', methods=['POST'])
+@require_session
 def export_markdown():
     data = request.get_json()
     markdown_content = data.get('markdown', '')
@@ -1445,7 +1506,7 @@ def auth_medium_callback():
         if not user_info:
             return jsonify({'error': 'Failed to get user info'}), 400
         
-        user_id = session.get('user_id', 'default_user')
+        user_id = g.user_id
         account_manager = get_social_account_manager()
         
         account_data = {
@@ -1509,7 +1570,7 @@ def auth_linkedin_callback():
         if not user_info:
             return jsonify({'error': 'Failed to get user info'}), 400
         
-        user_id = session.get('user_id', 'default_user')
+        user_id = g.user_id
         account_manager = get_social_account_manager()
         
         account_data = {
@@ -1531,7 +1592,7 @@ def auth_linkedin_callback():
 @require_session
 def get_social_accounts():
     try:
-        user_id = session.get('user_id')
+        user_id = g.user_id
         if not user_id:
             return jsonify({'error': 'Session required'}), 401
         
@@ -1912,18 +1973,21 @@ def get_templates():
     })
 
 @app.route('/library')
+@require_session
 def library():
-    return render_template('library.html')
+    return render_template('library.html', user=g.user)
 
 @app.route('/batch')
+@require_session
 def batch():
-    return render_template('batch.html')
+    return render_template('batch.html', user=g.user)
 
 @app.route('/history')
+@require_session
 def history():
     db = get_supabase_manager()
     if db:
-        posts = db.get_recent_posts(50)
+        posts = db.get_recent_posts(user_id=g.user_id, limit=50)
     else:
         posts = get_all_temp_posts()
     
@@ -1931,24 +1995,26 @@ def history():
     if posts:
         print(f"First post: {posts[0].get('title', 'No title')}")
     
-    return render_template('history.html', posts=posts if posts else [])
+    return render_template('history.html', posts=posts if posts else [], user=g.user)
 
 @app.route('/api/posts/recent')
+@require_session
 def api_recent_posts():
     db = get_supabase_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    posts = db.get_recent_posts(20)
+    posts = db.get_recent_posts(user_id=g.user_id, limit=20)
     return jsonify({'success': True, 'posts': posts})
 
 @app.route('/api/posts/<post_id>')
+@require_session
 def api_get_post(post_id):
     db = get_supabase_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    post = db.get_blog_post_by_id(post_id)
+    post = db.get_blog_post_by_id(post_id, user_id=g.user_id)
     if post:
         return jsonify({'success': True, 'post': post})
     return jsonify({'error': 'Post not found'}), 404
@@ -1991,38 +2057,41 @@ def view_post(post_id):
     return render_template('blog-post.html', **blog_data)
 
 @app.route('/api/posts/<post_id>/delete', methods=['DELETE'])
+@require_session
 def delete_post(post_id):
     db = get_supabase_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    success = db.delete_post(post_id)
+    success = db.delete_post(post_id, user_id=g.user_id)
     if success:
         return jsonify({'success': True})
     return jsonify({'error': 'Failed to delete post'}), 500
 
 @app.route('/analytics')
+@require_session
 def analytics():
     db = get_supabase_manager()
     if db:
-        blog_analytics = db.get_analytics()
-        gen_stats = db.get_generation_stats()
+        blog_analytics = db.get_analytics(user_id=g.user_id)
+        gen_stats = db.get_generation_stats(user_id=g.user_id)
     else:
         blog_analytics = calculate_temp_analytics()
         gen_stats = None
     
     print(f"Analytics route: analytics={blog_analytics is not None}, gen_stats={gen_stats is not None}")
     
-    return render_template('analytics.html', analytics=blog_analytics, gen_stats=gen_stats)
+    return render_template('analytics.html', analytics=blog_analytics, gen_stats=gen_stats, user=g.user)
 
 @app.route('/api/analytics')
+@require_session
 def api_analytics():
     db = get_supabase_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    blog_analytics = db.get_analytics()
-    gen_stats = db.get_generation_stats()
+    blog_analytics = db.get_analytics(user_id=g.user_id)
+    gen_stats = db.get_generation_stats(user_id=g.user_id)
     
     return jsonify({
         'success': True,
@@ -2030,7 +2099,19 @@ def api_analytics():
         'generation_stats': gen_stats
     })
 
+@app.route('/api/generation-stats')
+@require_session
+def api_generation_stats():
+    db = get_supabase_manager()
+    if not db:
+        return jsonify({'error': 'Database not configured'}), 503
+    stats = db.get_generation_stats(user_id=g.user_id)
+    if stats:
+        return jsonify({'success': True, **stats})
+    return jsonify({'success': True, 'top_model': None, 'total_generations': 0})
+
 @app.route('/api/search')
+@require_session
 def api_search_posts():
     query = request.args.get('q', '')
     if not query:
@@ -2040,10 +2121,11 @@ def api_search_posts():
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    results = db.search_posts(query)
+    results = db.search_posts(query, user_id=g.user_id)
     return jsonify({'success': True, 'results': results})
 
 @app.route('/api/drafts', methods=['GET', 'POST'])
+@require_session
 @rate_limit_check(max_requests=20, window=60)
 def api_drafts():
     if request.method == 'POST':
@@ -2068,6 +2150,7 @@ def api_drafts():
         return jsonify({'success': True, 'drafts': drafts})
 
 @app.route('/api/drafts/<draft_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_session
 def api_draft_detail(draft_id):
     if request.method == 'GET':
         draft = get_draft(draft_id)
@@ -2095,6 +2178,7 @@ def api_draft_detail(draft_id):
         return jsonify({'success': True})
 
 @app.route('/api/posts/<post_id>/versions', methods=['GET', 'POST'])
+@require_session
 def api_post_versions(post_id):
     if request.method == 'POST':
         data = request.get_json()
@@ -2112,6 +2196,7 @@ def api_post_versions(post_id):
         return jsonify({'success': True, 'versions': versions})
 
 @app.route('/api/posts/<post_id>/versions/<int:version_number>')
+@require_session
 def api_get_version(post_id, version_number):
     version = get_post_version(post_id, version_number)
     if version:
@@ -2119,6 +2204,7 @@ def api_get_version(post_id, version_number):
     return jsonify({'error': 'Version not found'}), 404
 
 @app.route('/api/schedule', methods=['GET', 'POST'])
+@require_session
 @rate_limit_check(max_requests=20, window=60)
 def api_schedule():
     if request.method == 'POST':
@@ -2138,11 +2224,13 @@ def api_schedule():
         return jsonify({'success': True, 'scheduled_posts': scheduled})
 
 @app.route('/api/schedule/<schedule_id>', methods=['DELETE'])
+@require_session
 def api_cancel_schedule(schedule_id):
     delete_scheduled_post(schedule_id)
     return jsonify({'success': True})
 
 @app.route('/api/jobs/<job_id>/status')
+@require_session
 def api_job_status(job_id):
     queue = get_job_queue()
     status = queue.get_job_status(job_id)
@@ -2151,6 +2239,7 @@ def api_job_status(job_id):
     return jsonify({'error': 'Job not found'}), 404
 
 @app.route('/api/jobs/<job_id>/cancel', methods=['POST'])
+@require_session
 def api_cancel_job(job_id):
     queue = get_job_queue()
     cancelled = queue.cancel_job(job_id)
@@ -2159,6 +2248,7 @@ def api_cancel_job(job_id):
     return jsonify({'error': 'Job cannot be cancelled'}), 400
 
 @app.route('/api/jobs/stats')
+@require_session
 def api_job_stats():
     queue = get_job_queue()
     stats = queue.get_queue_stats()
@@ -2172,6 +2262,7 @@ def api_clear_cache():
     return jsonify({'success': True, 'message': 'Cache cleared'})
 
 @app.route('/api/progress/<job_id>')
+@require_session
 def api_progress(job_id):
     tracker = get_progress_tracker()
     progress = tracker.get_progress(job_id)
@@ -2180,6 +2271,7 @@ def api_progress(job_id):
     return jsonify({'error': 'Progress not found'}), 404
 
 @app.route('/api/progress/<job_id>/stream')
+@require_session
 def api_progress_stream(job_id):
     def generate():
         tracker = get_progress_tracker()
@@ -2204,8 +2296,9 @@ def api_progress_stream(job_id):
     return app.response_class(generate(), mimetype='text/event-stream')
 
 @app.route('/kario-socials')
+@require_session
 def kario_socials():
-    return render_template('kario-socials.html')
+    return render_template('kario-socials.html', user=g.user)
 
 @app.route('/api/social-generate', methods=['POST'])
 @rate_limit_check(max_requests=20, window=300)

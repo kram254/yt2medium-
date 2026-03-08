@@ -124,48 +124,178 @@
         .surprise-modal-visible {
             display: flex;
         }
+
+        /* ── Sidebar ─────────────────────────────────────── */
+        #sidebar {
+            width: 256px;
+            min-height: 100vh;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(24px);
+            border-right: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 40;
+            transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+        }
+        #sidebar.collapsed { transform: translateX(-256px); }
+        #sidebarOverlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 39;
+        }
+        #sidebarOverlay.active { display: block; }
+        #mainContent {
+            margin-left: 256px;
+            transition: margin-left 0.28s cubic-bezier(.4,0,.2,1);
+            flex: 1;
+        }
+        #mainContent.full { margin-left: 0; }
+        .sidebar-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 10px;
+            font-size: 14px; color: rgba(255,255,255,0.65);
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        .sidebar-link:hover { background: rgba(255,255,255,0.07); color: white; }
+        .sidebar-link.active { background: rgba(129,140,248,0.15); color: #a5b4fc; }
+        .sidebar-widget {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px; padding: 12px 14px;
+        }
+        @media (max-width: 768px) {
+            #sidebar { transform: translateX(-256px); }
+            #sidebar.open { transform: translateX(0); }
+            #mainContent { margin-left: 0 !important; }
+            #hamburger { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+            #hamburger { display: flex; }
+            #topbar { display: flex; }
+        }
     </style>
 </head>
 <body class="min-h-screen text-white">
-    
-    <nav class="border-b border-white/10 backdrop-blur-sm sticky top-0 z-50" style="background: rgba(0, 0, 0, 0.7);">
-        <div class="max-w-5xl mx-auto px-6">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-lg glass flex items-center justify-center font-bold text-sm">
-                        AI
+
+    <!-- Mobile overlay -->
+    <div id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 py-4 border-b border-white/07" style="border-color:rgba(255,255,255,0.07)">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg glass flex items-center justify-center font-bold text-xs flex-shrink-0">AI</div>
+                <span class="font-semibold text-sm">Zero2Medium</span>
+            </div>
+            <button onclick="toggleSidebar()" class="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-neutral-400 hover:text-white" title="Collapse sidebar">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex flex-col flex-1 overflow-y-auto px-3 py-4 space-y-1">
+            <!-- New Post -->
+            <a href="/" class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold mb-3 transition-all"
+               style="background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.3));border:1px solid rgba(129,140,248,0.3);color:#c4b5fd;"
+               onmouseover="this.style.background='linear-gradient(135deg,rgba(99,102,241,0.45),rgba(139,92,246,0.45))'"
+               onmouseout="this.style.background='linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.3))'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Post
+            </a>
+
+            <!-- Nav links -->
+            <a href="{{ url_for('index') }}" class="sidebar-link active">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+                Generate
+            </a>
+            <a href="{{ url_for('library') }}" class="sidebar-link">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                Library
+            </a>
+            <a href="{{ url_for('history') }}" class="sidebar-link">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+                History
+            </a>
+            <a href="{{ url_for('batch') }}" class="sidebar-link">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                Batch
+            </a>
+            <a href="{{ url_for('analytics') }}" class="sidebar-link">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Analytics
+            </a>
+
+            <div class="pt-3 space-y-2">
+                <!-- Drafts Counter -->
+                <div class="sidebar-widget">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-neutral-400">Posts Saved</span>
+                        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
                     </div>
-                    <span class="text-lg font-semibold">Zero2Medium</span>
+                    <div class="text-2xl font-bold text-white" id="draftsCount">—</div>
+                    <div class="text-xs text-neutral-500 mt-0.5">in your library</div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <a href="{{ url_for('library') }}" class="feature-pill">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+
+                <!-- Model Insights -->
+                <div class="sidebar-widget">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-neutral-400">Top Model</span>
+                        <svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                         </svg>
-                        Library
-                    </a>
-                    <a href="{{ url_for('batch') }}" class="feature-pill">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-                        </svg>
-                        Batch
-                    </a>
-                    <a href="{{ url_for('history') }}" class="feature-pill">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                        </svg>
-                        History
-                    </a>
-                    <a href="{{ url_for('analytics') }}" class="feature-pill">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                        Analytics
-                    </a>
+                    </div>
+                    <div class="text-sm font-semibold text-white truncate" id="topModel">—</div>
+                    <div class="text-xs text-neutral-500 mt-0.5">most used model</div>
                 </div>
             </div>
         </div>
-    </nav>
+
+        <!-- User Profile Card -->
+        <div class="px-3 pb-4 pt-2 border-t border-white/07" style="border-color:rgba(255,255,255,0.07)">
+            <div class="sidebar-widget flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                     style="background:linear-gradient(135deg,#6366f1,#8b5cf6);" id="userAvatar">?</div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-medium text-white truncate" id="userEmail">
+                        {% if user %}{{ user.email }}{% else %}—{% endif %}
+                    </div>
+                    <a href="/logout" class="text-xs text-neutral-500 hover:text-red-400 transition-colors">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main wrapper -->
+    <div id="mainContent">
+        <!-- Top bar -->
+        <div id="topbar" class="flex items-center h-12 px-4 border-b sticky top-0 z-30" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(16px);border-color:rgba(255,255,255,0.07);">
+            <button id="hamburger" onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-white/10 transition-colors text-neutral-400 hover:text-white mr-3">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <span class="text-sm font-medium text-neutral-300">Generate Post</span>
+        </div>
 
     <div class="max-w-4xl mx-auto px-6 py-16">
         
@@ -312,48 +442,34 @@
             </div>
         </div>
 
-        <div id="surpriseModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/70 px-4">
-            <div class="max-w-xl w-full glass rounded-2xl border border-white/10 p-6 relative">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h3 class="text-lg font-semibold mb-1">✨ Surprise Me Preview</h3>
-                        <p class="text-sm text-neutral-400" id="surpriseTopicSummary"></p>
-                    </div>
-                    <button type="button" id="surpriseClose" class="text-neutral-400 hover:text-white rounded-lg p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                <div class="mt-4 space-y-3">
-                    <div>
-                        <div class="text-xs uppercase tracking-wide text-neutral-500">Headline</div>
-                        <div class="mt-1 text-sm font-semibold" id="surpriseTitle"></div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-neutral-400">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-neutral-500">Angle</div>
-                            <div class="mt-1" id="surpriseAngle"></div>
-                        </div>
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-neutral-500">Estimated read time</div>
-                            <div class="mt-1" id="surpriseReadTime"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-xs uppercase tracking-wide text-neutral-500">Key points</div>
-                        <ul class="mt-1 text-sm text-neutral-300 space-y-1" id="surpriseKeyPoints"></ul>
-                    </div>
-                    <div class="text-xs text-neutral-500" id="surpriseSource"></div>
-                </div>
-                <div class="mt-6 flex flex-col md:flex-row md:justify-end md:space-x-3 space-y-2 md:space-y-0">
-                    <button type="button" id="surpriseCancel" class="w-full md:w-auto px-4 py-2 rounded-lg border border-white/10 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-                    <button type="button" id="surpriseAnother" class="w-full md:w-auto px-4 py-2 rounded-lg bg-neutral-800 text-sm hover:bg-neutral-700">Try another topic</button>
-                    <button type="button" id="surpriseCopyPrompt" class="w-full md:w-auto px-4 py-2 rounded-lg bg-neutral-100 text-sm text-black hover:bg-white">Copy Prompt to Clipboard</button>
-                    <button type="button" id="surpriseUse" class="w-full md:w-auto px-4 py-2 rounded-lg glow-button text-sm text-black bg-white">Looks great  use this</button>
+        <!-- Surprise Me Loading State -->
+        <div id="surpriseLoadingPanel" class="hidden mt-6 glass rounded-2xl p-6">
+            <div class="flex items-center space-x-3">
+                <svg class="animate-spin h-5 w-5 text-indigo-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <div>
+                    <div class="text-sm font-medium text-white" id="surpriseStageLabel">Stage 1 of 3 — Scanning trends...</div>
+                    <div class="text-xs text-neutral-500 mt-0.5">Checking X, YouTube, GitHub, Hacker News &amp; Reddit</div>
                 </div>
             </div>
         </div>
+
+        <!-- Surprise Me Result Panel -->
+        <div id="surpriseResultPanel" class="hidden mt-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-base font-semibold text-white">✨ Trending Now — Pick Your Topic</h3>
+                    <p class="text-xs text-neutral-500 mt-0.5">Click <strong class="text-neutral-300">Use This Prompt</strong> to instantly load it into the generator</p>
+                </div>
+                <button type="button" id="surpriseTryAnother" class="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-neutral-400 hover:text-white hover:border-white/30 transition-colors">🔄 Refresh</button>
+            </div>
+            <div id="surpriseCardsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- Toast notification -->
+        <div id="surpriseToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2 rounded-lg text-sm font-medium shadow-lg" style="background: rgba(129,140,248,0.95); color: #fff;">✅ Prompt loaded!</div>
 
         <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="glass glass-hover rounded-xl p-6 transition-all">
@@ -391,8 +507,68 @@
     <footer class="text-center text-neutral-500 py-6 mt-16 border-t border-white/10 text-sm">
         © 2025 AI Zero2Medium
     </footer>
+    </div><!-- /mainContent -->
 
     <script>
+        // ── Sidebar ───────────────────────────────────────────────────
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const overlay = document.getElementById('sidebarOverlay');
+        const isMobile = () => window.innerWidth <= 768;
+
+        function toggleSidebar() {
+            if (isMobile()) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('full');
+            }
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        }
+
+        // Populate sidebar widgets
+        (function() {
+            // User avatar initial
+            const emailEl = document.getElementById('userEmail');
+            const avatarEl = document.getElementById('userAvatar');
+            if (emailEl && avatarEl) {
+                const email = emailEl.textContent.trim();
+                if (email && email !== '—') {
+                    avatarEl.textContent = email[0].toUpperCase();
+                }
+            }
+
+            // Drafts count + top model from API
+            fetch('/api/posts/recent')
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('draftsCount');
+                    if (el && data.posts) el.textContent = data.posts.length;
+                })
+                .catch(() => {});
+
+            // Top model from generation stats
+            fetch('/api/generation-stats')
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('topModel');
+                    if (el && data.top_model) {
+                        // Shorten model name for display
+                        let m = data.top_model;
+                        if (m.includes('gpt-4o')) m = 'GPT-4o';
+                        else if (m.includes('deepseek')) m = 'DeepSeek';
+                        else if (m.includes('gemini')) m = 'Gemini';
+                        else if (m.includes('claude')) m = 'Claude';
+                        el.textContent = m;
+                    }
+                })
+                .catch(() => {});
+        })();
         fetch('/health')
             .then(r => r.json())
             .then(data => {
@@ -501,10 +677,160 @@
         
         let uploadedFile = null;
         let surpriseLoading = false;
-        let surprisePreview = null;
         let surpriseExcludedTopics = [];
         let surpriseBtnOriginalHtml = '';
-        let surprisePromptLoading = false;
+
+        // ── Surprise Me helpers ──────────────────────────────────────
+        const PLATFORM_LABELS = { x_twitter: 'X', youtube: 'YouTube', instagram: 'Instagram' };
+        const STAGE_MESSAGES = [
+            'Stage 1 of 3 — Scanning X, Reddit &amp; Hacker News...',
+            'Stage 2 of 3 — Ranking topics by trend score...',
+            'Stage 3 of 3 — Writing your Medium post prompts...'
+        ];
+
+        function showSurpriseToast(msg) {
+            const toast = document.getElementById('surpriseToast');
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(function() { toast.classList.add('hidden'); }, 2800);
+        }
+
+        function setSurpriseBtn(state) {
+            const btn = document.getElementById('surpriseBtn');
+            if (!btn) return;
+            if (state === 'loading') {
+                if (!surpriseBtnOriginalHtml) surpriseBtnOriginalHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.classList.add('surprise-pulse');
+                btn.innerHTML = '🔍 Discovering trends...';
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('surprise-pulse');
+                btn.innerHTML = surpriseBtnOriginalHtml || '<span>✨ Surprise Me</span>';
+                surpriseLoading = false;
+            }
+        }
+
+        function buildCard(card) {
+            const score = Math.max(0, Math.min(100, Number(card.composite_score) || 70));
+            const platforms = Array.isArray(card.platforms) ? card.platforms : ['x_twitter'];
+            const platformBadges = platforms.map(function(p) {
+                const label = PLATFORM_LABELS[p] || p;
+                return '<span class="inline-block text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-400 mr-1">' + label + '</span>';
+            }).join('');
+
+            const div = document.createElement('div');
+            div.className = 'glass rounded-xl p-5 flex flex-col space-y-3 border border-white/5 hover:border-indigo-400/30 transition-all';
+            div.innerHTML = [
+                '<div class="flex items-center justify-between">',
+                '  <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:rgba(129,140,248,0.15);color:#818cf8;">' + escHtml(card.rank_badge || ('#' + card.rank + ' Trending')) + '</span>',
+                '  <span class="text-xs text-neutral-500">' + escHtml(card.estimated_read_time || '8 min read') + '</span>',
+                '</div>',
+                '<div class="font-semibold text-white text-sm leading-snug">' + escHtml(card.headline || '') + '</div>',
+                '<div class="text-xs text-neutral-400 leading-relaxed">' + escHtml(card.subtext || '') + '</div>',
+                '<div class="flex items-center space-x-1.5">' + platformBadges + '</div>',
+                '<div>',
+                '  <div class="flex items-center justify-between mb-1">',
+                '    <span class="text-xs text-neutral-500">Trend score</span>',
+                '    <span class="text-xs font-medium text-indigo-400">' + score + '</span>',
+                '  </div>',
+                '  <div class="h-1 rounded-full" style="background:rgba(255,255,255,0.07);">',
+                '    <div class="h-1 rounded-full" style="width:' + score + '%;background:linear-gradient(90deg,#818cf8,#c084fc);"></div>',
+                '  </div>',
+                '</div>',
+                '<button type="button" class="surprise-use-btn w-full mt-auto py-2 rounded-lg text-xs font-semibold transition-all" style="background:rgba(129,140,248,0.18);color:#a5b4fc;border:1px solid rgba(129,140,248,0.25);" onmouseover="this.style.background=\'rgba(129,140,248,0.35)\'" onmouseout="this.style.background=\'rgba(129,140,248,0.18)\'">Use This Prompt ✨</button>'
+            ].join('');
+
+            div.querySelector('.surprise-use-btn').addEventListener('click', function() {
+                const textarea = document.getElementById('youtube_link');
+                if (textarea) {
+                    textarea.value = card.chat_input_prompt || '';
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    textarea.focus();
+                }
+                const headline = card.headline || '';
+                if (headline) surpriseExcludedTopics.push(headline);
+                showSurpriseToast('✅ Prompt loaded into the generator!');
+            });
+            return div;
+        }
+
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function renderSurpriseCards(cards) {
+            const grid = document.getElementById('surpriseCardsGrid');
+            const panel = document.getElementById('surpriseResultPanel');
+            const loading = document.getElementById('surpriseLoadingPanel');
+            if (!grid || !panel) return;
+            grid.innerHTML = '';
+            cards.forEach(function(card) {
+                grid.appendChild(buildCard(card));
+            });
+            if (loading) loading.classList.add('hidden');
+            panel.classList.remove('hidden');
+        }
+
+        function triggerSurpriseRequest() {
+            if (surpriseLoading) return;
+            surpriseLoading = true;
+            setSurpriseBtn('loading');
+            document.getElementById('surpriseResultPanel').classList.add('hidden');
+            const loadingPanel = document.getElementById('surpriseLoadingPanel');
+            const stageLabel = document.getElementById('surpriseStageLabel');
+            if (loadingPanel) loadingPanel.classList.remove('hidden');
+            let stageIdx = 0;
+            if (stageLabel) stageLabel.innerHTML = STAGE_MESSAGES[0];
+            const stageTimer = setInterval(function() {
+                stageIdx = (stageIdx + 1) % STAGE_MESSAGES.length;
+                if (stageLabel) stageLabel.innerHTML = STAGE_MESSAGES[stageIdx];
+            }, 3000);
+            const body = {
+                user_preferences: {
+                    topics_of_interest: [],
+                    excluded_topics: surpriseExcludedTopics,
+                    preferred_post_length: 'medium',
+                    technical_level: 'intermediate'
+                }
+            };
+            fetch('/api/surprise-me', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(err) { throw new Error(err.error || 'Server error'); });
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                clearInterval(stageTimer);
+                if (!data || !data.success || !Array.isArray(data.cards) || data.cards.length === 0) {
+                    throw new Error('No trending topics found right now. Try again in a moment.');
+                }
+                renderSurpriseCards(data.cards);
+                setSurpriseBtn('idle');
+            })
+            .catch(function(error) {
+                clearInterval(stageTimer);
+                if (loadingPanel) loadingPanel.classList.add('hidden');
+                setSurpriseBtn('idle');
+                alert(error.message || "Oops! The AI got too excited. Let's try again.");
+            });
+        }
+
+        document.getElementById('surpriseBtn').addEventListener('click', triggerSurpriseRequest);
+        document.getElementById('surpriseTryAnother').addEventListener('click', function() {
+            document.getElementById('surpriseResultPanel').classList.add('hidden');
+            triggerSurpriseRequest();
+        });
         
         function handleFileUpload(event) {
             const file = event.target.files[0];
