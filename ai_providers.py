@@ -223,7 +223,7 @@ Provide:
 5. Future implications and predictions
 6. Concrete examples and use cases
 
-Make this research detailed and up-to-date. Focus on what's actually trending and newsworthy right now."""
+Make this research detailed, up-to-date, and strictly based on verifiable, legit information. Focus on what's actually trending and newsworthy right now on platforms like Twitter, Reddit, Medium, and YouTube. Do not hallucinate."""
     
     research_content = ai_manager.generate_content(research_prompt)
     return f"Research Date: {current_date}\n\nTopic: {topic_query}\n\n{research_content}"

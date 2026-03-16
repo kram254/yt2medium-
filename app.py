@@ -677,8 +677,9 @@ def surprise_me():
             ai_prompt = (
                 f"You are an expert AI/ML content strategist and trend researcher. Today is {current_date}.\n"
                 "Your job: identify the TOP 3 most trending, newsworthy, developer-relevant topics in AI, ML, LLMs, "
-                "Python, and open-source tooling right now — as if you had access to X/Twitter trends, YouTube trending, "
-                "GitHub trending, Hacker News front page, and Reddit r/MachineLearning.\n"
+                "and open-source tooling right now (not only Python) — as if you had access to X/Twitter trends, YouTube trending, "
+                "Medium articles, GitHub trending, Hacker News front page, and Reddit r/MachineLearning.\n"
+                "The information MUST be verifiable and legit. Do not hallucinate trends.\n"
                 "For each topic, generate a complete, ready-to-use Medium blog post prompt.\n\n"
                 "Return ONLY a raw JSON object with no markdown fences, no prose, no explanation.\n"
                 'The JSON must have exactly this structure:\n'
@@ -702,7 +703,7 @@ def surprise_me():
                 "- composite_score must be a number 60-100.\n"
                 "- chat_input_prompt must be at least 350 characters, name the specific tool/paper/model, "
                 "include the angle, full outline, tone, length target, and Medium tags.\n"
-                "- platforms array values must be from: x_twitter, youtube, instagram only.\n"
+                "- platforms array values must be from: x_twitter, youtube, instagram, reddit, medium only.\n"
                 f"- Focus on releases or trends from the past 7 days as of {current_date}.\n"
             )
             if topics_of_interest:
