@@ -60,6 +60,20 @@ class SupabaseManager:
             print(f"Supabase google_auth error: {e}")
             return None
 
+    def sign_in_with_otp(self, email, redirect_url=None):
+        """Send a one-time magic link to the user's email."""
+        try:
+            opts = {}
+            if redirect_url:
+                opts['email_redirect_to'] = redirect_url
+            return self.client.auth.sign_in_with_otp({
+                "email": email,
+                "options": opts
+            })
+        except Exception as e:
+            print(f"Supabase sign_in_with_otp error: {e}")
+            return None
+
     def sign_out(self):
         try:
             return self.client.auth.sign_out()

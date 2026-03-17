@@ -283,12 +283,32 @@ def forgot_password():
         return render_template('forgot-password.html', message="If an account exists, a reset link has been sent.")
     return render_template('forgot-password.html')
 
+@app.route('/auth/magic-link', methods=['POST'])
+def auth_magic_link():
+    """Send a one-time magic link to the user's email."""
+    email = request.form.get('email')
+    if not email:
+        return render_template('login.html', error="Email is required for one-time login")
+        
+    supabase = get_supabase_manager()
+    if not supabase:
+        return render_template('login.html', error="Database not configured")
+        
+    callback_url = url_for('auth_callback', _external=True)
+    supabase.sign_in_with_otp(email, redirect_url=callback_url)
+    return render_template('login.html', message="Check your email for the one-time login link!")
+
 @app.route('/auth/google')
 def auth_google():
     """Initiate Google OAuth via Supabase."""
     supabase = get_supabase_manager()
     if not supabase:
         return redirect(url_for('login'))
+        
+    next_url = request.args.get('next')
+    if next_url:
+        session['auth_next_url'] = next_url
+        
     callback_url = url_for('auth_callback', _external=True)
     result = supabase.sign_in_with_google(redirect_url=callback_url)
     if result and hasattr(result, 'url') and result.url:
@@ -309,7 +329,9 @@ def auth_callback():
                 session['refresh_token'] = result.session.refresh_token
                 session['user_id'] = result.user.id
                 session['user_email'] = result.user.email
-                return redirect(url_for('index'))
+                
+                next_url = session.pop('auth_next_url', None)
+                return redirect(next_url or url_for('index'))
     return redirect(url_for('login'))
 
 # ── Main Routes ─────────────────────────────────────────────────────
