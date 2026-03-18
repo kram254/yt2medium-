@@ -1,6 +1,11 @@
 import os
 import requests
 import base64
+import json
+import subprocess
+import time
+import uuid
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,8 +19,14 @@ class DiagramGenerator:
     def __init__(self, ai_manager=None):
         self.ai_manager = ai_manager
         self.napkin_api_key = os.getenv('NAPKIN_API_KEY')
+        self.excalidraw_skill_path = Path('.agents/skills/excalidraw-diagram')
+        self.has_excalidraw_skill = self.excalidraw_skill_path.exists()
         
-    def generate_flowchart_from_content(self, title, content, diagram_type='flowchart'):
+        # Ensure static/diagrams exists
+        self.diagrams_dir = Path('static/diagrams')
+        self.diagrams_dir.mkdir(parents=True, exist_ok=True)
+        
+    def generate_flowchart_from_content(self, title, content, diagram_type='flowchart', use_excalidraw=True):
         """
         Generate a flowchart or diagram based on blog post content.
         
@@ -23,13 +34,19 @@ class DiagramGenerator:
             title: Blog post title
             content: Blog post content (first 2000 chars for context)
             diagram_type: Type of diagram (flowchart, mindmap, process, infographic)
+            use_excalidraw: Whether to prefer Excalidraw over Mermaid
         
         Returns:
-            dict with 'success', 'diagram_url', 'diagram_type', 'mermaid_code'
+            dict with 'success', 'diagram_url', 'diagram_type', 'mermaid_code', etc.
         """
         try:
             print(f"[DIAGRAM] Generating {diagram_type} for: {title[:50]}")
             
+            # Use Excalidraw if requested and available
+            if use_excalidraw and self.has_excalidraw_skill:
+                return self._generate_excalidraw(title, content, diagram_type)
+            
+            # Fallback to Mermaid
             # Step 1: Use AI to analyze content and generate diagram specification
             mermaid_code = self._generate_diagram_spec(title, content, diagram_type)
             
@@ -46,7 +63,8 @@ class DiagramGenerator:
                     'success': True,
                     'diagram_url': diagram_url,
                     'diagram_type': diagram_type,
-                    'mermaid_code': mermaid_code
+                    'mermaid_code': mermaid_code,
+                    'format': 'mermaid'
                 }
             else:
                 return {'success': False, 'error': 'Failed to render diagram'}
@@ -54,6 +72,146 @@ class DiagramGenerator:
         except Exception as e:
             print(f"[DIAGRAM] Error: {e}")
             return {'success': False, 'error': str(e)}
+
+    def _generate_excalidraw(self, title, content, diagram_type):
+        """
+        Generate an Excalidraw diagram using the installed skill.
+        """
+        if not self.ai_manager:
+            return {'success': False, 'error': 'AI manager required for Excalidraw generation'}
+            
+        print(f"[DIAGRAM] Using Excalidraw skill for {diagram_type}")
+        
+        # Generate a unique ID for this diagram
+        diagram_id = str(uuid.uuid4())[:8]
+        json_path = self.diagrams_dir / f"{diagram_id}.excalidraw"
+        png_path = self.diagrams_dir / f"{diagram_id}.png"
+        
+        content_excerpt = content[:3000] if len(content) > 3000 else content
+        
+        # Read the templates to pass to the prompt
+        try:
+            templates_path = self.excalidraw_skill_path / 'references' / 'element-templates.md'
+            colors_path = self.excalidraw_skill_path / 'references' / 'color-palette.md'
+            
+            templates = templates_path.read_text(encoding='utf-8') if templates_path.exists() else ""
+            colors = colors_path.read_text(encoding='utf-8') if colors_path.exists() else ""
+        except Exception as e:
+            print(f"[DIAGRAM] Could not read Excalidraw templates: {e}")
+            templates = ""
+            colors = ""
+            
+        prompt = f"""
+Create an Excalidraw diagram ({diagram_type}) for this article.
+
+Title: {title}
+Content: {content_excerpt}
+
+Requirements:
+1. You must output ONLY valid JSON matching the Excalidraw format.
+2. The diagram should be professional, clean, and use the standard colors.
+3. Keep the diagram concise and focused on the main concepts.
+4. Do NOT wrap the JSON in ```json markdown blocks, just output the raw JSON directly.
+
+Format required:
+{{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [ ... your elements here ... ],
+  "appState": {{ "viewBackgroundColor": "#ffffff", "gridSize": 20 }},
+  "files": {{}}
+}}
+
+Use these standard colors if possible:
+{colors[:500]}
+
+Follow standard element structure. Make sure text fits within shapes, use proper x,y coordinates to space things out evenly.
+"""
+
+        try:
+            # Generate JSON using AI
+            print("[DIAGRAM] Requesting Excalidraw JSON from AI...")
+            response = self.ai_manager.generate_content(prompt, None, 'gpt-4o')
+            
+            # Clean up the response to get valid JSON
+            response = response.strip()
+            if response.startswith('```json'):
+                response = response.replace('```json', '', 1)
+            if response.endswith('```'):
+                response = response[:-3]
+            response = response.strip()
+            
+            # Parse to verify it's valid JSON
+            try:
+                excalidraw_json = json.loads(response)
+                
+                # Check required fields
+                if "type" not in excalidraw_json or excalidraw_json["type"] != "excalidraw":
+                    excalidraw_json["type"] = "excalidraw"
+                if "version" not in excalidraw_json:
+                    excalidraw_json["version"] = 2
+                if "elements" not in excalidraw_json:
+                    return {'success': False, 'error': 'Generated JSON missing elements array'}
+                    
+            except json.JSONDecodeError as e:
+                print(f"[DIAGRAM] Failed to parse AI response as JSON: {e}")
+                # Save the raw response for debugging
+                debug_path = self.diagrams_dir / f"{diagram_id}_debug.txt"
+                debug_path.write_text(response, encoding='utf-8')
+                return {'success': False, 'error': 'AI did not return valid JSON'}
+                
+            # Write JSON to file
+            json_path.write_text(json.dumps(excalidraw_json, indent=2), encoding='utf-8')
+            print(f"[DIAGRAM] Saved Excalidraw JSON to {json_path}")
+            
+            # Render to PNG
+            print("[DIAGRAM] Rendering Excalidraw to PNG...")
+            render_script = self.excalidraw_skill_path / 'references' / 'render_excalidraw.py'
+            
+            # Path needs to be absolute or relative to the cwd of the script
+            # Run the render script via subprocess
+            # Uses 'uv run' as recommended in the skill docs
+            cmd = ["uv", "run", "python", str(render_script), str(json_path.absolute()), "--output", str(png_path.absolute())]
+            
+            try:
+                result = subprocess.run(
+                    cmd, 
+                    cwd=str(self.excalidraw_skill_path / 'references'),
+                    capture_output=True, 
+                    text=True, 
+                    check=False
+                )
+                
+                if result.returncode != 0:
+                    print(f"[DIAGRAM] Render script failed: {result.stderr}")
+                    return {'success': False, 'error': f'Render script failed: {result.stderr}'}
+                    
+                print(f"[DIAGRAM] Render complete: {png_path}")
+                
+            except Exception as e:
+                print(f"[DIAGRAM] Failed to run render script: {e}")
+                return {'success': False, 'error': f'Failed to run render script: {str(e)}'}
+            
+            # Return URL to the generated image
+            # Since it's in static/diagrams, the URL is /static/diagrams/...
+            diagram_url = f"/static/diagrams/{png_path.name}"
+            
+            return {
+                'success': True,
+                'diagram_url': diagram_url,
+                'download_url': f"/static/diagrams/{png_path.name}",  # Same for now, could be an attachment endpoint
+                'excalidraw_json_url': f"/static/diagrams/{json_path.name}",
+                'diagram_type': diagram_type,
+                'format': 'excalidraw'
+            }
+            
+        except Exception as e:
+            print(f"[DIAGRAM] Excalidraw generation error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'success': False, 'error': str(e)}
+
     
     def _generate_diagram_spec(self, title, content, diagram_type):
         """
