@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, g
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import re
 import markdown
@@ -107,11 +108,12 @@ def calculate_temp_analytics():
 load_dotenv()
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_NAME'] = 'session'
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
@@ -318,6 +320,10 @@ def auth_google():
 @app.route('/auth/callback')
 def auth_callback():
     """Handle Supabase Auth redirects (OAuth & email confirmation)."""
+    error = request.args.get('error_description') or request.args.get('error')
+    if error:
+        return render_template('login.html', error=f"Auth error: {error}")
+        
     code = request.args.get('code')
     if code:
         supabase = get_supabase_manager()
@@ -332,6 +338,8 @@ def auth_callback():
                 
                 next_url = session.pop('auth_next_url', None)
                 return redirect(next_url or url_for('index'))
+            else:
+                return render_template('login.html', error="Failed to exchange code for session. Please try again.")
     return redirect(url_for('login'))
 
 # ── Main Routes ─────────────────────────────────────────────────────
@@ -378,6 +386,14 @@ def rate_limit_check(max_requests=10, window=60):
             return response
         return decorated_function
     return decorator
+
+def get_supabase_manager():
+    """Returns a request-scoped SupabaseManager instance."""
+    try:
+        return SupabaseManager()
+    except Exception as e:
+        print(f"Error creating SupabaseManager: {e}")
+        return None
 
 def get_ai_manager():
     global ai_manager

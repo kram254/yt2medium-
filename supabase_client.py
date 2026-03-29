@@ -1,7 +1,21 @@
 import os
 from supabase import create_client, Client
+from flask import session
 from datetime import datetime
 import json
+
+class SupabaseAuthStorage:
+    def __init__(self):
+        pass
+        
+    def get_item(self, key: str) -> str | None:
+        return session.get(f"sb-{key}")
+        
+    def set_item(self, key: str, value: str) -> None:
+        session[f"sb-{key}"] = value
+        
+    def remove_item(self, key: str) -> None:
+        session.pop(f"sb-{key}", None)
 
 class SupabaseManager:
     def __init__(self):
@@ -16,7 +30,13 @@ class SupabaseManager:
         # user_id filtering enforces data isolation instead).
         self._key = service_key or anon_key
         self._using_service_role = bool(service_key)
-        self.client: Client = create_client(self._url, self._key)
+        
+        # Initialize client with session-based storage for PKCE persistence
+        self.client: Client = create_client(
+            self._url, 
+            self._key,
+            options={"auth": {"storage": SupabaseAuthStorage(), "flow_type": "pkce"}}
+        )
 
         if self._using_service_role:
             print("Supabase: using service role key (RLS bypassed; app-level isolation active)")

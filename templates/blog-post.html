@@ -521,8 +521,17 @@
         </div>
     </div>
 
+    <script type="application/json" id="template-data">
+    {
+      "blog_post_html": {{ blog_post_html|tojson|safe }},
+      "title": {{ title|tojson|safe }},
+      "blog_post_markdown": {{ blog_post_markdown|tojson|safe }}
+    }
+    </script>
+
     <script>
         // Toggle the edit panel visibility for regenerating posts
+        const _templateData = JSON.parse(document.getElementById('template-data').textContent);
         function toggleEditMode() {
             const panel = document.getElementById('editPanel');
             panel.classList.toggle('hidden');
@@ -530,32 +539,29 @@
 
         // Copy blog content to clipboard in both HTML and plain text formats for Medium
         async function copyContent() {
+            (async function() {
             try {
                 console.log('Starting copyContent function');
-                // Get HTML content directly from template (tojson already produces valid JSON)
-                const rawHTML = {{ blog_post_html|tojson|safe }};
+                const rawHTML = _templateData.blog_post_html;
                 console.log('HTML parsed successfully, length:', rawHTML.length);
                 
-                // Clean HTML for Medium compatibility - remove code blocks, classes, IDs, and styles
                 let cleanHTML = rawHTML;
-                cleanHTML = cleanHTML.replace(/<pre[^>]*>/g, '<p>');
-                cleanHTML = cleanHTML.replace(/<\/pre>/g, '</p>');
-                cleanHTML = cleanHTML.replace(/<code[^>]*>/g, '');
-                cleanHTML = cleanHTML.replace(/<\/code>/g, '');
+                cleanHTML = cleanHTML.replace(/\x3Cpre[^>]*>/g, '<p>');
+                cleanHTML = cleanHTML.replace(/\x3C\/pre>/g, '</p>');
+                cleanHTML = cleanHTML.replace(/\x3Ccode[^>]*>/g, '');
+                cleanHTML = cleanHTML.replace(/\x3C\/code>/g, '');
                 cleanHTML = cleanHTML.replace(/class="[^"]*"/g, '');
                 cleanHTML = cleanHTML.replace(/id="[^"]*"/g, '');
                 cleanHTML = cleanHTML.replace(/style="[^"]*"/g, '');
                 
-                // Extract plain text version for compatibility
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cleanHTML;
                 const textContent = tempDiv.innerText;
                 
                 console.log('Content cleaned, attempting to copy...');
                 
-                try {
-                    // Use modern Clipboard API if available for better format preservation
-                    if (navigator.clipboard && window.ClipboardItem) {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    try {
                         const htmlBlob = new Blob([cleanHTML], { type: 'text/html' });
                         const textBlob = new Blob([textContent], { type: 'text/plain' });
                         const data = new ClipboardItem({
@@ -565,19 +571,19 @@
                         await navigator.clipboard.write([data]);
                         console.log('Copied successfully using Clipboard API');
                         showNotification('Content copied! Ready to paste in Medium', 'success');
-                    } else {
-                        // Fallback for older browsers
-                        console.log('Using fallback copy method');
+                    } catch (err) {
+                        console.error('Clipboard API failed:', err);
                         fallbackCopyHTML(cleanHTML, textContent);
                     }
-                } catch (err) {
-                    console.error('Copy failed:', err);
+                } else {
+                    console.log('Using fallback copy method');
                     fallbackCopyHTML(cleanHTML, textContent);
                 }
             } catch (error) {
                 console.error('Error in copyContent:', error);
                 showNotification('Failed to copy content: ' + error.message, 'error');
             }
+            })();
         }
 
         // Fallback copy method for browsers that don't support Clipboard API
@@ -593,15 +599,13 @@
             showNotification('Content copied! Ready to paste in Medium', 'success');
         }
 
-        // Download blog post as Markdown file (.md)
         function downloadMarkdown() {
+            (function() {
             try {
                 console.log('Starting downloadMarkdown function');
-                // Get markdown content directly from template
-                const content = {{ blog_post_markdown|tojson|safe }};
+                const content = _templateData.blog_post_markdown;
                 console.log('Markdown content parsed, length:', content.length);
                 
-                // Create blob and trigger download
                 const blob = new Blob([content], { type: 'text/markdown' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -610,28 +614,27 @@
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                URL.revokeObjectURL(url); // Clean up memory
+                URL.revokeObjectURL(url);
                 console.log('Download initiated successfully');
                 showNotification('Markdown file downloaded!', 'success');
             } catch (error) {
                 console.error('Error in downloadMarkdown:', error);
                 showNotification('Failed to download: ' + error.message, 'error');
             }
+            })();
         }
 
-        // Generate an optimized LinkedIn post from blog content using AI
         async function generateLinkedInPost() {
+            (async function() {
             try {
                 console.log('Starting generateLinkedInPost function');
-                // Get blog data from template
-                const title = {{ title|tojson|safe }};
-                const content = {{ blog_post_markdown|tojson|safe }};
+                const title = _templateData.title;
+                const content = _templateData.blog_post_markdown;
                 console.log('Data parsed, title:', title.substring(0, 50));
                 
                 showNotification('Generating LinkedIn post optimized for engagement...', 'info');
                 
-                // Call backend API to generate LinkedIn-optimized content
-                const response = await fetch('/api/generate-linkedin', {
+                const linkedinResponse = await fetch('/api/generate-linkedin', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -642,10 +645,9 @@
                     })
                 });
                 
-                console.log('API response received, status:', response.status);
-                const data = await parseJsonResponse(response);
+                console.log('API response received, status:', linkedinResponse.status);
+                const data = await parseJsonResponse(linkedinResponse);
                 
-                // Display generated LinkedIn post in modal
                 if (data.success) {
                     console.log('LinkedIn post generated successfully');
                     showLinkedInModal(data.linkedin_post);
@@ -657,6 +659,7 @@
                 console.error('Error in generateLinkedInPost:', error);
                 showNotification(error.message || 'Error generating LinkedIn post', 'error');
             }
+            })();
         }
 
         // Display LinkedIn post in a modal with copy functionality
@@ -667,10 +670,10 @@
                 <div class="glass rounded-xl p-8 max-w-2xl w-full max-h-96 overflow-y-auto">
                     <h3 class="text-2xl font-bold text-white mb-4">LinkedIn Post</h3>
                     <div class="bg-black/30 rounded-lg p-6 mb-6 text-white whitespace-pre-wrap break-words">
-                        ${linkedinPost.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                        ${linkedinPost.replace(/&/g, '&amp;').replace(/\x3C/g, '&lt;').replace(/>/g, '&gt;')}
                     </div>
                     <div class="flex gap-3">
-                        <button onclick="copyLinkedInPost('${linkedinPost.replace(/'/g, "\\'")}')" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
+                        <button onclick='copyLinkedInPost("${linkedinPost.replace(/\\/g, '\\\\').replace(/\x22/g, '\\\x22').replace(/'/g, "&#39;")}")' class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
                             Copy to Clipboard
                         </button>
                         <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-3 glass glass-hover text-white rounded-lg transition-all">
@@ -685,19 +688,17 @@
             });
         }
 
-        // Generate a visual storyboard diagram from blog content
         async function generateStoryboard() {
+            (async function() {
             try {
                 console.log('Starting generateStoryboard function');
-                // Get blog data from template
-                const title = {{ title|tojson|safe }};
-                const content = {{ blog_post_markdown|tojson|safe }};
+                const title = _templateData.title;
+                const content = _templateData.blog_post_markdown;
                 console.log('Data parsed for storyboard');
                 
                 showNotification('Generating contextual storyboard diagram...', 'info');
                 
-                // Call backend API to generate storyboard image
-                const response = await fetch('/api/generate-storyboard', {
+                const storyboardResponse = await fetch('/api/generate-storyboard', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -708,10 +709,9 @@
                     })
                 });
                 
-                console.log('Storyboard API response status:', response.status);
-                const data = await parseJsonResponse(response);
+                console.log('Storyboard API response status:', storyboardResponse.status);
+                const data = await parseJsonResponse(storyboardResponse);
                 
-                // Display generated storyboard in modal
                 if (data.success && data.image) {
                     console.log('Storyboard generated successfully');
                     showStoryboardModal(data.image);
@@ -723,6 +723,7 @@
                 console.error('Error in generateStoryboard:', error);
                 showNotification('Error generating storyboard: ' + error.message, 'error');
             }
+            })();
         }
 
         // Display storyboard diagram in a modal with download functionality
@@ -819,16 +820,13 @@
             });
         }
 
-        // Generate specific type of diagram (flowchart, mindmap, process, or infographic)
         async function generateDiagram(diagramType) {
-            // Close the type selection modal
+            (async function() {
             document.querySelector('.fixed')?.remove();
             
-            // Get blog data from template
-            const title = {{ title|tojson|safe }};
-            const content = {{ blog_post_markdown|tojson|safe }};
+            const title = _templateData.title;
+            const content = _templateData.blog_post_markdown;
             
-            // Map diagram types to display names
             const typeNames = {
                 'flowchart': 'Flowchart',
                 'mindmap': 'Mind Map',
@@ -839,8 +837,7 @@
             showNotification(`Generating ${typeNames[diagramType]}... This may take a moment.`, 'info');
             
             try {
-                // Call backend API to generate diagram
-                const response = await fetch('/api/generate-diagram', {
+                const diagramResponse = await fetch('/api/generate-diagram', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -852,9 +849,8 @@
                     })
                 });
                 
-                const data = await parseJsonResponse(response);
+                const data = await parseJsonResponse(diagramResponse);
                 
-                // Display generated diagram in modal
                 if (data.success && data.diagram_url) {
                     showDiagramModal(data.diagram_url, typeNames[diagramType], data.mermaid_code, data.format || 'mermaid');
                 } else {
@@ -864,6 +860,7 @@
                 console.error('Error generating diagram:', error);
                 showNotification(error.message || 'Error generating diagram', 'error');
             }
+            })();
         }
 
         // Display generated diagram in modal with download and copy code options
@@ -872,7 +869,7 @@
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
             
             // Safe replace for backticks if code exists
-            const safeCode = diagramCode ? diagramCode.replace(/`/g, '\\`') : '';
+            const safeCode = diagramCode ? diagramCode.replace(/\x60/g, '\\\x60') : '';
             
             // Build the copy button based on format
             let codeButtonHtml = '';
@@ -1009,26 +1006,24 @@
             });
         }
 
-        // Open Auto Social page with blog data for multi-platform post generation
         function openAutoSocial() {
+            (function() {
             try {
                 console.log('Starting openAutoSocial function');
-                // Get blog data from template
-                const title = {{ title|tojson|safe }};
-                const content = {{ blog_post_markdown|tojson|safe }};
+                const title = _templateData.title;
+                const content = _templateData.blog_post_markdown;
                 console.log('Data parsed for Auto Social');
                 
-                // Store in localStorage to pass to Auto Social page
                 localStorage.setItem('kario_social_title', title);
                 localStorage.setItem('kario_social_content', content);
                 console.log('Data saved to localStorage');
                 
-                // Navigate to Auto Social page
                 window.location.href = '/kario-socials';
             } catch (error) {
                 console.error('Error in openAutoSocial:', error);
                 showNotification('Failed to open Auto Social: ' + error.message, 'error');
             }
+            })();
         }
 
         // Display toast notification to user (success, error, or info)
@@ -1102,20 +1097,19 @@
             });
         });
 
-        // Initialize and verify all functions and data are loaded correctly
-        console.log('All button functions loaded successfully');
         console.log('Testing data availability...');
+        (function() {
         try {
-            // Verify template data is available (checking string representation)
-            const testTitle = '{{ title|tojson|safe }}';
-            const testMarkdown = '{{ blog_post_markdown|tojson|safe }}';
-            const testHTML = '{{ blog_post_html|tojson|safe }}';
+            const testTitle = _templateData.title;
+            const testMarkdown = _templateData.blog_post_markdown;
+            const testHTML = _templateData.blog_post_html;
             console.log('Title available:', testTitle.length > 0);
             console.log('Markdown available:', testMarkdown.length > 0);
             console.log('HTML available:', testHTML.length > 0);
         } catch (e) {
             console.error('Error checking data availability:', e);
         }
+        })();
     </script>
 </body>
 </html>
