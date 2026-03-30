@@ -18,6 +18,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.claude/
+settings.json
 
 .env
 .env.local
