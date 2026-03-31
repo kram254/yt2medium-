@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authenticating... — Zero2Medium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #000000;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.18) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.18) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(147, 51, 234, 0.12) 0px, transparent 50%);
+            min-height: 100vh;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #818cf8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen text-white p-4">
+    <div class="text-center flex flex-col items-center">
+        <div class="spinner mb-6"></div>
+        <h2 class="text-xl font-semibold mb-2">Completing sign in...</h2>
+        <p class="text-neutral-400 text-sm">Please wait a moment while we authenticate your account.</p>
+    </div>
+
+    <script>
+        // Supabase implicit flow returns tokens in the URL hash instead of query parameters
+        document.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash;
+            if (!hash) {
+                // If there's no hash and no query params, something went wrong, go to login
+                window.location.href = '/login?error=Authentication%20failed';
+                return;
+            }
+
+            // Parse hash fragments
+            const hashParams = new URLSearchParams(hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+            const error = hashParams.get('error');
+            const errorDescription = hashParams.get('error_description');
+
+            if (error) {
+                window.location.href = `/login?error=${encodeURIComponent(errorDescription || error)}`;
+                return;
+            }
+
+            if (!accessToken) {
+                window.location.href = '/login?error=No%20access%20token%20found';
+                return;
+            }
+
+            // Send tokens to our backend to store in the session
+            fetch('/auth/store-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    window.location.href = '/login?error=' + encodeURIComponent(data.error || 'Failed to start session');
+                }
+            })
+            .catch(err => {
+                console.error('Error storing session:', err);
+                window.location.href = '/login?error=Internal%20server%20error';
+            });
+        });
+    </script>
+</body>
+</html>

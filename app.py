@@ -311,11 +311,13 @@ def auth_google():
     if next_url:
         session['auth_next_url'] = next_url
         
-    callback_url = url_for('auth_callback', _external=True)
+    scheme = 'https' if request.headers.get('X-Forwarded-Proto', 'http') == 'https' or not request.host.startswith('localhost') else 'http'
+    callback_url = url_for('auth_callback', _external=True, _scheme=scheme)
+    
     result = supabase.sign_in_with_google(redirect_url=callback_url)
     if result and hasattr(result, 'url') and result.url:
         return redirect(result.url)
-    return redirect(url_for('login'))
+    return redirect(url_for('login', error='Failed to generate sign-in URL'))
 
 @app.route('/auth/callback')
 def auth_callback():
@@ -339,10 +341,47 @@ def auth_callback():
                 next_url = session.pop('auth_next_url', None)
                 return redirect(next_url or url_for('index'))
             else:
-                return render_template('login.html', error="Failed to exchange code for session. Please try again.")
-    return redirect(url_for('login'))
+                return redirect(url_for('login', error="Failed to exchange code for session. Please try again."))
+    
+    # If no code and no error, might be an implicit flow with a hash fragment
+    return render_template('auth_callback.html')
+
+@app.route('/auth/store-session', methods=['POST'])
+def auth_store_session():
+    """Fallback endpoint for storing session from implicit flow fragments."""
+    data = request.get_json()
+    if not data or not data.get('access_token'):
+        return jsonify({'success': False, 'error': 'No token provided'}), 400
+        
+    access_token = data.get('access_token')
+    refresh_token = data.get('refresh_token')
+    
+    supabase = get_supabase_manager()
+    if supabase:
+        user_response = supabase.get_user(access_token)
+        if user_response and user_response.user:
+            session.permanent = True
+            session['access_token'] = access_token
+            session['refresh_token'] = refresh_token
+            session['user_id'] = user_response.user.id
+            session['user_email'] = user_response.user.email
+            
+            next_url = session.pop('auth_next_url', None)
+            return jsonify({'success': True, 'redirect': next_url or url_for('index')})
+            
+    return jsonify({'success': False, 'error': 'Invalid token'}), 401
 
 # ── Main Routes ─────────────────────────────────────────────────────
+
+@app.before_request
+def intercept_oauth_code():
+    """Globally catch ?code= and ?error= query params for auth redirects that misfire to root."""
+    if request.path != '/auth/callback':
+        code = request.args.get('code')
+        error = request.args.get('error') or request.args.get('error_description')
+        if code or error:
+            # Re-route to the proper callback endpoint keeping query parameters
+            return redirect(url_for('auth_callback', **request.args))
 
 @app.route('/')
 @require_session
@@ -386,14 +425,6 @@ def rate_limit_check(max_requests=10, window=60):
             return response
         return decorated_function
     return decorator
-
-def get_supabase_manager():
-    """Returns a request-scoped SupabaseManager instance."""
-    try:
-        return SupabaseManager()
-    except Exception as e:
-        print(f"Error creating SupabaseManager: {e}")
-        return None
 
 def get_ai_manager():
     global ai_manager

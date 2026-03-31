@@ -13,9 +13,11 @@ class SupabaseAuthStorage:
         
     def set_item(self, key: str, value: str) -> None:
         session[f"sb-{key}"] = value
+        session.modified = True
         
     def remove_item(self, key: str) -> None:
         session.pop(f"sb-{key}", None)
+        session.modified = True
 
 class SupabaseManager:
     def __init__(self):
@@ -31,11 +33,16 @@ class SupabaseManager:
         self._key = service_key or anon_key
         self._using_service_role = bool(service_key)
         
+        from supabase import ClientOptions
+        
         # Initialize client with session-based storage for PKCE persistence
         self.client: Client = create_client(
             self._url, 
             self._key,
-            options={"auth": {"storage": SupabaseAuthStorage(), "flow_type": "pkce"}}
+            options=ClientOptions(
+                flow_type="pkce",
+                storage=SupabaseAuthStorage()
+            )
         )
 
         if self._using_service_role:
@@ -342,14 +349,9 @@ class SupabaseManager:
             return None
 
 
-_supabase_manager = None
-
 def get_supabase_manager():
-    global _supabase_manager
-    if _supabase_manager is None:
-        try:
-            _supabase_manager = SupabaseManager()
-        except Exception as e:
-            print(f"Warning: Supabase not configured: {e}")
-            _supabase_manager = None
-    return _supabase_manager
+    try:
+        return SupabaseManager()
+    except Exception as e:
+        print(f"Warning: Supabase not configured: {e}")
+        return None
