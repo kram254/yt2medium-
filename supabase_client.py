@@ -9,13 +9,23 @@ class SupabaseAuthStorage:
         pass
         
     def get_item(self, key: str) -> str | None:
-        return session.get(f"sb-{key}")
+        # Check both with and without 'sb-' prefix to be safe
+        val = session.get(key) or session.get(f"sb-{key}")
+        if not val:
+            print(f"SupabaseAuthStorage: get_item('{key}') -> NOT FOUND. Session keys: {list(session.keys())}")
+        else:
+            print(f"SupabaseAuthStorage: get_item('{key}') -> FOUND")
+        return val
         
     def set_item(self, key: str, value: str) -> None:
-        session[f"sb-{key}"] = value
+        print(f"SupabaseAuthStorage: set_item('{key}', '[VALUE]')")
+        # Store with the exact key Supabase asks for
+        session[key] = value
         session.modified = True
         
     def remove_item(self, key: str) -> None:
+        print(f"SupabaseAuthStorage: remove_item('{key}')")
+        session.pop(key, None)
         session.pop(f"sb-{key}", None)
         session.modified = True
 
@@ -28,27 +38,32 @@ class SupabaseManager:
         if not self._url or not anon_key:
             raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in environment")
 
-        # Use service role key for backend if available (bypasses RLS; Python-level
-        # user_id filtering enforces data isolation instead).
+        # Use service role key for database if available, BUT use anon key for auth.
+        # Supabase OAuth/PKCE generally expects the anon/client key.
         self._key = service_key or anon_key
+        self._anon_key = anon_key
         self._using_service_role = bool(service_key)
         
         from supabase import ClientOptions
         
         # Initialize client with session-based storage for PKCE persistence
+        # We use the anon_key for the auth client specifically
         self.client: Client = create_client(
             self._url, 
-            self._key,
+            self._anon_key if not self._using_service_role else self._anon_key, # Always use anon for auth-related client if possible
             options=ClientOptions(
                 flow_type="pkce",
                 storage=SupabaseAuthStorage()
             )
         )
-
+        
+        # If we have a service role key, we'll create a separate internal client for DB operations
+        self._db_client = self.client
         if self._using_service_role:
-            print("Supabase: using service role key (RLS bypassed; app-level isolation active)")
+            self._db_client = create_client(self._url, service_key)
+            print("Supabase: initialized with service role for DB and anon key for Auth")
         else:
-            print("Supabase: using anon key (ensure RLS policies match)")
+            print("Supabase: using anon key for both Auth and DB")
 
     # ── Auth Methods ──────────────────────────────────────────────────
 
@@ -132,12 +147,21 @@ class SupabaseManager:
             print(f"Supabase refresh_session error: {e}")
             return None
 
-    def exchange_code_for_session(self, code):
+    def exchange_code_for_session(self, code, redirect_to=None, code_verifier=None):
         """Exchange an OAuth callback code for a session."""
         try:
-            return self.client.auth.exchange_code_for_session({"auth_code": code})
+            print(f"Supabase: Attempting code exchange for code: {code[:5]}...")
+            params = {"auth_code": code}
+            if redirect_to:
+                params["redirect_to"] = redirect_to
+            if code_verifier:
+                params["code_verifier"] = code_verifier
+                print(f"Supabase: Using explicit code_verifier: {code_verifier[:5]}...")
+            return self.client.auth.exchange_code_for_session(params)
         except Exception as e:
             print(f"Supabase exchange_code error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     # ── Data Methods ──────────────────────────────────────────────────
@@ -162,7 +186,7 @@ class SupabaseManager:
                 'created_at': datetime.utcnow().isoformat()
             }
 
-            result = self.client.table('blog_posts').insert(post_record).execute()
+            result = self._db_client.table('blog_posts').insert(post_record).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             print(f"Error saving blog post: {e}")
@@ -170,7 +194,7 @@ class SupabaseManager:
 
     def get_blog_post_by_id(self, post_id, user_id=None):
         try:
-            query = self.client.table('blog_posts').select('*').eq('id', post_id)
+            query = self._db_client.table('blog_posts').select('*').eq('id', post_id)
             if user_id:
                 query = query.eq('user_id', user_id)
 
@@ -192,7 +216,7 @@ class SupabaseManager:
 
     def get_recent_posts(self, user_id=None, limit=20):
         try:
-            query = self.client.table('blog_posts').select(
+            query = self._db_client.table('blog_posts').select(
                 'id, title, created_at, word_count, engagement_score, seo_score, viral_potential'
             )
             if user_id:
@@ -206,7 +230,7 @@ class SupabaseManager:
 
     def search_posts(self, query_str, user_id=None):
         try:
-            q = self.client.table('blog_posts').select(
+            q = self._db_client.table('blog_posts').select(
                 'id, title, created_at, word_count, engagement_score'
             ).ilike('title', f'%{query_str}%')
             if user_id:
@@ -221,7 +245,7 @@ class SupabaseManager:
     def get_drafts_count(self, user_id):
         """Return the number of blog posts saved for the given user."""
         try:
-            result = self.client.table('blog_posts').select('id', count='exact').eq('user_id', user_id).execute()
+            result = self._db_client.table('blog_posts').select('id', count='exact').eq('user_id', user_id).execute()
             return result.count if result.count is not None else 0
         except Exception as e:
             print(f"Error getting drafts count: {e}")
@@ -229,7 +253,7 @@ class SupabaseManager:
 
     def delete_post(self, post_id, user_id=None):
         try:
-            query = self.client.table('blog_posts').delete().eq('id', post_id)
+            query = self._db_client.table('blog_posts').delete().eq('id', post_id)
             if user_id:
                 query = query.eq('user_id', user_id)
 
@@ -241,7 +265,7 @@ class SupabaseManager:
 
     def get_analytics(self, user_id=None):
         try:
-            query = self.client.table('blog_posts').select('*')
+            query = self._db_client.table('blog_posts').select('*')
             if user_id:
                 query = query.eq('user_id', user_id)
 
@@ -278,7 +302,7 @@ class SupabaseManager:
 
     def update_post(self, post_id, updates, user_id=None):
         try:
-            query = self.client.table('blog_posts').update(updates).eq('id', post_id)
+            query = self._db_client.table('blog_posts').update(updates).eq('id', post_id)
             if user_id:
                 query = query.eq('user_id', user_id)
 
@@ -304,7 +328,7 @@ class SupabaseManager:
                 'created_at': datetime.utcnow().isoformat()
             }
 
-            result = self.client.table('generation_logs').insert(log_record).execute()
+            result = self._db_client.table('generation_logs').insert(log_record).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             print(f"Error saving generation log: {e}")
@@ -312,7 +336,7 @@ class SupabaseManager:
 
     def get_generation_stats(self, user_id=None):
         try:
-            query = self.client.table('generation_logs').select('*')
+            query = self._db_client.table('generation_logs').select('*')
             if user_id:
                 query = query.eq('user_id', user_id)
 
