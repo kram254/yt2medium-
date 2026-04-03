@@ -42,6 +42,8 @@ from diagram_generator import get_diagram_generator
 import time
 import random
 import json
+import traceback
+from supabase_auth.errors import AuthApiError
 import uuid
 import tempfile
 from pathlib import Path
@@ -111,13 +113,17 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+if app.config['SECRET_KEY'] == 'dev-secret-key-change-in-production':
+    print("⚠ WARNING: Using default SECRET_KEY. Sessions will be lost on restart!")
+else:
+    print(f"✓ SECRET_KEY is set (length: {len(app.config['SECRET_KEY'])})")
 app.config['SESSION_COOKIE_SECURE'] = True if os.environ.get('RENDER') or os.environ.get('FLASK_ENV') == 'production' else False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_NAME'] = 'session'
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-app.config['SESSION_REFRESH_EACH_REQUEST'] = False
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 app.config['PREFERRED_URL_SCHEME'] = 'https' if os.environ.get('RENDER') or os.environ.get('FLASK_ENV') == 'production' else 'http'
 
 print(f"Flask app name: {app.name}")
@@ -227,6 +233,13 @@ def require_session(f):
 
 # ── Authentication Routes ───────────────────────────────────────────
 
+def get_callback_url(endpoint='auth_callback'):
+    """Generate a full callback URL, forcing HTTPS on Render/Production."""
+    url = url_for(endpoint, _external=True)
+    if (os.environ.get('RENDER') or os.environ.get('FLASK_ENV') == 'production') and url.startswith('http:'):
+        url = url.replace('http:', 'https:', 1)
+    return url
+
 @app.route('/debug/auth-session')
 def debug_auth_session():
     """Diagnostic route to inspect session state for auth debugging."""
@@ -235,14 +248,27 @@ def debug_auth_session():
     if debug_token and request.args.get('token') != debug_token:
         return "Unauthorized", 401
         
+    # Get current external URL for the callback to see what Flask thinks it is
+    callback_url = get_callback_url()
+    
     return jsonify({
         'session_keys': list(session.keys()),
         'has_verifier': 'supabase.auth.token-code-verifier' in session or 'sb-supabase.auth.token-code-verifier' in session,
         'permanent': session.permanent,
         'modified': session.modified,
         'request_url': request.url,
+        'detected_callback_url': callback_url,
+        'preferred_scheme': app.config.get('PREFERRED_URL_SCHEME'),
         'headers': dict(request.headers),
-        'remote_addr': request.remote_addr
+        'remote_addr': request.remote_addr,
+        'environ_scheme': request.environ.get('wsgi.url_scheme'),
+        'is_secure': request.is_secure,
+        'network': request.environ.get('SERVER_NAME'),
+        'scheme': request.environ.get('wsgi.url_scheme'),
+        'http_host': request.environ.get('HTTP_HOST'),
+        'http_x_forwarded_for': request.environ.get('HTTP_X_FORWARDED_FOR'),
+        'http_x_forwarded_proto': request.environ.get('HTTP_X_FORWARDED_PROTO'),
+        'http_x_forwarded_port': request.environ.get('HTTP_X_FORWARDED_PORT')
     })
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -255,7 +281,9 @@ def signup():
             return render_template('signup.html', error="Email and password required")
             
         supabase = get_supabase_manager()
-        res = supabase.sign_up(email, password)
+        callback_url = get_callback_url()
+        print(f"Auth Signup: callback_url={callback_url}")
+        res = supabase.sign_up(email, password, redirect_url=callback_url)
         
         if res and res.user:
             return render_template('login.html', message="Check your email for a confirmation link!")
@@ -299,7 +327,10 @@ def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
         supabase = get_supabase_manager()
-        supabase.reset_password(email)
+        if supabase:
+            callback_url = get_callback_url()
+            print(f"Auth Forgot Password: callback_url={callback_url}")
+            supabase.reset_password(email, redirect_url=callback_url)
         return render_template('forgot-password.html', message="If an account exists, a reset link has been sent.")
     return render_template('forgot-password.html')
 
@@ -314,7 +345,9 @@ def auth_magic_link():
     if not supabase:
         return render_template('login.html', error="Database not configured")
         
-    callback_url = url_for('auth_callback', _external=True)
+    callback_url = get_callback_url()
+    print(f"Auth Magic Link: callback_url={callback_url}")
+    
     supabase.sign_in_with_otp(email, redirect_url=callback_url)
     return render_template('login.html', message="Check your email for the one-time login link!")
 
@@ -332,13 +365,19 @@ def auth_google():
     if next_url:
         session['auth_next_url'] = next_url
         
-    callback_url = url_for('auth_callback', _external=True)
+    callback_url = get_callback_url()
     
-    print(f"Auth Google: Initiating sign-in with redirect_url: {callback_url}")
+    print(f"Auth Google: Initiating sign-in")
+    print(f"Auth Google: callback_url={callback_url}")
+    print(f"Auth Google: PREFERRED_URL_SCHEME={app.config.get('PREFERRED_URL_SCHEME')}")
+    print(f"Auth Google: Session keys before: {list(session.keys())}")
+    
     result = supabase.sign_in_with_google(redirect_url=callback_url)
     
+    print(f"Auth Google: Session keys after: {list(session.keys())}")
+    
     if result and hasattr(result, 'url') and result.url:
-        print(f"Auth Google: Redirecting to Supabase OAuth URL")
+        print(f"Auth Google: Redirecting to Supabase OAuth URL: {result.url[:50]}...")
         return redirect(result.url)
         
     print(f"Auth Google: Failed to generate sign-in URL. Result: {result}")
@@ -359,9 +398,11 @@ def auth_callback():
         supabase = get_supabase_manager()
         if supabase:
             # Standard callback URL detection via ProxyFix
-            callback_url = url_for('auth_callback', _external=True)
+            callback_url = get_callback_url()
             
-            print(f"Auth callback: Attempting exchange with redirect_url: {callback_url}")
+            print(f"Auth callback: Attempting exchange")
+            print(f"Auth callback: code={code[:5]}...")
+            print(f"Auth callback: redirect_to={callback_url}")
             
             # Explicitly find the PKCE code verifier in the session
             # Supabase client might use either of these keys
@@ -369,15 +410,16 @@ def auth_callback():
                             session.get('sb-supabase.auth.token-code-verifier')
             
             if code_verifier:
-                print(f"Auth callback: Found code_verifier in session (starts with: {code_verifier[:5]})")
+                print(f"Auth callback: Found code_verifier in session: {code_verifier[:5]}...")
             else:
-                print(f"Auth callback: WARNING - No code_verifier found in session. Keys present: {list(session.keys())}")
+                print(f"Auth callback: WARNING - No code_verifier found in session.")
+                print(f"Auth callback: All session keys: {list(session.keys())}")
             
             try:
                 result = supabase.exchange_code_for_session(code, redirect_to=callback_url, code_verifier=code_verifier)
-                print(f"Auth callback: Exchange result: {'Success' if result and hasattr(result, 'session') and result.session else 'Failure'}")
                 
                 if result and hasattr(result, 'session') and result.session:
+                    print(f"Auth callback: Exchange SUCCESS")
                     session.permanent = True
                     session['access_token'] = result.session.access_token
                     session['refresh_token'] = result.session.refresh_token
@@ -391,13 +433,29 @@ def auth_callback():
                     next_url = session.pop('auth_next_url', None)
                     return redirect(next_url or url_for('index'))
                 else:
-                    error_msg = getattr(result, 'error', 'Unknown exchange error')
-                    if hasattr(result, 'error_description'):
-                        error_msg = result.error_description
-                    print(f"Auth callback: Result details: {result}")
+                    # Log the structure of the failed result
+                    print(f"Auth callback: Exchange FAILED. Result type: {type(result)}")
+                    error_msg = "Unknown exchange error"
+                    
+                    if result:
+                        # Try to extract error details from result object
+                        if hasattr(result, 'error'):
+                            error_msg = str(result.error)
+                        elif hasattr(result, 'error_description'):
+                            error_msg = result.error_description
+                        elif isinstance(result, dict):
+                            error_msg = result.get('error_description') or result.get('error') or str(result)
+                        else:
+                            error_msg = str(result)
+                            
+                    print(f"Auth callback: Error details: {error_msg}")
                     return render_template('login.html', error=f"Exchange failed: {error_msg}")
+            except AuthApiError as e:
+                print(f"Auth callback: AuthApiError: {e.message}")
+                return render_template('login.html', error=f"Auth error: {e.message}")
             except Exception as e:
-                print(f"Auth callback: Exception during exchange: {str(e)}")
+                print(f"Auth callback: EXCEPTION during exchange: {str(e)}")
+                traceback.print_exc()
                 return render_template('login.html', error=f"Auth error: {str(e)}")
     
     # If no code and no error, might be an implicit flow with a hash fragment
@@ -431,12 +489,27 @@ def auth_store_session():
 # ── Main Routes ─────────────────────────────────────────────────────
 
 @app.before_request
+def debug_log_request():
+    """Log basic request info to help track sessions across redirects."""
+    if not session.get('sid'):
+        session['sid'] = str(uuid.uuid4())[:8]
+    sid = session['sid']
+    print(f"DEBUG [{sid}] {request.method} {request.path}")
+    print(f"DEBUG [{sid}] Scheme: {request.scheme}, Host: {request.host}, Secure: {request.is_secure}")
+    if 'code' in request.args:
+        print(f"DEBUG [{sid}] Found code in args")
+    if 'error' in request.args:
+        print(f"DEBUG [{sid}] Found error in args: {request.args.get('error')}")
+
+@app.before_request
 def intercept_oauth_code():
     """Globally catch ?code= and ?error= query params for auth redirects that misfire to root."""
-    if request.path not in ['/auth/callback', '/login']:
+    if request.path not in ['/auth/callback', '/login', '/auth/medium/callback', '/auth/linkedin/callback']:
         code = request.args.get('code')
         error = request.args.get('error') or request.args.get('error_description')
         if code or error:
+            sid = session.get('sid', 'unknown')
+            print(f"DEBUG [{sid}] Intercepting OAuth code at {request.path}, re-routing to /auth/callback")
             # Re-route to the proper callback endpoint keeping query parameters
             return redirect(url_for('auth_callback', **request.args))
 
@@ -1597,7 +1670,8 @@ def auth_medium():
         session['oauth_nonce'] = nonce
         session.permanent = True
         
-        medium_auth = get_medium_auth()
+        callback_url = get_callback_url('auth_medium_callback')
+        medium_auth = get_medium_auth(redirect_uri=callback_url)
         auth_url = medium_auth.get_auth_url(state)
         return redirect(auth_url)
     except Exception as e:
@@ -1623,7 +1697,8 @@ def auth_medium_callback():
         if not stored_state or state != stored_state:
             return jsonify({'error': 'Invalid state parameter'}), 400
         
-        medium_auth = get_medium_auth()
+        callback_url = get_callback_url('auth_medium_callback')
+        medium_auth = get_medium_auth(redirect_uri=callback_url)
         token_data = medium_auth.exchange_code_for_token(code)
         
         if not token_data:
@@ -1661,7 +1736,8 @@ def auth_linkedin():
         session['oauth_nonce'] = nonce
         session.permanent = True
         
-        linkedin_auth = get_linkedin_auth()
+        callback_url = get_callback_url('auth_linkedin_callback')
+        linkedin_auth = get_linkedin_auth(redirect_uri=callback_url)
         auth_url = linkedin_auth.get_auth_url(state)
         return redirect(auth_url)
     except Exception as e:
@@ -1687,7 +1763,8 @@ def auth_linkedin_callback():
         if not stored_state or state != stored_state:
             return jsonify({'error': 'Invalid state parameter'}), 400
         
-        linkedin_auth = get_linkedin_auth()
+        callback_url = get_callback_url('auth_linkedin_callback')
+        linkedin_auth = get_linkedin_auth(redirect_uri=callback_url)
         token_data = linkedin_auth.exchange_code_for_token(code)
         
         if not token_data:

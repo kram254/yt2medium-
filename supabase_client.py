@@ -12,16 +12,27 @@ class SupabaseAuthStorage:
         # Check both with and without 'sb-' prefix to be safe
         val = session.get(key) or session.get(f"sb-{key}")
         if not val:
-            print(f"SupabaseAuthStorage: get_item('{key}') -> NOT FOUND. Session keys: {list(session.keys())}")
+            # Only log as warning if it's a known auth key we expect
+            if "code-verifier" in key or "auth-token" in key:
+                print(f"SupabaseAuthStorage: get_item('{key}') -> NOT FOUND in {list(session.keys())}")
         else:
             print(f"SupabaseAuthStorage: get_item('{key}') -> FOUND")
+            # If it's a string that looks like JSON, we might need to parse it, 
+            # but usually Supabase handles its own serialization if we provide a storage object.
+            # However, Flask sessions are already serialized.
         return val
         
     def set_item(self, key: str, value: str) -> None:
-        print(f"SupabaseAuthStorage: set_item('{key}', '[VALUE]')")
+        print(f"SupabaseAuthStorage: set_item('{key}', '{value[:5] if value else 'None'}...')")
         # Store with the exact key Supabase asks for
         session[key] = value
+        session.permanent = True  # Ensure session persists across redirects
         session.modified = True
+        # Also store with prefix for redundancy if it doesn't have it
+        if not key.startswith("sb-"):
+            session[f"sb-{key}"] = value
+        
+        print(f"SupabaseAuthStorage: Session keys now: {list(session.keys())}")
         
     def remove_item(self, key: str) -> None:
         print(f"SupabaseAuthStorage: remove_item('{key}')")
@@ -148,21 +159,21 @@ class SupabaseManager:
             return None
 
     def exchange_code_for_session(self, code, redirect_to=None, code_verifier=None):
-        """Exchange an OAuth callback code for a session."""
-        try:
-            print(f"Supabase: Attempting code exchange for code: {code[:5]}...")
-            params = {"auth_code": code}
-            if redirect_to:
-                params["redirect_to"] = redirect_to
-            if code_verifier:
-                params["code_verifier"] = code_verifier
-                print(f"Supabase: Using explicit code_verifier: {code_verifier[:5]}...")
-            return self.client.auth.exchange_code_for_session(params)
-        except Exception as e:
-            print(f"Supabase exchange_code error: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+        """Exchange auth code for session, supporting PKCE."""
+        print(f"Supabase: Attempting code exchange for code: {code[:5]}...")
+        
+        # Use CodeExchangeParams TypedDict as expected by the library
+        params = {"auth_code": code}
+        if redirect_to:
+            params["redirect_to"] = redirect_to
+        if code_verifier:
+            params["code_verifier"] = code_verifier
+            print(f"Supabase: Using explicit code_verifier: {code_verifier[:5]}...")
+        
+        print(f"Supabase: Exchange params keys: {list(params.keys())}")
+        
+        # Do NOT catch exception here, let it bubble up to app.py for better error reporting
+        return self.client.auth.exchange_code_for_session(params)
 
     # ── Data Methods ──────────────────────────────────────────────────
 
