@@ -30,10 +30,10 @@ class TokenEncryption:
             return None
 
 class MediumAuth:
-    def __init__(self):
+    def __init__(self, redirect_uri=None):
         self.client_id = os.environ.get('MEDIUM_CLIENT_ID')
         self.client_secret = os.environ.get('MEDIUM_CLIENT_SECRET')
-        self.redirect_uri = os.environ.get('MEDIUM_REDIRECT_URI', 'http://localhost:8000/auth/medium/callback')
+        self.redirect_uri = redirect_uri or os.environ.get('MEDIUM_REDIRECT_URI', 'http://localhost:8000/auth/medium/callback')
         self.auth_url = 'https://medium.com/m/oauth/authorize'
         self.token_url = 'https://api.medium.com/v1/tokens'
         self.api_base = 'https://api.medium.com/v1'
@@ -168,10 +168,10 @@ class MediumAuth:
             return {'success': False, 'error': 'Publishing failed'}
 
 class LinkedInAuth:
-    def __init__(self):
+    def __init__(self, redirect_uri=None):
         self.client_id = os.environ.get('LINKEDIN_CLIENT_ID')
         self.client_secret = os.environ.get('LINKEDIN_CLIENT_SECRET')
-        self.redirect_uri = os.environ.get('LINKEDIN_REDIRECT_URI', 'http://localhost:8000/auth/linkedin/callback')
+        self.redirect_uri = redirect_uri or os.environ.get('LINKEDIN_REDIRECT_URI', 'http://localhost:8000/auth/linkedin/callback')
         self.auth_url = 'https://www.linkedin.com/oauth/v2/authorization'
         self.token_url = 'https://www.linkedin.com/oauth/v2/accessToken'
         self.api_base = 'https://api.linkedin.com/v2'
@@ -322,11 +322,11 @@ class LinkedInAuth:
             print(f"LinkedIn share error: {e}")
             return {'success': False, 'error': 'Sharing failed'}
 
-def get_medium_auth():
-    return MediumAuth()
+def get_medium_auth(redirect_uri=None):
+    return MediumAuth(redirect_uri=redirect_uri)
 
-def get_linkedin_auth():
-    return LinkedInAuth()
+def get_linkedin_auth(redirect_uri=None):
+    return LinkedInAuth(redirect_uri=redirect_uri)
 
 def get_token_encryption():
     return TokenEncryption()
