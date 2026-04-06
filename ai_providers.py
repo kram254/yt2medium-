@@ -31,6 +31,17 @@ try:
 except ImportError:
     GEMINI_AVAILABLE = False
 
+def extract_video_id(url):
+    if 'youtube.com/watch?v=' in url:
+        return url.split('v=')[1].split('&')[0].split('#')[0].strip()
+    elif 'youtu.be/' in url:
+        return url.split('youtu.be/')[1].split('?')[0].split('#')[0].strip()
+    elif 'youtube.com/embed/' in url:
+        return url.split('embed/')[1].split('?')[0].split('#')[0].strip()
+    elif 'youtube.com/shorts/' in url:
+        return url.split('shorts/')[1].split('?')[0].split('#')[0].strip()
+    return None
+
 def get_youtube_transcript(youtube_url):
     print(f"[YouTube] Starting transcript extraction for: {youtube_url}")
     
@@ -432,7 +443,8 @@ WRITING INSTRUCTIONS (Apply these to the content above):
         print(f"[Anthropic] Full prompt length: {len(full_prompt)} chars")
         print(f"[Anthropic] Calling API with model: claude-4-sonnet-20250514")
         
-        response = self.anthropic_client.messages.create(
+        result_text = ""
+        with self.anthropic_client.messages.stream(
             model="claude-4-sonnet-20250514",
             max_tokens=32000,
             temperature=1.0,
@@ -443,18 +455,21 @@ WRITING INSTRUCTIONS (Apply these to the content above):
             messages=[
                 {"role": "user", "content": full_prompt}
             ]
-        )
+        ) as stream:
+            response = stream.get_final_message()
         
         print(f"[Anthropic] API call successful")
         
         for block in response.content:
             if block.type == "text":
-                print(f"[Anthropic] Response length: {len(block.text)} chars")
-                return block.text
+                result_text = block.text
+                break
         
-        result = response.content[0].text if response.content else ""
-        print(f"[Anthropic] Response length: {len(result)} chars")
-        return result
+        if not result_text and response.content:
+            result_text = response.content[0].text if hasattr(response.content[0], 'text') else ""
+        
+        print(f"[Anthropic] Response length: {len(result_text)} chars")
+        return result_text
     
     def _generate_with_openrouter(self, prompt, video_context, model="deepseek/deepseek-chat-v3.1"):
         if video_context:
