@@ -265,6 +265,20 @@ class AIProviderManager:
         
         if os.getenv('OPENROUTER_API_KEY'):
             self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
+        elif os.getenv('OPENROUTER_API'):
+            self.openrouter_api_key = os.getenv('OPENROUTER_API')
+        
+        print(f"AIProviderManager initialized successfully")
+        if self.openai_client:
+            print(f"✓ OpenAI configured")
+        if self.anthropic_client:
+            print(f"✓ Anthropic configured")
+        if self.gemini_client:
+            print(f"✓ Gemini configured")
+        if self.openrouter_api_key:
+            print(f"✓ OpenRouter configured (key: {self.openrouter_api_key[:12]}...)")
+        else:
+            print(f"✗ OpenRouter NOT configured - set OPENROUTER_API_KEY env var")
     
     def _retry_with_backoff(self, func, max_retries=3, initial_delay=1):
         for attempt in range(max_retries):
