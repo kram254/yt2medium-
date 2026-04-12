@@ -19,7 +19,8 @@ wheels/
 .installed.cfg
 *.egg
 .claude/
-settings.json
+.claude/settings.json
+.claude/settings.local.json
 
 .env
 .env.local
