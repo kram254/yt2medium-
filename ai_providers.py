@@ -521,7 +521,8 @@ WRITING INSTRUCTIONS (Apply these to the content above):
                 ],
                 "temperature": 0.9,
                 "max_tokens": 16384
-            }
+            },
+            timeout=30
         )
         
         response.raise_for_status()
