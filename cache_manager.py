@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Any
 from pathlib import Path
+from tenant_context import current_tenant_id, normalize_tenant_id
 
 try:
     import redis
@@ -51,10 +52,12 @@ class CacheManager:
             self.memory_cache.pop(key, None)
             self.cache_ttl.pop(key, None)
     
-    def _generate_key(self, prefix: str, identifier: str) -> str:
-        return f"{prefix}:{hashlib.md5(identifier.encode()).hexdigest()}"
-    
-    def get(self, key: str) -> Optional[Any]:
+    def _generate_key(self, prefix: str, identifier: str, tenant_id: str = None) -> str:
+        tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
+        return f"{tenant_id}:{prefix}:{hashlib.md5(identifier.encode()).hexdigest()}"
+
+    def get(self, key: str, tenant_id: str = None) -> Optional[Any]:
+        key = self._generate_key('raw', key, tenant_id)
         if self.use_redis and self.redis_client:
             try:
                 value = self.redis_client.get(key)
@@ -72,7 +75,8 @@ class CacheManager:
                         del self.cache_ttl[key]
         return None
     
-    def set(self, key: str, value: Any, ttl: int = 3600):
+    def set(self, key: str, value: Any, ttl: int = 3600, tenant_id: str = None):
+        key = self._generate_key('raw', key, tenant_id)
         if self.use_redis and self.redis_client:
             try:
                 self.redis_client.setex(key, ttl, json.dumps(value))
@@ -85,7 +89,8 @@ class CacheManager:
             return True
         return False
     
-    def delete(self, key: str):
+    def delete(self, key: str, tenant_id: str = None):
+        key = self._generate_key('raw', key, tenant_id)
         if self.use_redis and self.redis_client:
             try:
                 self.redis_client.delete(key)
@@ -95,37 +100,52 @@ class CacheManager:
             self.memory_cache.pop(key, None)
             self.cache_ttl.pop(key, None)
     
-    def cache_youtube_transcript(self, video_id: str, transcript: str, ttl: int = 604800):
-        key = self._generate_key("yt_transcript", video_id)
-        self.set(key, transcript, ttl)
-    
-    def get_youtube_transcript(self, video_id: str) -> Optional[str]:
-        key = self._generate_key("yt_transcript", video_id)
-        return self.get(key)
-    
-    def cache_blog_post(self, content_hash: str, blog_data: dict, ttl: int = 86400):
-        key = self._generate_key("blog_post", content_hash)
-        self.set(key, blog_data, ttl)
-    
-    def get_cached_blog_post(self, content_hash: str) -> Optional[dict]:
-        key = self._generate_key("blog_post", content_hash)
-        return self.get(key)
-    
-    def cache_image(self, prompt_hash: str, image_data: str, ttl: int = 604800):
-        key = self._generate_key("image", prompt_hash)
-        self.set(key, image_data, ttl)
-    
-    def get_cached_image(self, prompt_hash: str) -> Optional[str]:
-        key = self._generate_key("image", prompt_hash)
-        return self.get(key)
-    
-    def cache_ai_response(self, prompt_hash: str, response: str, ttl: int = 3600):
-        key = self._generate_key("ai_response", prompt_hash)
-        self.set(key, response, ttl)
-    
-    def get_cached_ai_response(self, prompt_hash: str) -> Optional[str]:
-        key = self._generate_key("ai_response", prompt_hash)
-        return self.get(key)
+    def cache_youtube_transcript(self, video_id: str, transcript: str, ttl: int = 604800, tenant_id: str = None):
+        key = self._generate_key("yt_transcript", video_id, tenant_id)
+        self.set(key, transcript, ttl, tenant_id=tenant_id)
+
+    def get_youtube_transcript(self, video_id: str, tenant_id: str = None) -> Optional[str]:
+        key = self._generate_key("yt_transcript", video_id, tenant_id)
+        return self.get(key, tenant_id=tenant_id)
+
+    def cache_blog_post(self, content_hash: str, blog_data: dict, ttl: int = 86400, tenant_id: str = None):
+        key = self._generate_key("blog_post", content_hash, tenant_id)
+        self.set(key, blog_data, ttl, tenant_id=tenant_id)
+
+    def get_cached_blog_post(self, content_hash: str, tenant_id: str = None) -> Optional[dict]:
+        key = self._generate_key("blog_post", content_hash, tenant_id)
+        return self.get(key, tenant_id=tenant_id)
+
+    def cache_image(self, prompt_hash: str, image_data: str, ttl: int = 604800, tenant_id: str = None):
+        key = self._generate_key("image", prompt_hash, tenant_id)
+        self.set(key, image_data, ttl, tenant_id=tenant_id)
+
+    def get_cached_image(self, prompt_hash: str, tenant_id: str = None) -> Optional[str]:
+        key = self._generate_key("image", prompt_hash, tenant_id)
+        return self.get(key, tenant_id=tenant_id)
+
+    def cache_ai_response(self, prompt_hash: str, response: str, ttl: int = 3600, tenant_id: str = None):
+        key = self._generate_key("ai_response", prompt_hash, tenant_id)
+        self.set(key, response, ttl, tenant_id=tenant_id)
+
+    def get_cached_ai_response(self, prompt_hash: str, tenant_id: str = None) -> Optional[str]:
+        key = self._generate_key("ai_response", prompt_hash, tenant_id)
+        return self.get(key, tenant_id=tenant_id)
+
+    def clear_tenant(self, tenant_id: str):
+        tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
+        if self.use_redis and self.redis_client:
+            try:
+                keys = self.redis_client.keys(f'{tenant_id}:*')
+                if keys:
+                    self.redis_client.delete(*keys)
+            except Exception as e:
+                print(f"[Cache] Redis tenant clear error: {e}")
+        else:
+            keys = [k for k in list(self.memory_cache.keys()) if k.startswith(f'{tenant_id}:')]
+            for key in keys:
+                self.memory_cache.pop(key, None)
+                self.cache_ttl.pop(key, None)
     
     def clear_all(self):
         if self.use_redis and self.redis_client:

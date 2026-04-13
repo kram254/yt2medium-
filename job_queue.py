@@ -6,6 +6,7 @@ from datetime import datetime
 from threading import Thread, Lock
 from queue import Queue, Empty
 from typing import Optional, Dict, Callable, Any
+from tenant_context import current_tenant_id, normalize_tenant_id
 
 class JobQueue:
     def __init__(self):
@@ -63,7 +64,7 @@ class JobQueue:
             progress_callback = job.get('progress_callback')
             
             if progress_callback:
-                kwargs['progress_callback'] = lambda p: self.update_progress(job_id, p)
+                kwargs['progress_callback'] = lambda p: self.update_progress(job_id, p, tenant_id=job.get('tenant_id'))
             
             result = func(*args, **kwargs)
             
@@ -92,8 +93,9 @@ class JobQueue:
     
     def enqueue(self, func: Callable, args: tuple = (), kwargs: dict = None, 
                 callback: Callable = None, priority: int = 0, 
-                job_type: str = 'default') -> str:
+                job_type: str = 'default', tenant_id: str = None) -> str:
         job_id = str(uuid.uuid4())
+        tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
         
         job = {
             'id': job_id,
@@ -110,7 +112,8 @@ class JobQueue:
             'completed_at': None,
             'result': None,
             'error': None,
-            'worker_id': None
+            'worker_id': None,
+            'tenant_id': tenant_id
         }
         
         with self.lock:
@@ -121,12 +124,14 @@ class JobQueue:
         
         return job_id
     
-    def get_job_status(self, job_id: str) -> Optional[dict]:
+    def get_job_status(self, job_id: str, tenant_id: str = None) -> Optional[dict]:
         with self.lock:
             if job_id not in self.jobs:
                 return None
             
             job = self.jobs[job_id].copy()
+            if tenant_id and normalize_tenant_id(job.get('tenant_id')) != normalize_tenant_id(tenant_id):
+                return None
             job.pop('function', None)
             job.pop('callback', None)
             job.pop('args', None)
@@ -134,14 +139,14 @@ class JobQueue:
             
             return job
     
-    def update_progress(self, job_id: str, progress: int):
+    def update_progress(self, job_id: str, progress: int, tenant_id: str = None):
         with self.lock:
-            if job_id in self.jobs:
+            if job_id in self.jobs and (not tenant_id or normalize_tenant_id(self.jobs[job_id].get('tenant_id')) == normalize_tenant_id(tenant_id)):
                 self.jobs[job_id]['progress'] = min(max(progress, 0), 100)
     
-    def cancel_job(self, job_id: str) -> bool:
+    def cancel_job(self, job_id: str, tenant_id: str = None) -> bool:
         with self.lock:
-            if job_id in self.jobs:
+            if job_id in self.jobs and (not tenant_id or normalize_tenant_id(self.jobs[job_id].get('tenant_id')) == normalize_tenant_id(tenant_id)):
                 job = self.jobs[job_id]
                 if job['status'] == 'pending':
                     job['status'] = 'cancelled'
@@ -149,15 +154,16 @@ class JobQueue:
                     return True
         return False
     
-    def get_queue_stats(self) -> dict:
+    def get_queue_stats(self, tenant_id: str = None) -> dict:
         with self.lock:
-            pending = sum(1 for j in self.jobs.values() if j['status'] == 'pending')
-            processing = sum(1 for j in self.jobs.values() if j['status'] == 'processing')
-            completed = sum(1 for j in self.jobs.values() if j['status'] == 'completed')
-            failed = sum(1 for j in self.jobs.values() if j['status'] == 'failed')
+            jobs = [j for j in self.jobs.values() if not tenant_id or normalize_tenant_id(j.get('tenant_id')) == normalize_tenant_id(tenant_id)]
+            pending = sum(1 for j in jobs if j['status'] == 'pending')
+            processing = sum(1 for j in jobs if j['status'] == 'processing')
+            completed = sum(1 for j in jobs if j['status'] == 'completed')
+            failed = sum(1 for j in jobs if j['status'] == 'failed')
             
             return {
-                'total_jobs': len(self.jobs),
+                'total_jobs': len(jobs),
                 'pending': pending,
                 'processing': processing,
                 'completed': completed,

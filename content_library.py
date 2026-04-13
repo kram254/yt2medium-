@@ -3,8 +3,18 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 import hashlib
+from tenant_context import current_tenant_id, normalize_tenant_id
 
 DB_PATH = Path(__file__).parent / 'content_library.db'
+
+def _tenant_id(tenant_id=None):
+    return normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
+
+def _ensure_column(cursor, table, column, definition):
+    cursor.execute(f'PRAGMA table_info({table})')
+    columns = [row[1] for row in cursor.fetchall()]
+    if column not in columns:
+        cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -13,6 +23,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT,
             title TEXT NOT NULL,
             content_hash TEXT UNIQUE,
             source_url TEXT,
@@ -34,10 +45,11 @@ def init_db():
             metadata TEXT
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id TEXT,
             post_id TEXT,
             tag TEXT,
             FOREIGN KEY (post_id) REFERENCES posts (id)
@@ -47,6 +59,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS analytics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id TEXT,
             post_id TEXT,
             date DATE,
             views INTEGER DEFAULT 0,
@@ -60,6 +73,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS templates (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT,
             name TEXT NOT NULL,
             description TEXT,
             prompt_template TEXT,
@@ -72,6 +86,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS batch_queue (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT,
             source_url TEXT,
             source_type TEXT,
             template TEXT,
@@ -90,6 +105,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS drafts (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT,
             title TEXT NOT NULL,
             content TEXT,
             source_url TEXT,
@@ -107,6 +123,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS post_versions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id TEXT,
             post_id TEXT,
             version_number INTEGER,
             title TEXT,
@@ -122,6 +139,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS scheduled_posts (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT,
             post_id TEXT,
             scheduled_time TIMESTAMP,
             publish_to TEXT,
@@ -132,24 +150,38 @@ def init_db():
             FOREIGN KEY (post_id) REFERENCES posts (id)
         )
     ''')
+
+    for table in ['posts', 'tags', 'analytics', 'templates', 'batch_queue', 'drafts', 'post_versions', 'scheduled_posts']:
+        _ensure_column(cursor, table, 'tenant_id', 'TEXT')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_tenant_id ON posts(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_tenant_id ON tags(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_analytics_tenant_id ON analytics(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_templates_tenant_id ON templates(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_batch_queue_tenant_id ON batch_queue(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_drafts_tenant_id ON drafts(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_versions_tenant_id ON post_versions(tenant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_scheduled_posts_tenant_id ON scheduled_posts(tenant_id)')
     
     conn.commit()
     conn.close()
 
-def save_post(post_data):
+def save_post(post_data, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    content_hash = hashlib.md5(post_data['markdown_content'].encode()).hexdigest()
+    tenant_id = _tenant_id(tenant_id)
+    content_hash = hashlib.md5(f'{tenant_id}:{post_data["markdown_content"]}'.encode()).hexdigest()
     
     cursor.execute('''
         INSERT OR REPLACE INTO posts 
-        (id, title, content_hash, source_url, source_type, template, tone, model,
+        (id, tenant_id, title, content_hash, source_url, source_type, template, tone, model,
          word_count, reading_time, engagement_score, seo_score, viral_potential,
          markdown_content, html_content, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         post_data['id'],
+        tenant_id,
         post_data['title'],
         content_hash,
         post_data.get('source_url', ''),
@@ -171,12 +203,12 @@ def save_post(post_data):
     conn.close()
     return post_data['id']
 
-def get_post(post_id):
+def get_post(post_id, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('SELECT * FROM posts WHERE id = ?', (post_id,))
+    cursor.execute('SELECT * FROM posts WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?', (post_id, _tenant_id(tenant_id)))
     row = cursor.fetchone()
     conn.close()
     
@@ -184,53 +216,54 @@ def get_post(post_id):
         return dict(row)
     return None
 
-def get_all_posts(limit=50, offset=0):
+def get_all_posts(limit=50, offset=0, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT * FROM posts 
+        WHERE COALESCE(tenant_id, "legacy") = ?
         ORDER BY created_at DESC 
         LIMIT ? OFFSET ?
-    ''', (limit, offset))
+    ''', (_tenant_id(tenant_id), limit, offset))
     
     rows = cursor.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]
 
-def search_posts(query):
+def search_posts(query, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT * FROM posts 
-        WHERE title LIKE ? OR markdown_content LIKE ?
+        WHERE COALESCE(tenant_id, "legacy") = ? AND (title LIKE ? OR markdown_content LIKE ?)
         ORDER BY created_at DESC 
         LIMIT 20
-    ''', (f'%{query}%', f'%{query}%'))
+    ''', (_tenant_id(tenant_id), f'%{query}%', f'%{query}%'))
     
     rows = cursor.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]
 
-def get_stats():
+def get_stats(tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    cursor.execute('SELECT COUNT(*) FROM posts')
+    cursor.execute('SELECT COUNT(*) FROM posts WHERE COALESCE(tenant_id, "legacy") = ?', (_tenant_id(tenant_id),))
     total_posts = cursor.fetchone()[0]
     
-    cursor.execute('SELECT AVG(engagement_score) FROM posts')
+    cursor.execute('SELECT AVG(engagement_score) FROM posts WHERE COALESCE(tenant_id, "legacy") = ?', (_tenant_id(tenant_id),))
     avg_engagement = cursor.fetchone()[0] or 0
     
-    cursor.execute('SELECT AVG(seo_score) FROM posts')
+    cursor.execute('SELECT AVG(seo_score) FROM posts WHERE COALESCE(tenant_id, "legacy") = ?', (_tenant_id(tenant_id),))
     avg_seo = cursor.fetchone()[0] or 0
     
-    cursor.execute('SELECT SUM(word_count) FROM posts')
+    cursor.execute('SELECT SUM(word_count) FROM posts WHERE COALESCE(tenant_id, "legacy") = ?', (_tenant_id(tenant_id),))
     total_words = cursor.fetchone()[0] or 0
     
     conn.close()
@@ -242,16 +275,18 @@ def get_stats():
         'total_words': total_words
     }
 
-def add_to_batch_queue(job_data):
+def add_to_batch_queue(job_data, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    tenant_id = _tenant_id(tenant_id)
     
     cursor.execute('''
         INSERT INTO batch_queue 
-        (id, source_url, source_type, template, tone, model, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        (id, tenant_id, source_url, source_type, template, tone, model, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     ''', (
         job_data['id'],
+        tenant_id,
         job_data['source_url'],
         job_data.get('source_type', 'youtube'),
         job_data.get('template', ''),
@@ -262,22 +297,23 @@ def add_to_batch_queue(job_data):
     conn.commit()
     conn.close()
 
-def get_batch_queue():
+def get_batch_queue(tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT * FROM batch_queue 
+        WHERE COALESCE(tenant_id, "legacy") = ?
         ORDER BY created_at DESC
-    ''')
+    ''', (_tenant_id(tenant_id),))
     
     rows = cursor.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]
 
-def update_batch_status(job_id, status, progress=None, result_post_id=None, error=None):
+def update_batch_status(job_id, status, progress=None, result_post_id=None, error=None, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -301,27 +337,29 @@ def update_batch_status(job_id, status, progress=None, result_post_id=None, erro
     elif status in ['completed', 'failed']:
         updates.append('completed_at = CURRENT_TIMESTAMP')
     
-    params.append(job_id)
+    params.extend([job_id, _tenant_id(tenant_id)])
     
     cursor.execute(f'''
         UPDATE batch_queue 
         SET {', '.join(updates)}
-        WHERE id = ?
+        WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?
     ''', params)
     
     conn.commit()
     conn.close()
 
-def save_draft(draft_data):
+def save_draft(draft_data, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    tenant_id = _tenant_id(tenant_id)
     
     cursor.execute('''
         INSERT OR REPLACE INTO drafts 
-        (id, title, content, source_url, source_type, template, tone, model, is_auto_save, updated_at, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+        (id, tenant_id, title, content, source_url, source_type, template, tone, model, is_auto_save, updated_at, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
     ''', (
         draft_data['id'],
+        tenant_id,
         draft_data.get('title', 'Untitled Draft'),
         draft_data.get('content', ''),
         draft_data.get('source_url', ''),
@@ -337,12 +375,12 @@ def save_draft(draft_data):
     conn.close()
     return draft_data['id']
 
-def get_draft(draft_id):
+def get_draft(draft_id, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('SELECT * FROM drafts WHERE id = ?', (draft_id,))
+    cursor.execute('SELECT * FROM drafts WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?', (draft_id, _tenant_id(tenant_id)))
     row = cursor.fetchone()
     conn.close()
     
@@ -350,42 +388,45 @@ def get_draft(draft_id):
         return dict(row)
     return None
 
-def get_all_drafts(limit=50):
+def get_all_drafts(limit=50, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT * FROM drafts 
+        WHERE COALESCE(tenant_id, "legacy") = ?
         ORDER BY updated_at DESC 
         LIMIT ?
-    ''', (limit,))
+    ''', (_tenant_id(tenant_id), limit))
     
     rows = cursor.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]
 
-def delete_draft(draft_id):
+def delete_draft(draft_id, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM drafts WHERE id = ?', (draft_id,))
+    cursor.execute('DELETE FROM drafts WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?', (draft_id, _tenant_id(tenant_id)))
     conn.commit()
     conn.close()
 
-def save_post_version(post_id, version_data):
+def save_post_version(post_id, version_data, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    tenant_id = _tenant_id(tenant_id)
     
-    cursor.execute('SELECT COALESCE(MAX(version_number), 0) FROM post_versions WHERE post_id = ?', (post_id,))
+    cursor.execute('SELECT COALESCE(MAX(version_number), 0) FROM post_versions WHERE post_id = ? AND COALESCE(tenant_id, "legacy") = ?', (post_id, tenant_id))
     max_version = cursor.fetchone()[0]
     new_version = max_version + 1
     
     cursor.execute('''
         INSERT INTO post_versions 
-        (post_id, version_number, title, markdown_content, html_content, word_count, change_description)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (tenant_id, post_id, version_number, title, markdown_content, html_content, word_count, change_description)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
+        tenant_id,
         post_id,
         new_version,
         version_data.get('title', ''),
@@ -399,31 +440,31 @@ def save_post_version(post_id, version_data):
     conn.close()
     return new_version
 
-def get_post_versions(post_id):
+def get_post_versions(post_id, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT * FROM post_versions 
-        WHERE post_id = ? 
+        WHERE post_id = ? AND COALESCE(tenant_id, "legacy") = ?
         ORDER BY version_number DESC
-    ''', (post_id,))
+    ''', (post_id, _tenant_id(tenant_id)))
     
     rows = cursor.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]
 
-def get_post_version(post_id, version_number):
+def get_post_version(post_id, version_number, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT * FROM post_versions 
-        WHERE post_id = ? AND version_number = ?
-    ''', (post_id, version_number))
+        WHERE post_id = ? AND version_number = ? AND COALESCE(tenant_id, "legacy") = ?
+    ''', (post_id, version_number, _tenant_id(tenant_id)))
     
     row = cursor.fetchone()
     conn.close()
@@ -432,16 +473,18 @@ def get_post_version(post_id, version_number):
         return dict(row)
     return None
 
-def schedule_post(schedule_data):
+def schedule_post(schedule_data, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    tenant_id = _tenant_id(tenant_id)
     
     cursor.execute('''
         INSERT OR REPLACE INTO scheduled_posts 
-        (id, post_id, scheduled_time, publish_to, status)
-        VALUES (?, ?, ?, ?, 'scheduled')
+        (id, tenant_id, post_id, scheduled_time, publish_to, status)
+        VALUES (?, ?, ?, ?, ?, 'scheduled')
     ''', (
         schedule_data['id'],
+        tenant_id,
         schedule_data['post_id'],
         schedule_data['scheduled_time'],
         schedule_data.get('publish_to', 'medium')
@@ -451,7 +494,7 @@ def schedule_post(schedule_data):
     conn.close()
     return schedule_data['id']
 
-def get_scheduled_posts(status='scheduled'):
+def get_scheduled_posts(status='scheduled', tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -459,21 +502,22 @@ def get_scheduled_posts(status='scheduled'):
     if status:
         cursor.execute('''
             SELECT * FROM scheduled_posts 
-            WHERE status = ?
+            WHERE status = ? AND COALESCE(tenant_id, "legacy") = ?
             ORDER BY scheduled_time ASC
-        ''', (status,))
+        ''', (status, _tenant_id(tenant_id)))
     else:
         cursor.execute('''
             SELECT * FROM scheduled_posts 
+            WHERE COALESCE(tenant_id, "legacy") = ?
             ORDER BY scheduled_time DESC
-        ''')
+        ''', (_tenant_id(tenant_id),))
     
     rows = cursor.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]
 
-def update_scheduled_post_status(schedule_id, status, error=None):
+def update_scheduled_post_status(schedule_id, status, error=None, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -481,22 +525,22 @@ def update_scheduled_post_status(schedule_id, status, error=None):
         cursor.execute('''
             UPDATE scheduled_posts 
             SET status = ?, published_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (status, schedule_id))
+            WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?
+        ''', (status, schedule_id, _tenant_id(tenant_id)))
     else:
         cursor.execute('''
             UPDATE scheduled_posts 
             SET status = ?, error_message = ?
-            WHERE id = ?
-        ''', (status, error, schedule_id))
+            WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?
+        ''', (status, error, schedule_id, _tenant_id(tenant_id)))
     
     conn.commit()
     conn.close()
 
-def delete_scheduled_post(schedule_id):
+def delete_scheduled_post(schedule_id, tenant_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM scheduled_posts WHERE id = ?', (schedule_id,))
+    cursor.execute('DELETE FROM scheduled_posts WHERE id = ? AND COALESCE(tenant_id, "legacy") = ?', (schedule_id, _tenant_id(tenant_id)))
     conn.commit()
     conn.close()
 

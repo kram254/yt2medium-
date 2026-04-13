@@ -3,6 +3,7 @@ from supabase import create_client, Client
 from flask import session
 from datetime import datetime
 import json
+from tenant_context import current_tenant_id, normalize_tenant_id, tenant_get, tenant_pop, tenant_set, tenant_key
 
 class SupabaseAuthStorage:
     def __init__(self):
@@ -10,7 +11,7 @@ class SupabaseAuthStorage:
         
     def get_item(self, key: str) -> str | None:
         # Check both with and without 'sb-' prefix to be safe
-        val = session.get(key) or session.get(f"sb-{key}")
+        val = tenant_get(key) or tenant_get(f"sb-{key}")
         if not val:
             # Only log as warning if it's a known auth key we expect
             if "code-verifier" in key or "auth-token" in key:
@@ -25,20 +26,17 @@ class SupabaseAuthStorage:
     def set_item(self, key: str, value: str) -> None:
         print(f"SupabaseAuthStorage: set_item('{key}', '{value[:5] if value else 'None'}...')")
         # Store with the exact key Supabase asks for
-        session[key] = value
-        session.permanent = True  # Ensure session persists across redirects
-        session.modified = True
+        tenant_set(key, value)
         # Also store with prefix for redundancy if it doesn't have it
         if not key.startswith("sb-"):
-            session[f"sb-{key}"] = value
+            tenant_set(f"sb-{key}", value)
         
         print(f"SupabaseAuthStorage: Session keys now: {list(session.keys())}")
         
     def remove_item(self, key: str) -> None:
         print(f"SupabaseAuthStorage: remove_item('{key}')")
-        session.pop(key, None)
-        session.pop(f"sb-{key}", None)
-        session.modified = True
+        tenant_pop(key, None)
+        tenant_pop(f"sb-{key}", None)
 
 class SupabaseManager:
     def __init__(self):
@@ -177,10 +175,12 @@ class SupabaseManager:
 
     # ── Data Methods ──────────────────────────────────────────────────
 
-    def save_blog_post(self, blog_data, user_id=None):
+    def save_blog_post(self, blog_data, user_id=None, tenant_id=None):
         try:
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             post_record = {
                 'user_id': user_id,
+                'tenant_id': tenant_id,
                 'title': blog_data.get('title'),
                 'markdown_content': blog_data.get('blog_post_markdown'),
                 'html_content': blog_data.get('blog_post_html'),
@@ -203,13 +203,37 @@ class SupabaseManager:
             print(f"Error saving blog post: {e}")
             return None
 
-    def get_blog_post_by_id(self, post_id, user_id=None):
+    def get_blog_post_by_id(self, post_id, user_id=None, tenant_id=None):
         try:
             query = self._db_client.table('blog_posts').select('*').eq('id', post_id)
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
-                query = query.eq('user_id', user_id)
+                result = query.eq('user_id', user_id).eq('tenant_id', tenant_id).execute()
+                if result.data:
+                    post = result.data[0]
+                    # Parse JSON fields safely
+                    for field in ('key_quotes', 'seo_recommendations'):
+                        raw = post.get(field)
+                        if isinstance(raw, str):
+                            post[field] = json.loads(raw)
+                        elif raw is None:
+                            post[field] = []
+                    return post
 
-            result = query.execute()
+                legacy_result = self._db_client.table('blog_posts').select('*').eq('id', post_id).is_('user_id', None).eq('tenant_id', tenant_id).execute()
+                if legacy_result.data:
+                    post = legacy_result.data[0]
+                    for field in ('key_quotes', 'seo_recommendations'):
+                        raw = post.get(field)
+                        if isinstance(raw, str):
+                            post[field] = json.loads(raw)
+                        elif raw is None:
+                            post[field] = []
+                    return post
+
+                return None
+
+            result = query.eq('tenant_id', tenant_id).execute()
             if result.data:
                 post = result.data[0]
                 # Parse JSON fields safely
@@ -225,27 +249,42 @@ class SupabaseManager:
             print(f"Error retrieving blog post: {e}")
             return None
 
-    def get_recent_posts(self, user_id=None, limit=20):
+    def get_recent_posts(self, user_id=None, tenant_id=None, limit=20):
         try:
-            query = self._db_client.table('blog_posts').select(
-                'id, title, created_at, word_count, engagement_score, seo_score, viral_potential'
-            )
+            projection = 'id, title, created_at, word_count, engagement_score, seo_score, viral_potential'
+            query = self._db_client.table('blog_posts').select(projection)
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
-                query = query.eq('user_id', user_id)
+                user_result = query.eq('user_id', user_id).eq('tenant_id', tenant_id).order('created_at', desc=True).limit(limit).execute()
+                legacy_result = self._db_client.table('blog_posts').select(projection).is_('user_id', None).eq('tenant_id', tenant_id).order('created_at', desc=True).limit(limit).execute()
 
-            result = query.order('created_at', desc=True).limit(limit).execute()
+                combined = []
+                seen_ids = set()
+
+                for row in (user_result.data or []) + (legacy_result.data or []):
+                    post_id = row.get('id')
+                    if post_id and post_id not in seen_ids:
+                        seen_ids.add(post_id)
+                        combined.append(row)
+
+                combined.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+                return combined[:limit]
+
+            result = query.eq('tenant_id', tenant_id).order('created_at', desc=True).limit(limit).execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error retrieving recent posts: {e}")
             return []
 
-    def search_posts(self, query_str, user_id=None):
+    def search_posts(self, query_str, user_id=None, tenant_id=None):
         try:
             q = self._db_client.table('blog_posts').select(
                 'id, title, created_at, word_count, engagement_score'
             ).ilike('title', f'%{query_str}%')
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
                 q = q.eq('user_id', user_id)
+            q = q.eq('tenant_id', tenant_id)
 
             result = q.order('created_at', desc=True).limit(20).execute()
             return result.data if result.data else []
@@ -253,35 +292,54 @@ class SupabaseManager:
             print(f"Error searching posts: {e}")
             return []
 
-    def get_drafts_count(self, user_id):
+    def get_drafts_count(self, user_id, tenant_id=None):
         """Return the number of blog posts saved for the given user."""
         try:
-            result = self._db_client.table('blog_posts').select('id', count='exact').eq('user_id', user_id).execute()
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
+            result = self._db_client.table('blog_posts').select('id', count='exact').eq('user_id', user_id).eq('tenant_id', tenant_id).execute()
             return result.count if result.count is not None else 0
         except Exception as e:
             print(f"Error getting drafts count: {e}")
             return 0
 
-    def delete_post(self, post_id, user_id=None):
+    def delete_post(self, post_id, user_id=None, tenant_id=None):
         try:
             query = self._db_client.table('blog_posts').delete().eq('id', post_id)
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
-                query = query.eq('user_id', user_id)
+                result = query.eq('user_id', user_id).eq('tenant_id', tenant_id).execute()
+                if getattr(result, 'data', None):
+                    return True
 
-            query.execute()
+                self._db_client.table('blog_posts').delete().eq('id', post_id).is_('user_id', None).eq('tenant_id', tenant_id).execute()
+                return True
+
+            query.eq('tenant_id', tenant_id).execute()
             return True
         except Exception as e:
             print(f"Error deleting post: {e}")
             return False
 
-    def get_analytics(self, user_id=None):
+    def get_analytics(self, user_id=None, tenant_id=None):
         try:
             query = self._db_client.table('blog_posts').select('*')
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
-                query = query.eq('user_id', user_id)
+                user_result = query.eq('user_id', user_id).eq('tenant_id', tenant_id).execute()
+                legacy_result = self._db_client.table('blog_posts').select('*').is_('user_id', None).eq('tenant_id', tenant_id).execute()
 
-            result = query.execute()
-            if not result.data:
+                posts = []
+                seen_ids = set()
+                for row in (user_result.data or []) + (legacy_result.data or []):
+                    post_id = row.get('id')
+                    if post_id and post_id not in seen_ids:
+                        seen_ids.add(post_id)
+                        posts.append(row)
+            else:
+                result = query.eq('tenant_id', tenant_id).execute()
+                posts = result.data or []
+
+            if not posts:
                 return {
                     'total_posts': 0,
                     'avg_engagement_score': 0,
@@ -291,7 +349,6 @@ class SupabaseManager:
                     'recent_posts': []
                 }
 
-            posts = result.data
             total_posts = len(posts)
 
             avg_engagement = sum(p.get('engagement_score', 0) for p in posts) / total_posts
@@ -311,11 +368,13 @@ class SupabaseManager:
             print(f"Error getting analytics: {e}")
             return None
 
-    def update_post(self, post_id, updates, user_id=None):
+    def update_post(self, post_id, updates, user_id=None, tenant_id=None):
         try:
             query = self._db_client.table('blog_posts').update(updates).eq('id', post_id)
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
                 query = query.eq('user_id', user_id)
+            query = query.eq('tenant_id', tenant_id)
 
             result = query.execute()
             return result.data[0] if result.data else None
@@ -323,10 +382,12 @@ class SupabaseManager:
             print(f"Error updating post: {e}")
             return None
 
-    def save_generation_log(self, log_data, user_id=None):
+    def save_generation_log(self, log_data, user_id=None, tenant_id=None):
         try:
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             log_record = {
                 'user_id': user_id,
+                'tenant_id': tenant_id,
                 'user_input': log_data.get('user_input'),
                 'input_type': log_data.get('input_type'),
                 'model_used': log_data.get('model'),
@@ -345,11 +406,13 @@ class SupabaseManager:
             print(f"Error saving generation log: {e}")
             return None
 
-    def get_generation_stats(self, user_id=None):
+    def get_generation_stats(self, user_id=None, tenant_id=None):
         try:
             query = self._db_client.table('generation_logs').select('*')
+            tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
             if user_id:
                 query = query.eq('user_id', user_id)
+            query = query.eq('tenant_id', tenant_id)
 
             result = query.execute()
             if not result.data:

@@ -51,6 +51,19 @@ from functools import wraps
 from datetime import timedelta
 import hashlib
 import hmac
+from tenant_context import (
+    clear_tenant_session,
+    current_tenant_id,
+    get_session_tenant_id,
+    normalize_tenant_id,
+    resolve_tenant_id,
+    set_active_tenant_id,
+    tenant_get,
+    tenant_key,
+    tenant_pop,
+    tenant_rate_limit_identity,
+    tenant_set,
+)
 
 print("=" * 60)
 print("STARTING FLASK APP")
@@ -61,13 +74,25 @@ TEMP_STORAGE_DIR.mkdir(exist_ok=True)
 print(f"Temp storage directory: {TEMP_STORAGE_DIR}")
 print(f"Temp storage exists: {TEMP_STORAGE_DIR.exists()}")
 
+def get_tenant_temp_dir(tenant_id=None):
+    tenant_id = normalize_tenant_id(tenant_id or current_tenant_id()) or 'legacy'
+    tenant_dir = TEMP_STORAGE_DIR / tenant_id
+    tenant_dir.mkdir(parents=True, exist_ok=True)
+    return tenant_dir
+
+def get_tenant_temp_file(post_id, tenant_id=None):
+    return get_tenant_temp_dir(tenant_id) / f'{post_id}.json'
+
 def cleanup_old_temp_files():
     try:
         import time
         current_time = time.time()
-        for temp_file in TEMP_STORAGE_DIR.glob('*.json'):
-            if current_time - temp_file.stat().st_mtime > 86400:
-                temp_file.unlink()
+        for tenant_dir in TEMP_STORAGE_DIR.iterdir():
+            if not tenant_dir.is_dir():
+                continue
+            for temp_file in tenant_dir.glob('*.json'):
+                if current_time - temp_file.stat().st_mtime > 86400:
+                    temp_file.unlink()
     except Exception as e:
         print(f"Warning: Failed to cleanup temp files: {e}")
 
@@ -76,7 +101,7 @@ cleanup_old_temp_files()
 def get_all_temp_posts():
     posts = []
     try:
-        for temp_file in sorted(TEMP_STORAGE_DIR.glob('*.json'), key=lambda x: x.stat().st_mtime, reverse=True):
+        for temp_file in sorted(get_tenant_temp_dir().glob('*.json'), key=lambda x: x.stat().st_mtime, reverse=True):
             try:
                 with open(temp_file, 'r', encoding='utf-8') as f:
                     post_data = json.load(f)
@@ -191,7 +216,7 @@ def _sanitize_prompt_value(value):
 def require_session(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        access_token = session.get('access_token')
+        access_token = tenant_get('access_token')
         if not access_token:
             if request.is_json:
                 return jsonify({'error': 'Authentication required'}), 401
@@ -207,27 +232,31 @@ def require_session(f):
 
         if not user_response or not user_response.user:
             # Try refreshing the token before giving up
-            refresh_token = session.get('refresh_token')
+            refresh_token = tenant_get('refresh_token')
             if refresh_token:
                 new_session = supabase.refresh_session(refresh_token)
                 if new_session and hasattr(new_session, 'session') and new_session.session:
-                    session['access_token'] = new_session.session.access_token
-                    session['refresh_token'] = new_session.session.refresh_token
-                    session['user_id'] = new_session.user.id
-                    session['user_email'] = new_session.user.email
+                    tenant_set('access_token', new_session.session.access_token)
+                    tenant_set('refresh_token', new_session.session.refresh_token)
+                    tenant_set('user_id', new_session.user.id)
+                    tenant_set('user_email', new_session.user.email)
+                    tenant_set('tenant_id', g.tenant_id)
+                    set_active_tenant_id(g.tenant_id)
                     g.user = new_session.user
                     g.user_id = new_session.user.id
                     return f(*args, **kwargs)
 
-            session.clear()
+            clear_tenant_session(g.tenant_id)
             if request.is_json:
                 return jsonify({'error': 'Session expired'}), 401
             return redirect(url_for('login'))
 
         g.user = user_response.user
         g.user_id = user_response.user.id
-        # Keep session user_id in sync
-        session['user_id'] = user_response.user.id
+        tenant_set('user_id', user_response.user.id)
+        tenant_set('user_email', user_response.user.email)
+        tenant_set('tenant_id', g.tenant_id)
+        set_active_tenant_id(g.tenant_id)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -303,10 +332,12 @@ def login():
         
         if res and res.session:
             session.permanent = True
-            session['access_token'] = res.session.access_token
-            session['refresh_token'] = res.session.refresh_token
-            session['user_id'] = res.user.id
-            session['user_email'] = res.user.email
+            tenant_set('access_token', res.session.access_token)
+            tenant_set('refresh_token', res.session.refresh_token)
+            tenant_set('user_id', res.user.id)
+            tenant_set('user_email', res.user.email)
+            tenant_set('tenant_id', g.tenant_id)
+            set_active_tenant_id(g.tenant_id)
             
             next_url = request.args.get('next')
             return redirect(next_url or url_for('index'))
@@ -317,7 +348,11 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.clear()
+    global_logout = request.args.get('global') == '1' or request.args.get('global') == 'true'
+    if global_logout:
+        session.clear()
+    else:
+        clear_tenant_session(g.tenant_id)
     supabase = get_supabase_manager()
     supabase.sign_out()
     return redirect(url_for('login'))
@@ -363,7 +398,7 @@ def auth_google():
         
     next_url = request.args.get('next')
     if next_url:
-        session['auth_next_url'] = next_url
+        tenant_set('auth_next_url', next_url)
         
     callback_url = get_callback_url()
     
@@ -406,8 +441,8 @@ def auth_callback():
             
             # Explicitly find the PKCE code verifier in the session
             # Supabase client might use either of these keys
-            code_verifier = session.get('supabase.auth.token-code-verifier') or \
-                            session.get('sb-supabase.auth.token-code-verifier')
+            code_verifier = tenant_get('supabase.auth.token-code-verifier') or \
+                            tenant_get('sb-supabase.auth.token-code-verifier')
             
             if code_verifier:
                 print(f"Auth callback: Found code_verifier in session: {code_verifier[:5]}...")
@@ -421,16 +456,18 @@ def auth_callback():
                 if result and hasattr(result, 'session') and result.session:
                     print(f"Auth callback: Exchange SUCCESS")
                     session.permanent = True
-                    session['access_token'] = result.session.access_token
-                    session['refresh_token'] = result.session.refresh_token
-                    session['user_id'] = result.user.id
-                    session['user_email'] = result.user.email
+                    tenant_set('access_token', result.session.access_token)
+                    tenant_set('refresh_token', result.session.refresh_token)
+                    tenant_set('user_id', result.user.id)
+                    tenant_set('user_email', result.user.email)
+                    tenant_set('tenant_id', g.tenant_id)
+                    set_active_tenant_id(g.tenant_id)
                     
                     # Cleanup verifiers
-                    session.pop('supabase.auth.token-code-verifier', None)
-                    session.pop('sb-supabase.auth.token-code-verifier', None)
+                    tenant_pop('supabase.auth.token-code-verifier', None)
+                    tenant_pop('sb-supabase.auth.token-code-verifier', None)
                     
-                    next_url = session.pop('auth_next_url', None)
+                    next_url = tenant_pop('auth_next_url', None)
                     return redirect(next_url or url_for('index'))
                 else:
                     # Log the structure of the failed result
@@ -476,12 +513,14 @@ def auth_store_session():
         user_response = supabase.get_user(access_token)
         if user_response and user_response.user:
             session.permanent = True
-            session['access_token'] = access_token
-            session['refresh_token'] = refresh_token
-            session['user_id'] = user_response.user.id
-            session['user_email'] = user_response.user.email
+            tenant_set('access_token', access_token)
+            tenant_set('refresh_token', refresh_token)
+            tenant_set('user_id', user_response.user.id)
+            tenant_set('user_email', user_response.user.email)
+            tenant_set('tenant_id', g.tenant_id)
+            set_active_tenant_id(g.tenant_id)
             
-            next_url = session.pop('auth_next_url', None)
+            next_url = tenant_pop('auth_next_url', None)
             return jsonify({'success': True, 'redirect': next_url or url_for('index')})
             
     return jsonify({'success': False, 'error': 'Invalid token'}), 401
@@ -489,11 +528,21 @@ def auth_store_session():
 # ── Main Routes ─────────────────────────────────────────────────────
 
 @app.before_request
+def resolve_tenant_context():
+    tenant_id = resolve_tenant_id()
+    if not tenant_id:
+        return jsonify({'error': 'Tenant context required'}), 400
+    g.tenant_id = tenant_id
+    if session.get('active_tenant_id') and session.get('active_tenant_id') != tenant_id:
+        clear_tenant_session(session.get('active_tenant_id'))
+    set_active_tenant_id(tenant_id)
+
+@app.before_request
 def debug_log_request():
     """Log basic request info to help track sessions across redirects."""
-    if not session.get('sid'):
-        session['sid'] = str(uuid.uuid4())[:8]
-    sid = session['sid']
+    if not tenant_get('sid'):
+        tenant_set('sid', str(uuid.uuid4())[:8])
+    sid = tenant_get('sid')
     print(f"DEBUG [{sid}] {request.method} {request.path}")
     print(f"DEBUG [{sid}] Scheme: {request.scheme}, Host: {request.host}, Secure: {request.is_secure}")
     if 'code' in request.args:
@@ -508,7 +557,7 @@ def intercept_oauth_code():
         code = request.args.get('code')
         error = request.args.get('error') or request.args.get('error_description')
         if code or error:
-            sid = session.get('sid', 'unknown')
+            sid = tenant_get('sid', 'unknown')
             print(f"DEBUG [{sid}] Intercepting OAuth code at {request.path}, re-routing to /auth/callback")
             # Re-route to the proper callback endpoint keeping query parameters
             return redirect(url_for('auth_callback', **request.args))
@@ -532,7 +581,7 @@ def rate_limit_check(max_requests=10, window=60):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            user_id = session.get('user_id', request.remote_addr or 'anonymous')
+            user_id = tenant_rate_limit_identity(tenant_get('user_id', request.remote_addr or 'anonymous'))
             endpoint = request.endpoint or 'unknown'
             
             rate_limiter = get_rate_limiter()
@@ -853,7 +902,7 @@ def generate_with_content():
         return jsonify({
             'success': True,
             'blog_post': blog_post_text,
-            'redirect': f'/blog?post_id={session.get("current_post_id", "")}'
+            'redirect': f'/blog?post_id={tenant_get("current_post_id", "")}'
         })
     except Exception as e:
         print(f"Generate with content error: {e}")
@@ -870,7 +919,7 @@ def surprise_me():
         excluded_topics = user_preferences.get('excluded_topics') or []
         current_date = datetime.now().strftime("%B %d, %Y")
         cache = get_cache_manager()
-        cached_cards = cache.get('surprise_me_v2')
+        cached_cards = cache.get('surprise_me_v2', tenant_id=g.tenant_id)
         cards_payload = cached_cards if isinstance(cached_cards, list) else None
         if not cards_payload:
             ai_prompt = (
@@ -925,7 +974,7 @@ def surprise_me():
                             parsed = None
             if isinstance(parsed, dict) and isinstance(parsed.get('cards'), list) and len(parsed['cards']) >= 1:
                 cards_payload = parsed['cards']
-                cache.set('surprise_me_v2', cards_payload, ttl=300)
+                cache.set('surprise_me_v2', cards_payload, ttl=300, tenant_id=g.tenant_id)
         evergreen_cards = [
             {
                 "rank": 1,
@@ -1015,7 +1064,7 @@ def surprise_me():
                     'enhanced': True,
                     'success': True,
                     'generation_time': time.time() - start_time
-                }, user_id=g.user_id)
+                }, user_id=g.user_id, tenant_id=g.tenant_id)
             except Exception as db_error:
                 print(f"Surprise Me v2 log failed: {db_error}")
         return jsonify({'success': True, 'cards': final_cards})
@@ -1098,7 +1147,7 @@ def surprise_me_prompt():
                     'enhanced': True,
                     'success': True,
                     'generation_time': time.time() - start_time
-                })
+                }, tenant_id=g.tenant_id)
             except Exception as db_error:
                 print(f"Surprise Me full prompt log failed: {db_error}")
         return jsonify({'success': True, 'prompt': sanitized})
@@ -1352,9 +1401,9 @@ def generate_blog():
                     'viral_potential': seo_analysis.get('viral_potential', 0),
                     'readability_score': seo_analysis.get('readability_score', 0),
                     'seo_recommendations': seo_recommendations
-                })
+                }, user_id=g.user_id, tenant_id=g.tenant_id)
                 if result:
-                    session['db_post_id'] = result.get('id')
+                    tenant_set('db_post_id', result.get('id'))
                     print(f"Blog post saved to Supabase successfully with ID: {result.get('id')}")
                 else:
                     print("Supabase save returned None")
@@ -1364,15 +1413,15 @@ def generate_blog():
             print("Supabase not configured, skipping database save")
         
         session.permanent = True
-        session['current_post_id'] = post_id
-        session['generation_params'] = {
+        tenant_set('current_post_id', post_id)
+        tenant_set('generation_params', {
             'user_input': user_input,
             'model': model,
             'template': template,
             'tone': tone,
             'industry': industry,
             'enhance': enhance
-        }
+        })
         session.modified = True
         
         print(f"Session set with post_id: {post_id}")
@@ -1432,7 +1481,7 @@ def generate_blog():
                     'success': False,
                     'error': str(e),
                     'generation_time': generation_time
-                }, user_id=g.user_id)
+                }, user_id=g.user_id, tenant_id=g.tenant_id)
             except Exception as db_error:
                 print(f"Warning: Failed to save error log: {db_error}")
         
@@ -1449,18 +1498,18 @@ def blog_post():
         print(f"Request cookies: {dict(request.cookies)}")
         print(f"Request headers: {dict(request.headers)}")
         
-        post_id = request.args.get('post_id') or session.get('current_post_id')
-        generation_params = session.get('generation_params', {})
+        post_id = request.args.get('post_id') or tenant_get('current_post_id')
+        generation_params = tenant_get('generation_params', {})
         
         print(f"Query param post_id: {request.args.get('post_id')}")
-        print(f"Session post_id: {session.get('current_post_id')}")
+        print(f"Session post_id: {tenant_get('current_post_id')}")
         print(f"Final post_id: {post_id}")
         print(f"Session keys: {list(session.keys())}")
         print(f"Session permanent: {session.permanent}")
         print(f"Full session data: {dict(session)}")
         
         if post_id:
-            temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
+            temp_file = get_tenant_temp_file(post_id)
             print(f"Looking for temp file: {temp_file}")
             print(f"Temp file exists: {temp_file.exists()}")
             if temp_file.exists():
@@ -1599,7 +1648,8 @@ def blog_post():
                 'readability_score': int(seo_analysis.get('readability_score', 0)),
                 'seo_recommendations': list(seo_recommendations) if seo_recommendations else [],
                 'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
-                'medium_recommendations': medium_analysis.get('recommendations', [])
+                'medium_recommendations': medium_analysis.get('recommendations', []),
+                'tenant_id': g.tenant_id
             }
             
             with open(temp_file, 'w', encoding='utf-8') as f:
@@ -1624,13 +1674,13 @@ def blog_post():
                         'seo_recommendations': seo_recommendations,
                         'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
                         'medium_recommendations': medium_analysis.get('recommendations', [])
-                    }, user_id=g.user_id)
+                    }, user_id=g.user_id, tenant_id=g.tenant_id)
                     if result:
                         print(f"Supabase save successful")
                 except Exception as e:
                     print(f"Supabase save failed (non-critical): {str(e)[:200]}")
             
-            session['current_post_id'] = post_id
+            tenant_set('current_post_id', post_id)
             
             return redirect(url_for('blog_post'))
         except Exception as e:
@@ -1666,8 +1716,8 @@ def auth_medium():
     try:
         state = str(uuid.uuid4())
         nonce = hashlib.sha256(os.urandom(32)).hexdigest()
-        session['oauth_state'] = state
-        session['oauth_nonce'] = nonce
+        tenant_set('oauth_state', state)
+        tenant_set('oauth_nonce', nonce)
         session.permanent = True
         
         callback_url = get_callback_url('auth_medium_callback')
@@ -1693,7 +1743,7 @@ def auth_medium_callback():
         if not code:
             return jsonify({'error': 'Missing authorization code'}), 400
         
-        stored_state = session.get('oauth_state')
+        stored_state = tenant_get('oauth_state')
         if not stored_state or state != stored_state:
             return jsonify({'error': 'Invalid state parameter'}), 400
         
@@ -1718,8 +1768,8 @@ def auth_medium_callback():
             'expires_at': token_data.get('expires_at')
         }
         
-        account_manager.save_account(user_id, 'medium', account_data)
-        session['medium_connected'] = True
+        account_manager.save_account(user_id, 'medium', account_data, tenant_id=g.tenant_id)
+        tenant_set('medium_connected', True)
         
         return redirect(url_for('index'))
     except Exception as e:
@@ -1732,8 +1782,8 @@ def auth_linkedin():
     try:
         state = str(uuid.uuid4())
         nonce = hashlib.sha256(os.urandom(32)).hexdigest()
-        session['oauth_state'] = state
-        session['oauth_nonce'] = nonce
+        tenant_set('oauth_state', state)
+        tenant_set('oauth_nonce', nonce)
         session.permanent = True
         
         callback_url = get_callback_url('auth_linkedin_callback')
@@ -1759,7 +1809,7 @@ def auth_linkedin_callback():
         if not code:
             return jsonify({'error': 'Missing authorization code'}), 400
         
-        stored_state = session.get('oauth_state')
+        stored_state = tenant_get('oauth_state')
         if not stored_state or state != stored_state:
             return jsonify({'error': 'Invalid state parameter'}), 400
         
@@ -1784,8 +1834,8 @@ def auth_linkedin_callback():
             'expires_at': token_data.get('expires_at')
         }
         
-        account_manager.save_account(user_id, 'linkedin', account_data)
-        session['linkedin_connected'] = True
+        account_manager.save_account(user_id, 'linkedin', account_data, tenant_id=g.tenant_id)
+        tenant_set('linkedin_connected', True)
         
         return redirect(url_for('index'))
     except Exception as e:
@@ -1801,7 +1851,7 @@ def get_social_accounts():
             return jsonify({'error': 'Session required'}), 401
         
         account_manager = get_social_account_manager()
-        accounts = account_manager.list_accounts(user_id)
+        accounts = account_manager.list_accounts(user_id, tenant_id=g.tenant_id)
         
         return jsonify({
             'success': True,
@@ -1818,14 +1868,14 @@ def disconnect_social(platform):
         if platform not in ['medium', 'linkedin']:
             return jsonify({'error': 'Invalid platform'}), 400
         
-        user_id = session.get('user_id')
+        user_id = tenant_get('user_id')
         if not user_id:
             return jsonify({'error': 'Session required'}), 401
         
         account_manager = get_social_account_manager()
         
-        if account_manager.delete_account(user_id, platform):
-            session[f'{platform}_connected'] = False
+        if account_manager.delete_account(user_id, platform, tenant_id=g.tenant_id):
+            tenant_set(f'{platform}_connected', False)
             return jsonify({'success': True})
         
         return jsonify({'error': 'Failed to disconnect'}), 400
@@ -1861,7 +1911,7 @@ def publish_to_social():
         if len(title) > 500:
             return jsonify({'error': 'Title too long'}), 400
         
-        user_id = session.get('user_id')
+        user_id = tenant_get('user_id')
         if not user_id:
             return jsonify({'error': 'Session required'}), 401
         
@@ -1869,7 +1919,7 @@ def publish_to_social():
         results = {}
         
         if 'medium' in platforms:
-            medium_account = account_manager.get_account(user_id, 'medium')
+            medium_account = account_manager.get_account(user_id, 'medium', tenant_id=g.tenant_id)
             if medium_account:
                 medium_auth = get_medium_auth()
                 result = medium_auth.publish_post(
@@ -1880,12 +1930,12 @@ def publish_to_social():
                     image_url=image_url
                 )
                 results['medium'] = result
-                account_manager.update_last_used(user_id, 'medium')
+                account_manager.update_last_used(user_id, 'medium', tenant_id=g.tenant_id)
             else:
                 results['medium'] = {'success': False, 'error': 'Account not connected'}
         
         if 'linkedin' in platforms:
-            linkedin_account = account_manager.get_account(user_id, 'linkedin')
+            linkedin_account = account_manager.get_account(user_id, 'linkedin', tenant_id=g.tenant_id)
             if linkedin_account:
                 linkedin_auth = get_linkedin_auth()
                 result = linkedin_auth.share_post(
@@ -1894,7 +1944,7 @@ def publish_to_social():
                     image_url=image_url
                 )
                 results['linkedin'] = result
-                account_manager.update_last_used(user_id, 'linkedin')
+                account_manager.update_last_used(user_id, 'linkedin', tenant_id=g.tenant_id)
             else:
                 results['linkedin'] = {'success': False, 'error': 'Account not connected'}
         
@@ -2191,7 +2241,7 @@ def batch():
 def history():
     db = get_supabase_manager()
     if db:
-        posts = db.get_recent_posts(user_id=g.user_id, limit=50)
+        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=50)
     else:
         posts = get_all_temp_posts()
     
@@ -2199,7 +2249,7 @@ def history():
     if posts:
         print(f"First post: {posts[0].get('title', 'No title')}")
     
-    return render_template('history.html', posts=posts if posts else [], user=g.user)
+    return render_template('history.html', posts=posts if posts else [], user=g.user, tenant_id=g.tenant_id)
 
 @app.route('/api/posts/recent')
 @require_session
@@ -2208,7 +2258,7 @@ def api_recent_posts():
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    posts = db.get_recent_posts(user_id=g.user_id, limit=20)
+    posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20)
     return jsonify({'success': True, 'posts': posts})
 
 @app.route('/api/posts/<post_id>')
@@ -2218,18 +2268,19 @@ def api_get_post(post_id):
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    post = db.get_blog_post_by_id(post_id, user_id=g.user_id)
+    post = db.get_blog_post_by_id(post_id, user_id=g.user_id, tenant_id=g.tenant_id)
     if post:
         return jsonify({'success': True, 'post': post})
     return jsonify({'error': 'Post not found'}), 404
 
 @app.route('/post/<post_id>')
+@require_session
 def view_post(post_id):
     db = get_supabase_manager()
     blog_data = None
     
     if db:
-        post = db.get_blog_post_by_id(post_id)
+        post = db.get_blog_post_by_id(post_id, tenant_id=g.tenant_id)
         if post:
             blog_data = {
                 'title': post.get('title'),
@@ -2247,11 +2298,13 @@ def view_post(post_id):
                 'seo_recommendations': post.get('seo_recommendations', [])
             }
     else:
-        temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
+        temp_file = get_tenant_temp_file(post_id)
         if temp_file.exists():
             try:
                 with open(temp_file, 'r', encoding='utf-8') as f:
                     blog_data = json.load(f)
+                if blog_data.get('tenant_id') and normalize_tenant_id(blog_data.get('tenant_id')) != g.tenant_id:
+                    blog_data = None
             except Exception as e:
                 print(f"Error reading temp file: {e}")
     
@@ -2267,7 +2320,7 @@ def delete_post(post_id):
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    success = db.delete_post(post_id, user_id=g.user_id)
+    success = db.delete_post(post_id, user_id=g.user_id, tenant_id=g.tenant_id)
     if success:
         return jsonify({'success': True})
     return jsonify({'error': 'Failed to delete post'}), 500
@@ -2277,15 +2330,15 @@ def delete_post(post_id):
 def analytics():
     db = get_supabase_manager()
     if db:
-        blog_analytics = db.get_analytics(user_id=g.user_id)
-        gen_stats = db.get_generation_stats(user_id=g.user_id)
+        blog_analytics = db.get_analytics(user_id=g.user_id, tenant_id=g.tenant_id)
+        gen_stats = db.get_generation_stats(user_id=g.user_id, tenant_id=g.tenant_id)
     else:
         blog_analytics = calculate_temp_analytics()
         gen_stats = None
     
     print(f"Analytics route: analytics={blog_analytics is not None}, gen_stats={gen_stats is not None}")
     
-    return render_template('analytics.html', analytics=blog_analytics, gen_stats=gen_stats, user=g.user)
+    return render_template('analytics.html', analytics=blog_analytics, gen_stats=gen_stats, user=g.user, tenant_id=g.tenant_id)
 
 @app.route('/api/analytics')
 @require_session
@@ -2294,8 +2347,8 @@ def api_analytics():
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    blog_analytics = db.get_analytics(user_id=g.user_id)
-    gen_stats = db.get_generation_stats(user_id=g.user_id)
+    blog_analytics = db.get_analytics(user_id=g.user_id, tenant_id=g.tenant_id)
+    gen_stats = db.get_generation_stats(user_id=g.user_id, tenant_id=g.tenant_id)
     
     return jsonify({
         'success': True,
@@ -2309,7 +2362,7 @@ def api_generation_stats():
     db = get_supabase_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
-    stats = db.get_generation_stats(user_id=g.user_id)
+    stats = db.get_generation_stats(user_id=g.user_id, tenant_id=g.tenant_id)
     if stats:
         return jsonify({'success': True, **stats})
     return jsonify({'success': True, 'top_model': None, 'total_generations': 0})
@@ -2325,7 +2378,7 @@ def api_search_posts():
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
-    results = db.search_posts(query, user_id=g.user_id)
+    results = db.search_posts(query, user_id=g.user_id, tenant_id=g.tenant_id)
     return jsonify({'success': True, 'results': results})
 
 @app.route('/api/drafts', methods=['GET', 'POST'])
@@ -2347,17 +2400,17 @@ def api_drafts():
             'is_auto_save': data.get('is_auto_save', False),
             'metadata': data.get('metadata', {})
         }
-        save_draft(draft_data)
+        save_draft(draft_data, tenant_id=g.tenant_id)
         return jsonify({'success': True, 'draft_id': draft_id})
     else:
-        drafts = get_all_drafts()
+        drafts = get_all_drafts(tenant_id=g.tenant_id)
         return jsonify({'success': True, 'drafts': drafts})
 
 @app.route('/api/drafts/<draft_id>', methods=['GET', 'PUT', 'DELETE'])
 @require_session
 def api_draft_detail(draft_id):
     if request.method == 'GET':
-        draft = get_draft(draft_id)
+        draft = get_draft(draft_id, tenant_id=g.tenant_id)
         if draft:
             return jsonify({'success': True, 'draft': draft})
         return jsonify({'error': 'Draft not found'}), 404
@@ -2375,10 +2428,10 @@ def api_draft_detail(draft_id):
             'is_auto_save': data.get('is_auto_save', False),
             'metadata': data.get('metadata', {})
         }
-        save_draft(draft_data)
+        save_draft(draft_data, tenant_id=g.tenant_id)
         return jsonify({'success': True})
     else:
-        delete_draft(draft_id)
+        delete_draft(draft_id, tenant_id=g.tenant_id)
         return jsonify({'success': True})
 
 @app.route('/api/posts/<post_id>/versions', methods=['GET', 'POST'])
@@ -2393,16 +2446,16 @@ def api_post_versions(post_id):
             'word_count': data.get('word_count', 0),
             'change_description': data.get('change_description', 'Manual save')
         }
-        version_number = save_post_version(post_id, version_data)
+        version_number = save_post_version(post_id, version_data, tenant_id=g.tenant_id)
         return jsonify({'success': True, 'version_number': version_number})
     else:
-        versions = get_post_versions(post_id)
+        versions = get_post_versions(post_id, tenant_id=g.tenant_id)
         return jsonify({'success': True, 'versions': versions})
 
 @app.route('/api/posts/<post_id>/versions/<int:version_number>')
 @require_session
 def api_get_version(post_id, version_number):
-    version = get_post_version(post_id, version_number)
+    version = get_post_version(post_id, version_number, tenant_id=g.tenant_id)
     if version:
         return jsonify({'success': True, 'version': version})
     return jsonify({'error': 'Version not found'}), 404
@@ -2420,24 +2473,24 @@ def api_schedule():
             'scheduled_time': data.get('scheduled_time'),
             'publish_to': data.get('publish_to', 'medium')
         }
-        schedule_post(schedule_data)
+        schedule_post(schedule_data, tenant_id=g.tenant_id)
         return jsonify({'success': True, 'schedule_id': schedule_id})
     else:
         status = request.args.get('status', 'scheduled')
-        scheduled = get_scheduled_posts(status)
+        scheduled = get_scheduled_posts(status, tenant_id=g.tenant_id)
         return jsonify({'success': True, 'scheduled_posts': scheduled})
 
 @app.route('/api/schedule/<schedule_id>', methods=['DELETE'])
 @require_session
 def api_cancel_schedule(schedule_id):
-    delete_scheduled_post(schedule_id)
+    delete_scheduled_post(schedule_id, tenant_id=g.tenant_id)
     return jsonify({'success': True})
 
 @app.route('/api/jobs/<job_id>/status')
 @require_session
 def api_job_status(job_id):
     queue = get_job_queue()
-    status = queue.get_job_status(job_id)
+    status = queue.get_job_status(job_id, tenant_id=g.tenant_id)
     if status:
         return jsonify({'success': True, 'job': status})
     return jsonify({'error': 'Job not found'}), 404
@@ -2446,7 +2499,7 @@ def api_job_status(job_id):
 @require_session
 def api_cancel_job(job_id):
     queue = get_job_queue()
-    cancelled = queue.cancel_job(job_id)
+    cancelled = queue.cancel_job(job_id, tenant_id=g.tenant_id)
     if cancelled:
         return jsonify({'success': True})
     return jsonify({'error': 'Job cannot be cancelled'}), 400
@@ -2455,21 +2508,22 @@ def api_cancel_job(job_id):
 @require_session
 def api_job_stats():
     queue = get_job_queue()
-    stats = queue.get_queue_stats()
+    stats = queue.get_queue_stats(tenant_id=g.tenant_id)
     return jsonify({'success': True, 'stats': stats})
 
 @app.route('/api/cache/clear', methods=['POST'])
+@require_session
 @rate_limit_check(max_requests=5, window=300)
 def api_clear_cache():
     cache = get_cache_manager()
-    cache.clear_all()
+    cache.clear_tenant(g.tenant_id)
     return jsonify({'success': True, 'message': 'Cache cleared'})
 
 @app.route('/api/progress/<job_id>')
 @require_session
 def api_progress(job_id):
     tracker = get_progress_tracker()
-    progress = tracker.get_progress(job_id)
+    progress = tracker.get_progress(job_id, tenant_id=g.tenant_id)
     if progress:
         return jsonify({'success': True, 'progress': progress})
     return jsonify({'error': 'Progress not found'}), 404
@@ -2483,7 +2537,7 @@ def api_progress_stream(job_id):
         check_count = 0
         
         while check_count < max_checks:
-            progress = tracker.get_progress(job_id)
+            progress = tracker.get_progress(job_id, tenant_id=g.tenant_id)
             if progress:
                 yield f"data: {json.dumps(progress)}\n\n"
                 
@@ -2505,6 +2559,7 @@ def kario_socials():
     return render_template('kario-socials.html', user=g.user)
 
 @app.route('/api/social-generate', methods=['POST'])
+@require_session
 @rate_limit_check(max_requests=20, window=300)
 def api_social_generate():
     try:
@@ -2526,6 +2581,7 @@ def api_social_generate():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/social-publish', methods=['POST'])
+@require_session
 @rate_limit_check(max_requests=10, window=300)
 def api_social_publish():
     try:
@@ -2546,6 +2602,7 @@ def api_social_publish():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/social-schedule', methods=['POST'])
+@require_session
 @rate_limit_check(max_requests=20, window=300)
 def api_social_schedule():
     try:
