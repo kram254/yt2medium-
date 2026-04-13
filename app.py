@@ -1415,7 +1415,6 @@ def generate_blog():
         session.permanent = True
         tenant_set('current_post_id', post_id)
         tenant_set('generation_params', {
-            'user_input': user_input,
             'model': model,
             'template': template,
             'tone': tone,
@@ -1431,7 +1430,7 @@ def generate_blog():
         
         if db:
             try:
-                db.save_generation_log({
+                result = db.save_generation_log({
                     'user_input': user_input,
                     'input_type': input_type,
                     'model': model,
@@ -1440,8 +1439,9 @@ def generate_blog():
                     'enhanced': enhance,
                     'success': True,
                     'generation_time': generation_time
-                }, user_id=g.user_id)
-                print("Generation log saved successfully")
+                }, user_id=g.user_id, tenant_id=g.tenant_id)
+                if result:
+                    print("Generation log saved successfully")
             except Exception as db_error:
                 print(f"Generation log save failed (non-critical): {str(db_error)[:200]}")
         

@@ -25,11 +25,8 @@ class SupabaseAuthStorage:
         
     def set_item(self, key: str, value: str) -> None:
         print(f"SupabaseAuthStorage: set_item('{key}', '{value[:5] if value else 'None'}...')")
-        # Store with the exact key Supabase asks for
-        tenant_set(key, value)
-        # Also store with prefix for redundancy if it doesn't have it
-        if not key.startswith("sb-"):
-            tenant_set(f"sb-{key}", value)
+        if 'code-verifier' in key:
+            tenant_set(key, value)
         
         print(f"SupabaseAuthStorage: Session keys now: {list(session.keys())}")
         
