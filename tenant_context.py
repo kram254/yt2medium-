@@ -164,6 +164,8 @@ def clear_tenant_session(tenant_id=None):
         'sid',
         'supabase.auth.token-code-verifier',
         'sb-supabase.auth.token-code-verifier',
+        'supabase.auth.token',
+        'sb-supabase.auth.token',
     }
     for key in list(session.keys()):
         if key.startswith(namespaced_prefix) or key in legacy_keys:

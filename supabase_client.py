@@ -11,6 +11,10 @@ class SupabaseAuthStorage:
         
     def get_item(self, key: str) -> str | None:
         # Check both with and without 'sb-' prefix to be safe
+        if 'code-verifier' not in key and 'auth.token' in key:
+            tenant_pop(key, None)
+            tenant_pop(f"sb-{key}", None)
+            return None
         val = tenant_get(key) or tenant_get(f"sb-{key}")
         if not val:
             # Only log as warning if it's a known auth key we expect
@@ -27,6 +31,9 @@ class SupabaseAuthStorage:
         print(f"SupabaseAuthStorage: set_item('{key}', '{value[:5] if value else 'None'}...')")
         if 'code-verifier' in key:
             tenant_set(key, value)
+        elif 'auth.token' in key:
+            tenant_pop(key, None)
+            tenant_pop(f"sb-{key}", None)
         
         print(f"SupabaseAuthStorage: Session keys now: {list(session.keys())}")
         

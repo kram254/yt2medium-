@@ -466,6 +466,8 @@ def auth_callback():
                     # Cleanup verifiers
                     tenant_pop('supabase.auth.token-code-verifier', None)
                     tenant_pop('sb-supabase.auth.token-code-verifier', None)
+                    tenant_pop('supabase.auth.token', None)
+                    tenant_pop('sb-supabase.auth.token', None)
                     
                     next_url = tenant_pop('auth_next_url', None)
                     return redirect(next_url or url_for('index'))
@@ -519,6 +521,8 @@ def auth_store_session():
             tenant_set('user_email', user_response.user.email)
             tenant_set('tenant_id', g.tenant_id)
             set_active_tenant_id(g.tenant_id)
+            tenant_pop('supabase.auth.token', None)
+            tenant_pop('sb-supabase.auth.token', None)
             
             next_url = tenant_pop('auth_next_url', None)
             return jsonify({'success': True, 'redirect': next_url or url_for('index')})
