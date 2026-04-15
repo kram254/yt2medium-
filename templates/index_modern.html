@@ -236,6 +236,10 @@
                 if (data.success && data.redirect) {
                     window.location.href = data.redirect;
                 } else if (data.error) {
+                    if (data.error.toLowerCase().includes('authentication')) {
+                        window.location.href = '/login';
+                        return;
+                    }
                     alert('Error: ' + data.error);
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalContent;
@@ -246,6 +250,10 @@
                 }
             })
             .catch(error => {
+                if (error.message && error.message.toLowerCase().includes('authentication')) {
+                    window.location.href = '/login';
+                    return;
+                }
                 alert('Error: ' + error.message);
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;

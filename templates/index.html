@@ -625,13 +625,17 @@
                     }
                 })
                 .catch(error => {
+                    if (error.message && error.message.toLowerCase().includes('authentication')) {
+                        window.location.href = '/login';
+                        return;
+                    }
                     alert(error.message);
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalContent;
                 });
                 return;
             }
-            
+
             formData = {
                 youtube_link: document.getElementById('youtube_link').value,
                 template: document.getElementById('template').value,
@@ -669,12 +673,16 @@
                 }
             })
             .catch(error => {
+                if (error.message && error.message.toLowerCase().includes('authentication')) {
+                    window.location.href = '/login';
+                    return;
+                }
                 alert(error.message);
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
             });
         });
-        
+
         let uploadedFile = null;
         let surpriseLoading = false;
         let surpriseExcludedTopics = [];
