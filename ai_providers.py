@@ -301,7 +301,7 @@ class AIProviderManager:
         print(f"[AI] Context length: {len(video_context) if video_context else 0} chars")
         errors = []
         
-        if model and model.startswith('deepseek/'):
+        if model and '/' in model:
             print(f"[AI] Trying OpenRouter with model: {model}")
             if self.openrouter_api_key:
                 try:

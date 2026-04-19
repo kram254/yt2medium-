@@ -781,7 +781,7 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         # Apply transcript enhancement if we have YouTube content
         if has_youtube_content and content_context and len(content_context) > 100:
             print("Enhancing blog post with YouTube transcript...")
-            optimized_content = enhance_blog_with_transcript(optimized_content, content_context)
+            optimized_content = enhance_blog_with_transcript(optimized_content, content_context, model=model)
             print(f"Transcript-enhanced content length: {len(optimized_content) if optimized_content else 0}")
         
         return optimized_content
@@ -789,7 +789,7 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
         print(f"Exception in generate_blog_post_text: {str(e)}")
         raise Exception(f"Failed to generate blog post: {str(e)}")
 
-def enhance_blog_with_transcript(blog_text, transcript):
+def enhance_blog_with_transcript(blog_text, transcript, model=None):
     try:
         enhancement_prompt = f"""
 You are an expert editor specializing in transforming blog posts using video transcript insights.
@@ -820,13 +820,13 @@ Blog Post to Enhance:
 
 Return the enhanced blog post in Markdown format. No explanations or meta-commentary.
 """
-        response = get_ai_manager().generate_content(enhancement_prompt)
+        response = get_ai_manager().generate_content(enhancement_prompt, model=model)
         return response if response else blog_text
     except Exception as e:
         print(f"Transcript enhancement error: {e}")
         return blog_text
 
-def enhance_blog_post(blog_text):
+def enhance_blog_post(blog_text, model=None):
     try:
         enhancement_prompt = f"""
 You are an expert editor and writing coach. Enhance this Medium blog post to make it sound like it was written by a confident, clear, and direct human - not an AI.
@@ -863,7 +863,7 @@ Original post:
 
 Return the enhanced version in Markdown format. No explanations or meta-commentary.
 """
-        response = get_ai_manager().generate_content(enhancement_prompt)
+        response = get_ai_manager().generate_content(enhancement_prompt, model=model)
         return response if response else blog_text
     except Exception as e:
         print(f"Enhancement error: {e}")
@@ -1239,7 +1239,7 @@ def generate_blog():
         
         if enhance:
             print("Enhancing blog post...")
-            blog_post_text = enhance_blog_post(blog_post_text)
+            blog_post_text = enhance_blog_post(blog_post_text, model=model)
             print(f"Enhanced blog post length: {len(blog_post_text) if blog_post_text else 0}")
         
         print("Extracting title from markdown...")
@@ -1556,7 +1556,7 @@ def blog_post():
                 return render_template('index.html', error='Failed to generate blog content. Please try again.')
             
             if enhance:
-                blog_post_text = enhance_blog_post(blog_post_text)
+                blog_post_text = enhance_blog_post(blog_post_text, model=model)
             
             title = extract_title_from_markdown(blog_post_text)
             
