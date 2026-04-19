@@ -93,6 +93,9 @@ def cleanup_old_temp_files():
             for temp_file in tenant_dir.glob('*.json'):
                 if current_time - temp_file.stat().st_mtime > 86400:
                     temp_file.unlink()
+        for temp_file in TEMP_STORAGE_DIR.glob('*.json'):
+            if current_time - temp_file.stat().st_mtime > 86400:
+                temp_file.unlink()
     except Exception as e:
         print(f"Warning: Failed to cleanup temp files: {e}")
 
@@ -1319,7 +1322,7 @@ def generate_blog():
         print(f"Generation time: {generation_time:.2f}s")
         
         post_id = str(uuid.uuid4())
-        temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
+        temp_file = get_tenant_temp_file(post_id)
         print(f"Generated post_id: {post_id}")
         print(f"Temp file path: {temp_file}")
         
@@ -1605,7 +1608,7 @@ def blog_post():
             blog_post_html = blog_post_html.strip()
             
             post_id = str(uuid.uuid4())
-            temp_file = TEMP_STORAGE_DIR / f"{post_id}.json"
+            temp_file = get_tenant_temp_file(post_id)
             
             reading_time_int = 0
             if reading_time:
@@ -1705,12 +1708,16 @@ def export_markdown():
 @app.route('/health')
 def health():
     db = get_supabase_manager()
+    temp_files_count = len(list(TEMP_STORAGE_DIR.glob('*.json')))
+    for tenant_dir in TEMP_STORAGE_DIR.iterdir():
+        if tenant_dir.is_dir():
+            temp_files_count += len(list(tenant_dir.glob('*.json')))
     status = {
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'database': 'connected' if db else 'not_configured',
         'temp_storage': str(TEMP_STORAGE_DIR),
-        'temp_files_count': len(list(TEMP_STORAGE_DIR.glob('*.json')))
+        'temp_files_count': temp_files_count
     }
     return jsonify(status), 200
 
