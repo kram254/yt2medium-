@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS blog_posts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID,
+    tenant_id TEXT DEFAULT 'legacy',
     title TEXT NOT NULL,
     markdown_content TEXT NOT NULL,
     html_content TEXT NOT NULL,
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS blog_posts (
 CREATE TABLE IF NOT EXISTS generation_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID,
+    tenant_id TEXT DEFAULT 'legacy',
     user_input TEXT NOT NULL,
     input_type TEXT,
     model_used TEXT,
@@ -34,8 +36,11 @@ CREATE TABLE IF NOT EXISTS generation_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_blog_posts_user_id ON blog_posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_tenant_id ON blog_posts(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_generation_logs_user_id ON generation_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_generation_logs_tenant_id ON generation_logs(tenant_id);
 
+CREATE INDEX IF NOT EXISTS idx_blog_posts_user_tenant ON blog_posts(user_id, tenant_id);
 CREATE INDEX IF NOT EXISTS idx_blog_posts_created_at ON blog_posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_blog_posts_title ON blog_posts USING gin(to_tsvector('english', title));
 CREATE INDEX IF NOT EXISTS idx_generation_logs_created_at ON generation_logs(created_at DESC);
