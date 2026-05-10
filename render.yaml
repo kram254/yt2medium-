@@ -2,10 +2,38 @@ services:
   - type: web
     name: yt2medium
     runtime: python
+    plan: starter
+    branch: main
+    # CI gates the deploy via the deploy hook (see .github/workflows/ci-cd.yml).
+    # Disabling autoDeploy avoids Render also auto-deploying on every push,
+    # which would bypass lint/test/build checks.
+    autoDeploy: false
     buildCommand: "chmod +x build.sh && ./build.sh"
     startCommand: "gunicorn -c gunicorn_config.py app:app"
+    healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: FLASK_ENV
         value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # Secrets — set these manually in the Render dashboard
+      # (Settings -> Environment). sync: false means render.yaml will not
+      # try to overwrite or sync these values.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: HUGGINGFACE_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
