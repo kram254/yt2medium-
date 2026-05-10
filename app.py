@@ -394,30 +394,39 @@ def auth_google():
     """Initiate Google OAuth via Supabase."""
     # Ensure session is persistent so code_verifier survives redirects
     session.permanent = True
-    
+
     supabase = get_supabase_manager()
     if not supabase:
-        return redirect(url_for('login'))
-        
+        return render_template('login.html', error="Sign-in is unavailable. Check that SUPABASE_URL and SUPABASE_KEY are configured correctly in the environment.")
+
     next_url = request.args.get('next')
     if next_url:
         tenant_set('auth_next_url', next_url)
-        
+
     callback_url = get_callback_url()
-    
+
     print(f"Auth Google: Initiating sign-in")
     print(f"Auth Google: callback_url={callback_url}")
     print(f"Auth Google: PREFERRED_URL_SCHEME={app.config.get('PREFERRED_URL_SCHEME')}")
     print(f"Auth Google: Session keys before: {list(session.keys())}")
-    
+
     result = supabase.sign_in_with_google(redirect_url=callback_url)
-    
+
     print(f"Auth Google: Session keys after: {list(session.keys())}")
-    
+
     if result and hasattr(result, 'url') and result.url:
+        from urllib.parse import urlparse
+        import socket
+        oauth_host = urlparse(result.url).hostname
+        if oauth_host:
+            try:
+                socket.gethostbyname(oauth_host)
+            except socket.gaierror:
+                print(f"Auth Google: SUPABASE host '{oauth_host}' does not resolve (DNS NXDOMAIN)")
+                return render_template('login.html', error=f"Sign-in service is unreachable. The Supabase project at '{oauth_host}' does not exist or has been deleted. Update the SUPABASE_URL environment variable to point to your active Supabase project (https://<project-ref>.supabase.co).")
         print(f"Auth Google: Redirecting to Supabase OAuth URL: {result.url[:50]}...")
         return redirect(result.url)
-        
+
     print(f"Auth Google: Failed to generate sign-in URL. Result: {result}")
     return redirect(url_for('login', error='Failed to generate sign-in URL'))
 
