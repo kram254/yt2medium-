@@ -77,6 +77,9 @@ class SupabaseManager:
             print("Supabase: initialized with service role for DB and anon key for Auth")
         else:
             print("Supabase: using anon key for both Auth and DB")
+            access_token = tenant_get('access_token')
+            if access_token:
+                self._db_client.postgrest.auth(access_token)
 
     # ── Auth Methods ──────────────────────────────────────────────────
 
