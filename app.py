@@ -2260,35 +2260,45 @@ def batch():
 @require_session
 def history():
     db = get_supabase_manager()
+    posts = []
     if db:
         posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=50)
-    else:
+    if not posts:
         posts = get_all_temp_posts()
-    
+
     print(f"History route: Found {len(posts) if posts else 0} posts")
     if posts:
         print(f"First post: {posts[0].get('title', 'No title')}")
-    
+
     return render_template('history.html', posts=posts if posts else [], user=g.user, tenant_id=g.tenant_id)
 
 @app.route('/api/posts/recent')
 @require_session
 def api_recent_posts():
     db = get_supabase_manager()
-    if not db:
-        return jsonify({'error': 'Database not configured'}), 503
-    
-    posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20)
+    posts = []
+    if db:
+        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20)
+    if not posts:
+        posts = get_all_temp_posts()
     return jsonify({'success': True, 'posts': posts})
 
 @app.route('/api/posts/<post_id>')
 @require_session
 def api_get_post(post_id):
     db = get_supabase_manager()
-    if not db:
-        return jsonify({'error': 'Database not configured'}), 503
-    
-    post = db.get_blog_post_by_id(post_id, user_id=g.user_id, tenant_id=g.tenant_id)
+    post = None
+    if db:
+        post = db.get_blog_post_by_id(post_id, user_id=g.user_id, tenant_id=g.tenant_id)
+    if not post:
+        temp_file = get_tenant_temp_file(post_id)
+        if temp_file.exists():
+            try:
+                with open(temp_file, 'r', encoding='utf-8') as f:
+                    post = json.load(f)
+                post['id'] = post_id
+            except Exception:
+                pass
     if post:
         return jsonify({'success': True, 'post': post})
     return jsonify({'error': 'Post not found'}), 404
