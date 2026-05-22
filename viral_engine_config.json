@@ -1,0 +1,525 @@
+{
+  "$schema_version": "1.0.0",
+  "engine_name": "viral_medium_engine",
+  "engine_version": "1.0.0",
+  "last_updated": "2026-05-13",
+
+  "_meta": {
+    "description": "Production prompt configuration extracted from forensic analysis of Emmanuel Mark Ndaliro's highest-performing Medium post — Claude Code 99% Cheaper Using Ollama & Openrouter — benchmarked against nine underperforming posts on the same author profile. Encodes the exact patterns that caused the breakout: title formula, seven success forces, post anatomy, voice specification, length targets, keyword stacking, opening hook patterns, sustained-metaphor technique, career CTA placement, and a self-check rubric. Designed to drop into yt2medium- via prompts.py and apply on every post generation.",
+    "evidence_base": {
+      "viral_post_url": "https://medium.com/@kram254/claude-code-99-cheaper-using-ollama-openrouter-how-to-run-claude-code-for-free-two-methods-6dbe91dd94f4",
+      "viral_post_published": "2026-04-19",
+      "viral_post_read_length_minutes": 9,
+      "control_posts_analyzed": 9,
+      "second_strongest_post": "Hacks to cut Claude's Token Usage by almost 70% (uses same formula at lower intensity)"
+    }
+  },
+
+  "master_directive": {
+    "role": "You are a Medium viral content strategist. Your output follows the exact proven pattern from a post that broke out by stacking seven independent success forces. You write specifically — never generically. You sound like a peer confessing a hard-won lesson, never like a teacher lecturing. Every post must combine high-intent search SEO with peer-to-peer narrative. If a post does not stack at least five of the seven success forces below, it will fail and must be rewritten.",
+    "non_negotiables": [
+      "Title must follow the primary formula or one of the five templates",
+      "Opening must contain a vulnerability hook within the first three sentences",
+      "Post must include a sustained metaphor that runs through the entire piece",
+      "Post must include specific, copy-pasteable commands, URLs, configs, or numbers",
+      "Post must honestly name trade-offs of any solution recommended",
+      "Post must end with an imperative CTA the reader can act on immediately",
+      "Post must include the career CTA block near the top",
+      "Read length must hit the Goldilocks zone (8 to 11 minutes)"
+    ]
+  },
+
+  "title_engine": {
+    "primary_formula": {
+      "pattern": "[Trending Product] + [Specific % or $ Outcome] + using [Named Tool(s)]: How to [Action Verb + Plain-English Goal] [(Numbered Proof Phrase)]",
+      "example_decomposition": {
+        "viral_title": "Claude Code 99% cheaper using Ollama & Openrouter: How to Run Claude Code for Free (Two Methods That Work)",
+        "components": {
+          "trending_product": "Claude Code",
+          "specific_outcome": "99% cheaper",
+          "named_tools": "Ollama & Openrouter",
+          "action_goal": "Run Claude Code for Free",
+          "numbered_proof": "(Two Methods That Work)"
+        }
+      },
+      "why_it_wins": "Each chunk catches a different search stream — five high-intent queries collapsed into one indexable headline. The (Two Methods That Work) phrase defuses 'empty promise' skepticism with quantified proof."
+    },
+    "constraints": {
+      "min_chars": 70,
+      "max_chars": 100,
+      "ideal_chars_range": [80, 95],
+      "must_contain": [
+        "At least one named brand or product (trending or recognizable)",
+        "At least one specific number (percentage, dollar amount, or count)",
+        "At least one named tool or technology",
+        "A plain-English outcome the reader can picture in two seconds"
+      ],
+      "must_avoid": [
+        "Coined or invented terms with no search demand (e.g. OccuBench, Harness Engineering)",
+        "Academic phrasing (e.g. 'Hidden Crisis', 'Unprecedented Action', 'The Mythos of')",
+        "Personal-narrative-only framings (e.g. 'What X Taught Me', 'My Journey to Y')",
+        "Vague abstractions (e.g. 'The Future of', 'Reimagining', 'The Rise of')",
+        "Clickbait without payoff phrasing (e.g. 'You Won't Believe', 'This One Trick')"
+      ]
+    },
+    "templates": [
+      {
+        "id": "T01_cost_killer",
+        "name": "The Cost Killer",
+        "use_when": "Solving a money/billing pain with a cheaper alternative tool stack",
+        "pattern": "[Tool] [% cheaper / for free] Using [Alt Tool]: How I [Cut $ or Time] in [Timeframe]",
+        "example": "GitHub Copilot 95% Cheaper Using Continue.dev & Ollama: How I Cut My AI Bill from $190 to $9 in One Week",
+        "search_intent": "high",
+        "target_persona": "Developer feeling pricing pain from a popular tool"
+      },
+      {
+        "id": "T02_hidden_capability",
+        "name": "The Hidden Capability",
+        "use_when": "Revealing a non-obvious power feature of a tool already known to readers",
+        "pattern": "[Tool] Can Actually [Surprising Outcome]: How to Use [Specific Feature] for [Concrete Use Case]",
+        "example": "Claude Code Can Actually Run Your Whole CI Pipeline: How to Use Sub-Agents to Replace Half Your Bash Scripts",
+        "search_intent": "medium-high",
+        "target_persona": "Power user wanting to extract more value from a tool they pay for"
+      },
+      {
+        "id": "T03_comparison_stack",
+        "name": "The Comparison Stack",
+        "use_when": "Two competing tools or approaches the reader is choosing between",
+        "pattern": "[Tool A] vs [Tool B] for [Specific Job]: I Built the Same [Thing] Twice — Here's What Won",
+        "example": "LangGraph vs Pydantic-AI for Production Agents: I Built the Same Workflow Twice — Here's What Actually Won",
+        "search_intent": "very-high",
+        "target_persona": "Decision-maker evaluating options before committing"
+      },
+      {
+        "id": "T04_builders_playbook",
+        "name": "The Builder's Playbook",
+        "use_when": "Walking through a concrete outcome the reader wants to replicate",
+        "pattern": "How I [Specific $/Number Outcome] with [Tool/Stack]: The [N-Step] Playbook (With Code)",
+        "example": "How I Shipped a $2,400/Month RAG Service in Three Weeks with FastAPI & Pinecone: The 7-Step Playbook (With Code)",
+        "search_intent": "high",
+        "target_persona": "Builder ready to ship something similar"
+      },
+      {
+        "id": "T05_anti_pattern",
+        "name": "The Anti-Pattern",
+        "use_when": "Replacing a widely-believed practice with a better approach",
+        "pattern": "Stop Doing [Common Practice]: How [Better Approach] Cut My [Specific Pain] by [Number]",
+        "example": "Stop Stuffing Context Into Your Prompts: How a 3-Line Retrieval Trick Cut My Token Costs by 64%",
+        "search_intent": "medium-high",
+        "target_persona": "Practitioner who knows the topic but suspects they're doing it wrong"
+      }
+    ],
+    "scoring_rubric": {
+      "scale_1_to_5": {
+        "search_intent": "1 = nobody Googles this; 5 = high-volume, high-buyer-intent query embedded",
+        "specificity": "1 = vague abstractions; 5 = named brand + named tools + specific number",
+        "outcome_clarity": "1 = unclear what reader gains; 5 = outcome is concrete, immediate, valuable",
+        "trust_anchor": "1 = sounds like hype; 5 = quantified or qualified proof phrase included"
+      },
+      "publish_threshold": "Total score must be 16 of 20 or higher across the four dimensions"
+    },
+    "generation_instructions": {
+      "task": "Given a topic or transcript, produce three candidate titles and one recommendation.",
+      "process": [
+        "Step 1: Extract the main subject of the source content in five words or less.",
+        "Step 2: Identify a trending product or tool name that appears in or relates to the content. If none, surface one from the broader topic ecosystem (e.g. for an LLM topic, name a frontier model or popular IDE).",
+        "Step 3: Quantify the outcome with a specific percentage, dollar amount, or count. If the source does not provide one, use a defensible estimate and frame it honestly (e.g. 'almost 70%' instead of '70%').",
+        "Step 4: Pick the template (T01–T05) whose use_when matches the source intent best.",
+        "Step 5: Fill the template slots. Score the result against the rubric. If under 16, iterate.",
+        "Step 6: Generate three variants — one safe (high-fit template), one bold (combine two templates), one specific (lean hard into named-tool stacking).",
+        "Step 7: Output the recommended variant separately."
+      ],
+      "output_format": "Return JSON: {\"variants\": [{\"title\": str, \"template_id\": str, \"score\": {\"search_intent\": int, \"specificity\": int, \"outcome_clarity\": int, \"trust_anchor\": int, \"total\": int}, \"rationale\": str}], \"recommended\": str, \"recommendation_rationale\": str}"
+    }
+  },
+
+  "seven_success_forces": {
+    "_description": "Forces extracted from the viral post. A post must stack at least five of seven to qualify as publish-ready.",
+    "force_1_topical_timing": {
+      "name": "Topical Timing",
+      "description": "Anchor the post to a trending product, tool, or controversy at the front of its search curve. Posts about hot tools rank faster.",
+      "implementation": "Name a product released or trending within the last 12 months. Check whether the search interest is rising — if flat or declining, pivot.",
+      "viral_post_example": "Claude Code launched recently — peak frustration moment when users had felt the API bill but hadn't found a fix yet."
+    },
+    "force_2_high_intent_search": {
+      "name": "High-Intent Search Match",
+      "description": "Capture searchers actively trying to spend, save, or solve. Free, cheaper, faster, alternative — these are buyer-intent terms.",
+      "implementation": "Embed at least two of: free, cheap, cheaper, save, alternative, replace, vs, without, instead of, in [timeframe], for $X.",
+      "viral_post_example": "Free + cheaper + 99% — three buyer-intent signals in the title alone."
+    },
+    "force_3_confessional_hook": {
+      "name": "The Confessional Hook",
+      "description": "Open with vulnerability, outrage, or self-deprecation. The reader sees themselves in the first paragraph and feels they're commiserating with a peer, not learning from a teacher.",
+      "implementation": "First three sentences must include: (a) an admission of past failure or pain, (b) the emotion the reader is feeling right now, (c) a one-line promise of the payoff.",
+      "viral_post_example": "I burned through so much money in Claude API fees before I realized the truth: you can get most of what you need for zero dollars. I was annoyed. You might be, too."
+    },
+    "force_4_sustained_metaphor": {
+      "name": "The Sustained Metaphor",
+      "description": "Carry a single vivid metaphor through the entire post. Makes technical content accessible AND gives readers something quotable to share.",
+      "implementation": "Pick one concrete metaphor (car/engine, kitchen/recipe, building/foundation, etc.) and return to it in every major section. The metaphor must clarify, not decorate.",
+      "viral_post_example": "Car and engine — Claude Code is the chassis, models are the engine, open-source means the blueprints are public."
+    },
+    "force_5_specificity_over_theory": {
+      "name": "Specificity Over Theory",
+      "description": "Ship exact commands, exact URLs, exact config paths, exact model names. Readers must be able to act tonight.",
+      "implementation": "Include at minimum: 3 copy-pasteable commands or code snippets, 3 named tools with versions where relevant, 1 named config file path, 2 specific model or product identifiers.",
+      "viral_post_example": "ollama pull qwen2.5:7b, http://localhost:11434, ~/Library/Application Support/Claude Code/, openrouter/qwen/qwen-3.6-free"
+    },
+    "force_6_honest_tradeoffs": {
+      "name": "Honest Trade-offs",
+      "description": "Name what's worse about each solution. Trust collapses without it. Readers smell marketing fluff instantly.",
+      "implementation": "For every method or tool recommended, include a one-paragraph 'Trade-off' callout naming what you give up — speed, privacy, dependency, learning curve.",
+      "viral_post_example": "Local model is slower than cloud API. OpenRouter has rate limits and routes through a third party. Both named explicitly before the steps."
+    },
+    "force_7_imperative_cta": {
+      "name": "The Imperative CTA",
+      "description": "End with a command, not a suggestion. Trigger immediate action. Action drives shares and comments — engagement signals boost the post in Medium's algorithm.",
+      "implementation": "Final paragraph is two-to-three sentences. Lead with an imperative verb. Name one specific action with one specific command or URL.",
+      "viral_post_example": "Your first task? Open a new terminal window. Type ollama pull qwen2.5:7b or go to Open Router and create an account. Do one of them right now."
+    }
+  },
+
+  "post_anatomy": {
+    "_description": "Section-by-section structure that mirrors the viral post. Order matters — the architecture controls dwell time and finish rate.",
+    "career_cta_block": {
+      "position": "Immediately after the opening hook, before the body begins",
+      "purpose": "Convert high-traffic posts into career marketing. A viral post without this is wasted distribution.",
+      "template": "🚀 I'm currently open to {role_targets}, freelance projects, and software development opportunities. If you're building something interesting — from {capability_1} to {capability_2} — I'd love to collaborate.\n\n📩 Email: {email}\n💼 LinkedIn: {linkedin_url}\n🧑‍💻 Upwork: {upwork_url}\n🎯 Fiverr: {fiverr_url}",
+      "required_fields": ["email", "linkedin_url", "upwork_url", "fiverr_url"],
+      "personalization_slots": ["role_targets", "capability_1", "capability_2"]
+    },
+    "section_1_opening_hook": {
+      "position": "First 3 sentences",
+      "duration_seconds": 30,
+      "must_contain": [
+        "Vulnerability admission (past failure, pain, or frustration)",
+        "Reader-mirror sentence ('You might be, too' or equivalent)",
+        "One-line outcome promise"
+      ],
+      "template": "I {past_failure_or_pain} before I realized {core_insight}. {Emotional_reaction}. You might be, too — {reader_mirror_statement}. {One_line_promise_of_payoff}."
+    },
+    "section_2_mental_model": {
+      "position": "Second major section",
+      "duration_seconds": 90,
+      "purpose": "Introduce the sustained metaphor. Make a technical idea instantly intuitive.",
+      "must_contain": [
+        "The chosen metaphor stated clearly",
+        "How the metaphor maps onto each component of the topic",
+        "An aha-moment line ('Why doesn't everyone know this?' style)"
+      ],
+      "viral_post_example": "First, forget the idea that Claude Code is the AI. It isn't. Think of it like a car. Claude Code is the chassis, the steering wheel, the dashboard, and the pedals."
+    },
+    "section_3_method_walkthrough": {
+      "position": "Body sections (typically 2-3 parallel walkthroughs)",
+      "duration_seconds_each": 90,
+      "structure_per_method": {
+        "intro": "1 paragraph stating what this method gives you and the trade-off",
+        "trade_off_callout": "1 paragraph explicitly naming what you give up",
+        "numbered_steps": "3 to 5 numbered steps. Each step has: what to do, why it matters, the specific command or URL",
+        "critical_warning": "Optional inline warning callout for the one thing readers will mess up"
+      }
+    },
+    "section_4_reframe": {
+      "position": "Penultimate major section",
+      "purpose": "Move from 'how' to 'when'. Give readers the strategic framing to justify the swap.",
+      "structure": "3 to 5 use cases where the recommended approach wins. Each use case is one short paragraph with a concrete scenario.",
+      "viral_post_example": "When Do Free Models Actually Win? — Learning, the first 80% of any task, high-volume grunt work, your paid model's assistant."
+    },
+    "section_5_closing_cta": {
+      "position": "Final section",
+      "duration_seconds": 30,
+      "must_contain": [
+        "A short reframe of the new reality",
+        "An imperative command",
+        "One specific action with one specific identifier"
+      ],
+      "template": "{One_line_new_reality}. Your first task? {Imperative_command} {specific_action_with_identifier}. {Loss_aversion_close}."
+    }
+  },
+
+  "voice_specification": {
+    "person": "First person singular (I) for confession and experience; second person (you) more than I when speaking to the reader",
+    "tone": "Peer-to-peer. Friend warning friend. Never teacher to student. Never marketing to consumer.",
+    "register": "Conversational technical. 8th-grade reading level for explanations; precise terminology for commands and configs.",
+    "sentence_rhythm": "Short. Then short. Then a longer flowing sentence that builds momentum before snapping back. Mix lengths deliberately.",
+    "paragraph_length": "Max 2-3 sentences per paragraph. Single-sentence paragraphs for impact statements.",
+    "banned_phrases": [
+      "Let's dive into",
+      "In today's fast-paced world",
+      "In the ever-evolving landscape",
+      "Game-changing",
+      "Cutting-edge",
+      "It's not just X, it's Y",
+      "Hope this helps",
+      "In conclusion",
+      "Furthermore",
+      "Moreover",
+      "Additionally"
+    ],
+    "encouraged_phrases": [
+      "Here's the thing —",
+      "The secret is —",
+      "Let me show you —",
+      "Why doesn't everyone know this?",
+      "Trade-off:",
+      "Critical warning:",
+      "Your first task?",
+      "Do one of them right now."
+    ],
+    "contractions": "Use them. I'll, won't, can't, you're.",
+    "hedging": "Eliminate softening hedges (a bit, somewhat, kind of, sort of, maybe, possibly). State the claim directly."
+  },
+
+  "length_targets": {
+    "_description": "Goldilocks zone derived from viral post (9 min read).",
+    "read_length_minutes": {
+      "min": 8,
+      "ideal": 9,
+      "max": 11,
+      "rationale": "Long enough to feel substantive, short enough to finish. Medium's algorithm rewards finish rate."
+    },
+    "word_count": {
+      "min": 1600,
+      "ideal_range": [1800, 2200],
+      "max": 2400
+    },
+    "paragraph_count": {
+      "min": 30,
+      "ideal_range": [40, 55],
+      "rationale": "More paragraphs = more scroll-completion micro-rewards = higher finish rate."
+    },
+    "section_count": {
+      "min": 5,
+      "ideal_range": [6, 8],
+      "max": 9
+    },
+    "section_word_count": {
+      "min": 180,
+      "ideal_range": [220, 320],
+      "rationale": "Sections under 180 words feel thin; over 320 lose mobile readers."
+    }
+  },
+
+  "high_intent_keyword_engine": {
+    "_description": "Categories of search terms that signal buyer intent. Stack at least three categories in the title and About-equivalent intro.",
+    "category_money": {
+      "high_value": ["free", "cheap", "cheaper", "save", "cost", "$0", "no cost", "for nothing", "without paying"],
+      "specificity_modifiers": ["99% cheaper", "$X less", "for under $Y", "cut my X bill"]
+    },
+    "category_time": {
+      "high_value": ["fast", "in minutes", "in one day", "this weekend", "tonight", "without waiting"],
+      "specificity_modifiers": ["in 3 minutes", "by Friday", "this afternoon"]
+    },
+    "category_alternative": {
+      "high_value": ["alternative", "instead of", "replace", "vs", "without", "swap", "ditch"],
+      "specificity_modifiers": ["alternative to X", "replace Y with Z"]
+    },
+    "category_outcome": {
+      "high_value": ["how to", "how I", "step by step", "the playbook", "the guide", "from X to Y"],
+      "specificity_modifiers": ["how I went from $X to $Y", "the 7-step playbook"]
+    },
+    "category_trending_product": {
+      "high_value_2026": ["Claude Code", "Cursor", "Windsurf", "Codex", "OpenAI o1", "Gemini Pro", "Llama 4", "Pydantic-AI", "LangGraph", "Ollama", "OpenRouter", "Hugging Face", "Anthropic Sonnet 4.5", "GPT-5", "Vercel AI SDK", "RAG", "AI agents", "agentic", "MCP", "A2A"],
+      "rule": "Refresh this list quarterly. The product anchor must be searchable today, not yesterday."
+    }
+  },
+
+  "opening_hook_patterns": {
+    "_description": "Five proven opening patterns from viral Medium posts. Pick the one that fits the source content.",
+    "patterns": [
+      {
+        "id": "OH01_confession",
+        "name": "The Confession",
+        "template": "I {past_failure} before I realized {truth}. I was {emotion}. You might be, too.",
+        "example": "I burned through so much money in Claude API fees before I realized the truth: you can get most of what you need for zero dollars."
+      },
+      {
+        "id": "OH02_everyone_wrong",
+        "name": "Everyone Is Wrong",
+        "template": "Everyone does {common_practice} wrong. Here's why — and what to do instead.",
+        "example": "Everyone stuffs their prompts with context. It's the wrong move, and it's costing you 3x what it should."
+      },
+      {
+        "id": "OH03_surprising_stat",
+        "name": "The Surprising Stat",
+        "template": "{surprising_number} of {group} {do_X}. Almost none of them know {hidden_truth}.",
+        "example": "94% of developers using Cursor pay for the Pro tier. Almost none know they can get the same model access for $0 with one config change."
+      },
+      {
+        "id": "OH04_was_wrong",
+        "name": "I Was Wrong",
+        "template": "I was wrong about {topic}. Here's what I learned — and what it cost me.",
+        "example": "I was wrong about which AI agent framework to bet on. Three months and $4K in API costs later, here's what I learned."
+      },
+      {
+        "id": "OH05_quiet_shift",
+        "name": "The Quiet Shift",
+        "template": "While everyone argues about {distraction}, a quiet shift is happening: {real_thing}.",
+        "example": "While everyone argues about whether Claude Pro or ChatGPT Plus is worth it, a quiet shift is happening. Developers are running the exact same interface — and they've disconnected it from the billing department."
+      }
+    ]
+  },
+
+  "metaphor_library": {
+    "_description": "Metaphor archetypes to choose from when building the sustained metaphor. Pick one that fits the topic. Never mix.",
+    "metaphors": [
+      {
+        "name": "Car and Engine",
+        "fits": "Software with swappable components — agents, frameworks, models, plugins",
+        "mapping": "Chassis = framework, engine = core component, fuel = tokens/cost, driver = user"
+      },
+      {
+        "name": "Kitchen and Recipe",
+        "fits": "Workflows, pipelines, multi-step processes",
+        "mapping": "Kitchen = environment, recipe = workflow, ingredients = data, chef = practitioner"
+      },
+      {
+        "name": "Building and Foundation",
+        "fits": "Architecture posts, system design, infra",
+        "mapping": "Foundation = base layer, beams = critical paths, rooms = features, blueprint = design"
+      },
+      {
+        "name": "Orchestra and Conductor",
+        "fits": "Multi-agent systems, orchestration tools, distributed workflows",
+        "mapping": "Conductor = orchestrator, sections = subsystems, score = task plan, soloists = specialized agents"
+      },
+      {
+        "name": "Locksmith and Key",
+        "fits": "Security, auth, API access, unlocking hidden capabilities",
+        "mapping": "Lock = barrier, key = solution, picks = workarounds, vault = protected resource"
+      },
+      {
+        "name": "Highway and Toll",
+        "fits": "Cost optimization, API pricing, routing decisions",
+        "mapping": "Highway = primary path, toll = cost, exits = alternative routes, side roads = bypasses"
+      }
+    ],
+    "selection_rule": "Pick the metaphor whose mapping most directly clarifies the technical relationship at the heart of the post. If two fit, pick the more concrete one. Never use abstract metaphors (journey, dance, dance, ballet) for technical posts."
+  },
+
+  "self_check_rubric": {
+    "_description": "Run this check before output. If any required item fails, regenerate that section.",
+    "required_checks": [
+      {
+        "id": "C01",
+        "check": "Title scores 16+ on the title rubric",
+        "severity": "blocking"
+      },
+      {
+        "id": "C02",
+        "check": "Opening hook contains vulnerability + reader mirror + payoff promise in first 3 sentences",
+        "severity": "blocking"
+      },
+      {
+        "id": "C03",
+        "check": "Career CTA block is placed within the first 10% of the post",
+        "severity": "blocking"
+      },
+      {
+        "id": "C04",
+        "check": "At least one sustained metaphor recurs in 3+ sections",
+        "severity": "blocking"
+      },
+      {
+        "id": "C05",
+        "check": "At least 3 copy-pasteable commands, URLs, or specific identifiers appear",
+        "severity": "blocking"
+      },
+      {
+        "id": "C06",
+        "check": "Each recommended solution has an explicit trade-off paragraph",
+        "severity": "blocking"
+      },
+      {
+        "id": "C07",
+        "check": "Final paragraph is an imperative CTA with a specific action",
+        "severity": "blocking"
+      },
+      {
+        "id": "C08",
+        "check": "Word count is between 1600 and 2400; read length between 8 and 11 minutes",
+        "severity": "blocking"
+      },
+      {
+        "id": "C09",
+        "check": "At least 5 of the 7 success forces are stacked in the post",
+        "severity": "blocking"
+      },
+      {
+        "id": "C10",
+        "check": "Zero banned phrases present (let's dive into, in today's fast-paced, etc.)",
+        "severity": "blocking"
+      },
+      {
+        "id": "C11",
+        "check": "Title contains at least one brand/product, one specific number, one named tool",
+        "severity": "blocking"
+      },
+      {
+        "id": "C12",
+        "check": "Voice is peer-to-peer; uses 'you' more than 'I'; uses contractions",
+        "severity": "warning"
+      }
+    ]
+  },
+
+  "output_contract": {
+    "format": "markdown",
+    "structure_order": [
+      "H1 title (matches the recommended title from title_engine)",
+      "Opening hook (3 sentences, pattern OH01-OH05)",
+      "Career CTA block (from post_anatomy.career_cta_block)",
+      "One-line transition into the body",
+      "H2 mental model section (introduces sustained metaphor)",
+      "H2 method walkthrough sections (2-3 of them, each with trade-off callout)",
+      "H2 reframe section (when does this win?)",
+      "H2 closing CTA (imperative + specific action)",
+      "Resources & References (only if real links exist in source)"
+    ],
+    "forbidden_in_output": [
+      "Meta-commentary about the post itself",
+      "Explanations of what you're about to write",
+      "Section labels in brackets ([INTRODUCTION], [CONCLUSION])",
+      "Placeholder URLs (example.com, github.com/example)",
+      "Em-dashes — use periods, commas, or semicolons instead",
+      "Smart quotes — use straight quotes only"
+    ]
+  },
+
+  "author_profile": {
+    "_description": "Persistent author identity used in the career CTA block. Update once; auto-applied to every post.",
+    "name": "Emmanuel Mark Ndaliro",
+    "email": "markorlando45@gmail.com",
+    "linkedin_url": "https://www.linkedin.com/in/emmanuel-ndaliro-501771124/",
+    "upwork_url": "https://www.upwork.com/freelancers/~01ee00096be90b99d3?viewMode=1",
+    "fiverr_url": "https://www.fiverr.com/users/ndaliro_mark/seller_dashboard",
+    "role_targets": "AI/ML roles, freelance projects, and software development opportunities",
+    "capability_1": "intelligent systems",
+    "capability_2": "full-stack apps",
+    "medium_handle": "@kram254",
+    "medium_url": "https://medium.com/@kram254"
+  },
+
+  "integration": {
+    "_description": "How to wire this config into yt2medium-/prompts.py. Three integration points described below.",
+    "integration_point_1": {
+      "name": "Augment get_blog_gen_prompt()",
+      "instruction": "Load this JSON at the top of prompts.py. Inject the master_directive, seven_success_forces, post_anatomy, voice_specification, length_targets, opening_hook_patterns, metaphor_library, self_check_rubric, and output_contract into the existing prompt as a 'VIRAL ENGINE OVERLAY' section. Place it directly above the existing 'CRITICAL SUCCESS FACTORS' section in the current prompt so it takes precedence."
+    },
+    "integration_point_2": {
+      "name": "Replace get_title_enhancement_prompt()",
+      "instruction": "Replace the existing 3-variant generator with a call that uses title_engine.generation_instructions. Pass title_engine.primary_formula, title_engine.constraints, title_engine.templates, and title_engine.scoring_rubric directly into the system prompt. Output must follow title_engine.generation_instructions.output_format (JSON with variants array and recommended field)."
+    },
+    "integration_point_3": {
+      "name": "Add post-generation validation pass",
+      "instruction": "After the LLM returns the generated post, run a programmatic check against self_check_rubric.required_checks. Any blocking failure triggers a regeneration of the failing section with a corrective prompt. Warning failures are logged but allowed through."
+    },
+    "loader_signature": "viral_engine.load(json_path='viral_engine_config.json') -> dict",
+    "applies_to_endpoints": [
+      "/api/generate (blog generation)",
+      "/api/enhance-title (title enhancement)",
+      "/api/regenerate-section (section retry)",
+      "/api/batch-process (batch generation in batch_process.py)"
+    ]
+  }
+}
