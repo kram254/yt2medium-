@@ -20,6 +20,13 @@ from util import (
 from seo_analyzer import analyze_seo, generate_seo_recommendations
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
 from prompts import get_blog_gen_prompt, get_image_gen_prompt
+try:
+    from viral_engine import ViralEngine
+    _viral_engine = ViralEngine()
+    print("[viral_engine] loaded — overlay active")
+except Exception as _viral_err:  # noqa: BLE001
+    print(f"[viral_engine] disabled: {_viral_err}")
+    _viral_engine = None
 from export_handler import export_to_medium, export_to_linkedin, create_twitter_thread, export_to_devto, export_to_hashnode, export_to_ghost, export_to_wordpress, export_to_json, export_to_txt, export_to_notion, export_to_email_html, get_export_formats
 from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status, save_draft, get_draft, get_all_drafts, delete_draft, save_post_version, get_post_versions, get_post_version, schedule_post, get_scheduled_posts, update_scheduled_post_status, delete_scheduled_post
 from cache_manager import get_cache_manager
@@ -792,7 +799,38 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
             print("Enhancing blog post with YouTube transcript...")
             optimized_content = enhance_blog_with_transcript(optimized_content, content_context, model=model)
             print(f"Transcript-enhanced content length: {len(optimized_content) if optimized_content else 0}")
-        
+
+        # ------------------------------------------------------------------
+        # Viral engine: post-generation self-check + one corrective pass
+        # ------------------------------------------------------------------
+        # Run the 12-item rubric against the draft. If any blocking checks
+        # fail, ask the LLM to regenerate with a corrective prompt. One
+        # pass only — we don't loop, to keep latency and cost bounded.
+        if _viral_engine is not None and optimized_content:
+            try:
+                issues = _viral_engine.validate_post(optimized_content)
+                if issues.get('warnings'):
+                    print(f"[viral_engine] warnings: {issues['warnings']}")
+                if issues.get('blocking'):
+                    print(f"[viral_engine] blocking failures: {issues['blocking']}")
+                    print("[viral_engine] requesting corrective regeneration...")
+                    correction_prompt = _viral_engine.build_correction_prompt(
+                        optimized_content, issues
+                    )
+                    corrected = get_ai_manager().generate_content(
+                        correction_prompt, "", model
+                    )
+                    if corrected and len(corrected) > 500:
+                        optimized_content = optimize_content_structure(clean_markdown(corrected))
+                        post_fix_issues = _viral_engine.validate_post(optimized_content)
+                        print(
+                            f"[viral_engine] post-fix: "
+                            f"{len(post_fix_issues['blocking'])} blocking, "
+                            f"{len(post_fix_issues['warnings'])} warnings"
+                        )
+            except Exception as vex:  # noqa: BLE001
+                print(f"[viral_engine] validation error (non-fatal): {vex}")
+
         return optimized_content
     except Exception as e:
         print(f"Exception in generate_blog_post_text: {str(e)}")
@@ -2000,16 +2038,109 @@ def title_alternatives():
         data = request.get_json()
         current_title = data.get('title', '')
         content = data.get('content', '')
-        
+
         prompt = get_title_alternatives_prompt(current_title, content)
         alternatives = get_ai_manager().generate_content(prompt)
-        
+
         return jsonify({
             'success': True,
             'alternatives': alternatives
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/score-title', methods=['POST'])
+def score_title():
+    """Viral engine title scoring endpoint.
+
+    Body: { "title": "current title (optional)", "content": "topic or transcript" }
+
+    Returns: {
+        "success": true,
+        "variants": [{title, template_id, score:{...,total}, rationale}, ...],
+        "recommended": "...",
+        "recommendation_rationale": "...",
+        "passed_threshold": bool   # total >= 16 on the recommended variant
+    }
+    """
+    if _viral_engine is None:
+        return jsonify({
+            'success': False,
+            'error': 'viral_engine not loaded — check viral_engine_config.json'
+        }), 503
+    try:
+        data = request.get_json() or {}
+        current_title = data.get('title', '')
+        content = data.get('content', '') or current_title
+
+        prompt = _viral_engine.build_title_prompt(content, current_title)
+        raw = get_ai_manager().generate_content(prompt)
+
+        # Strip code-fence wrappers if the model added them
+        cleaned = raw.strip()
+        if cleaned.startswith('```'):
+            cleaned = cleaned.split('```', 2)[-1]
+            if cleaned.startswith('json'):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.rstrip('`').strip()
+
+        try:
+            parsed = json.loads(cleaned)
+        except json.JSONDecodeError as je:
+            return jsonify({
+                'success': False,
+                'error': f'LLM did not return valid JSON: {je}',
+                'raw_output': raw[:2000]
+            }), 502
+
+        # Compute pass/fail against the 16+ threshold for the recommended title
+        passed = False
+        recommended = parsed.get('recommended', '')
+        for v in parsed.get('variants', []):
+            if v.get('title') == recommended:
+                passed = v.get('score', {}).get('total', 0) >= 16
+                break
+
+        return jsonify({
+            'success': True,
+            'variants': parsed.get('variants', []),
+            'recommended': recommended,
+            'recommendation_rationale': parsed.get('recommendation_rationale', ''),
+            'passed_threshold': passed
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/validate-post', methods=['POST'])
+def validate_post_endpoint():
+    """Run the 12-item self-check rubric against a markdown body.
+
+    Body: { "markdown": "..." }
+
+    Returns: { "success": true, "blocking": [...], "warnings": [...], "passed": bool }
+    """
+    if _viral_engine is None:
+        return jsonify({
+            'success': False,
+            'error': 'viral_engine not loaded — check viral_engine_config.json'
+        }), 503
+    try:
+        data = request.get_json() or {}
+        markdown_body = data.get('markdown', '')
+        if not markdown_body:
+            return jsonify({'success': False, 'error': 'markdown field required'}), 400
+
+        issues = _viral_engine.validate_post(markdown_body)
+        return jsonify({
+            'success': True,
+            'blocking': issues.get('blocking', []),
+            'warnings': issues.get('warnings', []),
+            'passed': len(issues.get('blocking', [])) == 0
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/meta-description', methods=['POST'])
 def meta_description():

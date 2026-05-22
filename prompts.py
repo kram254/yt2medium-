@@ -1,4 +1,38 @@
+# --------------------------------------------------------------------------
+# Viral Engine wiring
+# --------------------------------------------------------------------------
+# The viral engine loads viral_engine_config.json and overlays the seven
+# success forces, the 12-item self-check rubric, the career-CTA block, and
+# the title formula onto every prompt that ships to the LLM.
+#
+# Evidence base: forensic analysis of the "Claude Code 99% Cheaper" post
+# (the breakout on @kram254's profile). See medium-viral-analysis.html
+# for the reasoning behind every rule.
+#
+# If viral_engine_config.json is missing or fails to load, prompts.py falls
+# back to the base prompts so the app never crashes on a config issue.
+try:
+    from viral_engine import ViralEngine
+    _engine = ViralEngine()
+except Exception as _engine_err:  # noqa: BLE001
+    import sys as _sys
+    print(f"[prompts] viral engine disabled: {_engine_err}", file=_sys.stderr)
+    _engine = None
+
+
 def get_blog_gen_prompt():
+    """Public entry: base prompt wrapped with the viral engine overlay.
+
+    Falls back to the base prompt if the engine failed to load so existing
+    callers keep working in degraded mode.
+    """
+    base = _base_blog_gen_prompt()
+    if _engine is None:
+        return base
+    return _engine.augment_blog_gen_prompt(base)
+
+
+def _base_blog_gen_prompt():
     return """
 🚨 CRITICAL INSTRUCTION - READ THIS FIRST 🚨
 
@@ -434,7 +468,19 @@ EXAMPLES OF GOOD ILLUSTRATIVE IMAGES:
 The image should make viewers say "I can immediately tell what this article is about."
 """
 
-def get_title_enhancement_prompt(original_title):
+def get_title_enhancement_prompt(original_title, source_content=""):
+    """Title generation prompt.
+
+    When the viral engine is available, returns the formula-driven prompt
+    that produces strict JSON output ({variants: [...], recommended: '...'})
+    using the five proven templates and the 4-dimension scoring rubric.
+
+    When the engine is unavailable, returns the legacy 3-variant prompt
+    that returns numbered plain text.
+    """
+    if _engine is not None:
+        return _engine.build_title_prompt(source_content or original_title, original_title)
+
     return f"""
 You are a viral content strategist for Medium. Enhance this blog post title to maximize click-through rate and engagement.
 
