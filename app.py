@@ -27,6 +27,15 @@ try:
 except Exception as _viral_err:  # noqa: BLE001
     print(f"[viral_engine] disabled: {_viral_err}")
     _viral_engine = None
+try:
+    from viral_agents import ViralTitleOrchestrator, upgrade_post_title
+    _viral_agents_available = True
+    print("[viral_agents] loaded — multi-agent title pipeline active")
+except Exception as _viral_agents_err:
+    print(f"[viral_agents] disabled: {_viral_agents_err}")
+    ViralTitleOrchestrator = None
+    upgrade_post_title = None
+    _viral_agents_available = False
 from export_handler import export_to_medium, export_to_linkedin, create_twitter_thread, export_to_devto, export_to_hashnode, export_to_ghost, export_to_wordpress, export_to_json, export_to_txt, export_to_notion, export_to_email_html, get_export_formats
 from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status, save_draft, get_draft, get_all_drafts, delete_draft, save_post_version, get_post_versions, get_post_version, schedule_post, get_scheduled_posts, update_scheduled_post_status, delete_scheduled_post
 from cache_manager import get_cache_manager
@@ -1292,7 +1301,22 @@ def generate_blog():
         print("Extracting title from markdown...")
         title = extract_title_from_markdown(blog_post_text)
         print(f"Extracted title: {title}")
-        
+
+        if _viral_agents_available and upgrade_post_title is not None:
+            try:
+                upgraded_title, upgraded_text, agent_result = upgrade_post_title(
+                    get_ai_manager(), blog_post_text, title, model=model
+                )
+                if agent_result and agent_result.get('passed_threshold'):
+                    print(f"[viral_agents] title upgraded: {title!r} -> {upgraded_title!r} "
+                          f"(score {agent_result.get('variants', [{}])[0].get('score', {}).get('total', 'n/a')})")
+                    title = upgraded_title
+                    blog_post_text = upgraded_text
+                else:
+                    print("[viral_agents] title upgrade did not pass 16+ threshold, keeping original")
+            except Exception as title_upgrade_err:
+                print(f"[viral_agents] title upgrade failed (non-critical): {title_upgrade_err}")
+
         print("Generating images...")
         try:
             images = generate_images_for_blog(title, blog_post_text)
@@ -1431,11 +1455,40 @@ def generate_blog():
         
         with open(temp_file, 'w', encoding='utf-8') as f:
             json.dump(full_blog_data, f, ensure_ascii=False)
-        
+
         print(f"File written successfully")
         print(f"File exists after write: {temp_file.exists()}")
         print(f"File size: {temp_file.stat().st_size if temp_file.exists() else 0} bytes")
-        
+
+        try:
+            save_post({
+                'id': post_id,
+                'title': title or 'Untitled Post',
+                'markdown_content': blog_post_text or '',
+                'html_content': blog_post_html or '',
+                'source_url': user_input if input_type in ('youtube', 'url', 'github') else '',
+                'source_type': input_type or 'topic',
+                'template': template or '',
+                'tone': tone or '',
+                'model': model or '',
+                'word_count': int(len(blog_post_text.split())) if blog_post_text else 0,
+                'reading_time': reading_time_int,
+                'engagement_score': int(engagement_score) if engagement_score else 0,
+                'seo_score': int(seo_analysis.get('seo_score', 0)),
+                'viral_potential': int(seo_analysis.get('viral_potential', 0)),
+                'metadata': {
+                    'key_quotes': key_quotes if key_quotes else [],
+                    'seo_recommendations': seo_recommendations if seo_recommendations else [],
+                    'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
+                    'medium_recommendations': medium_analysis.get('recommendations', []),
+                    'readability_score': int(seo_analysis.get('readability_score', 0)),
+                    'reading_time': reading_time,
+                },
+            }, tenant_id=g.tenant_id)
+            print(f"[content_library] persisted post {post_id} for tenant {g.tenant_id}")
+        except Exception as cl_err:
+            print(f"[content_library] save failed (non-critical): {cl_err}")
+
         print("Attempting to save to Supabase...")
         db = get_supabase_manager()
         if db:
@@ -2073,6 +2126,22 @@ def score_title():
         current_title = data.get('title', '')
         content = data.get('content', '') or current_title
 
+        if _viral_agents_available and ViralTitleOrchestrator is not None:
+            try:
+                orchestrator = ViralTitleOrchestrator(get_ai_manager())
+                result = orchestrator.run(content, current_title)
+                return jsonify({
+                    'success': True,
+                    'mode': 'multi_agent',
+                    'plan': result.get('plan'),
+                    'variants': result.get('variants', []),
+                    'recommended': result.get('recommended', ''),
+                    'recommendation_rationale': result.get('recommendation_rationale', ''),
+                    'passed_threshold': bool(result.get('passed_threshold', False)),
+                })
+            except Exception as agent_err:
+                print(f"[viral_agents] orchestrator failed, falling back: {agent_err}")
+
         prompt = _viral_engine.build_title_prompt(content, current_title)
         raw = get_ai_manager().generate_content(prompt)
 
@@ -2103,6 +2172,7 @@ def score_title():
 
         return jsonify({
             'success': True,
+            'mode': 'single_shot',
             'variants': parsed.get('variants', []),
             'recommended': recommended,
             'recommendation_rationale': parsed.get('recommendation_rationale', ''),
@@ -2393,9 +2463,15 @@ def history():
     db = get_supabase_manager()
     posts = []
     if db:
-        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=50)
+        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=50) or []
     if not posts:
-        posts = get_all_temp_posts()
+        posts = get_all_temp_posts() or []
+    if not posts:
+        try:
+            posts = get_all_posts(limit=50, tenant_id=g.tenant_id) or []
+        except Exception as cl_err:
+            print(f"[content_library] history fetch failed: {cl_err}")
+            posts = []
 
     print(f"History route: Found {len(posts) if posts else 0} posts")
     if posts:
@@ -2409,9 +2485,15 @@ def api_recent_posts():
     db = get_supabase_manager()
     posts = []
     if db:
-        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20)
+        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20) or []
     if not posts:
-        posts = get_all_temp_posts()
+        posts = get_all_temp_posts() or []
+    if not posts:
+        try:
+            posts = get_all_posts(limit=20, tenant_id=g.tenant_id) or []
+        except Exception as cl_err:
+            print(f"[content_library] recent fetch failed: {cl_err}")
+            posts = []
     return jsonify({'success': True, 'posts': posts})
 
 @app.route('/api/posts/<post_id>')
@@ -2430,6 +2512,12 @@ def api_get_post(post_id):
                 post['id'] = post_id
             except Exception:
                 pass
+    if not post:
+        try:
+            post = get_post(post_id, tenant_id=g.tenant_id)
+        except Exception as cl_err:
+            print(f"[content_library] get_post failed: {cl_err}")
+            post = None
     if post:
         return jsonify({'success': True, 'post': post})
     return jsonify({'error': 'Post not found'}), 404
@@ -2470,8 +2558,46 @@ def view_post(post_id):
                 print(f"Error reading temp file: {e}")
     
     if not blog_data:
+        temp_file = get_tenant_temp_file(post_id)
+        if temp_file.exists():
+            try:
+                with open(temp_file, 'r', encoding='utf-8') as f:
+                    candidate = json.load(f)
+                if not candidate.get('tenant_id') or normalize_tenant_id(candidate.get('tenant_id')) == g.tenant_id:
+                    blog_data = candidate
+            except Exception as tf_err:
+                print(f"[temp_file] fallback read failed: {tf_err}")
+
+    if not blog_data:
+        try:
+            cl_post = get_post(post_id, tenant_id=g.tenant_id)
+            if cl_post:
+                cl_meta = {}
+                try:
+                    cl_meta = json.loads(cl_post.get('metadata') or '{}')
+                except Exception:
+                    cl_meta = {}
+                blog_data = {
+                    'title': cl_post.get('title'),
+                    'blog_post_html': cl_post.get('html_content'),
+                    'blog_post_markdown': cl_post.get('markdown_content'),
+                    'image_data': cl_meta.get('image_data'),
+                    'image_data_2': cl_meta.get('image_data_2'),
+                    'reading_time': cl_meta.get('reading_time') or cl_post.get('reading_time'),
+                    'key_quotes': cl_meta.get('key_quotes', []),
+                    'engagement_score': cl_post.get('engagement_score'),
+                    'word_count': cl_post.get('word_count'),
+                    'seo_score': cl_post.get('seo_score'),
+                    'viral_potential': cl_post.get('viral_potential'),
+                    'readability_score': cl_meta.get('readability_score'),
+                    'seo_recommendations': cl_meta.get('seo_recommendations', []),
+                }
+        except Exception as cl_err:
+            print(f"[content_library] view fallback failed: {cl_err}")
+
+    if not blog_data:
         return redirect(url_for('history'))
-    
+
     return render_template('blog-post.html', **blog_data)
 
 @app.route('/api/posts/<post_id>/delete', methods=['DELETE'])
