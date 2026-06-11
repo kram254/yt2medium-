@@ -32,9 +32,17 @@ class SupabaseAuthStorage:
         if 'code-verifier' in key:
             tenant_set(key, value)
         elif 'auth.token' in key:
+            try:
+                data = json.loads(value) if value else {}
+                if data.get('access_token'):
+                    tenant_set('access_token', data['access_token'])
+                if data.get('refresh_token'):
+                    tenant_set('refresh_token', data['refresh_token'])
+            except Exception:
+                pass
             tenant_pop(key, None)
             tenant_pop(f"sb-{key}", None)
-        
+
         print(f"SupabaseAuthStorage: Session keys now: {list(session.keys())}")
         
     def remove_item(self, key: str) -> None:
