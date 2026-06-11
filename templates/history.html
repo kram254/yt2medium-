@@ -69,6 +69,52 @@
             </div>
             {% endif %}
 
+            {% if db_warning == 'tables_missing' %}
+            <div class="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(245,158,11,0.18);">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-amber-300">Database tables not set up</p>
+                        <p class="mt-1 text-sm text-amber-200/75 leading-relaxed">The <code class="text-amber-300 text-xs">blog_posts</code> table doesn't exist in your Supabase project. Posts are being stored temporarily and will be lost on server restart.</p>
+                        <p class="mt-2 text-xs text-amber-200/60">To fix: open your Supabase project → SQL Editor → run the schema from <code class="text-amber-300">supabase_schema.sql</code>.</p>
+                    </div>
+                </div>
+            </div>
+            {% elif db_warning == 'not_configured' %}
+            <div class="mb-5 rounded-2xl border border-slate-500/30 bg-slate-500/10 px-5 py-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(100,116,139,0.18);">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-300">Database not connected</p>
+                        <p class="mt-1 text-sm text-slate-400 leading-relaxed">Supabase is not configured. Posts are stored temporarily and will be lost on server restart.</p>
+                        <p class="mt-2 text-xs text-slate-500">Set <code class="text-slate-300 text-xs">SUPABASE_URL</code> and <code class="text-slate-300 text-xs">SUPABASE_KEY</code> in your environment to enable persistence.</p>
+                    </div>
+                </div>
+            </div>
+            {% elif db_warning == 'error' %}
+            <div class="mb-5 rounded-2xl border border-red-500/25 bg-red-500/8 px-5 py-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,0.15);">
+                        <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-red-300">Couldn't load posts from database</p>
+                        <p class="mt-1 text-sm text-red-300/75 leading-relaxed">There was a problem connecting to Supabase. Showing locally stored posts instead.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="mb-6 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
                 <div class="relative">
                     <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
