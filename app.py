@@ -20,31 +20,6 @@ from util import (
 from seo_analyzer import analyze_seo, generate_seo_recommendations
 from ai_providers import AIProviderManager, get_youtube_transcript, detect_input_type, scrape_web_content, research_trending_topic
 from prompts import get_blog_gen_prompt, get_image_gen_prompt
-try:
-    from viral_engine import ViralEngine
-    _viral_engine = ViralEngine()
-    print("[viral_engine] loaded — overlay active")
-except Exception as _viral_err:  # noqa: BLE001
-    print(f"[viral_engine] disabled: {_viral_err}")
-    _viral_engine = None
-try:
-    from viral_agents import ViralTitleOrchestrator, upgrade_post_title
-    _viral_agents_available = True
-    print("[viral_agents] loaded — multi-agent title pipeline active")
-except Exception as _viral_agents_err:
-    print(f"[viral_agents] disabled: {_viral_agents_err}")
-    ViralTitleOrchestrator = None
-    upgrade_post_title = None
-    _viral_agents_available = False
-try:
-    from viral_body_agents import ViralBodyOrchestrator, generate_viral_body
-    _viral_body_available = True
-    print("[viral_body_agents] loaded — multi-agent body pipeline active")
-except Exception as _viral_body_err:
-    print(f"[viral_body_agents] disabled: {_viral_body_err}")
-    ViralBodyOrchestrator = None
-    generate_viral_body = None
-    _viral_body_available = False
 from export_handler import export_to_medium, export_to_linkedin, create_twitter_thread, export_to_devto, export_to_hashnode, export_to_ghost, export_to_wordpress, export_to_json, export_to_txt, export_to_notion, export_to_email_html, get_export_formats
 from content_library import save_post, get_post, get_all_posts, search_posts, get_stats, add_to_batch_queue, get_batch_queue, update_batch_status, save_draft, get_draft, get_all_drafts, delete_draft, save_post_version, get_post_versions, get_post_version, schedule_post, get_scheduled_posts, update_scheduled_post_status, delete_scheduled_post
 from cache_manager import get_cache_manager
@@ -817,38 +792,7 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
             print("Enhancing blog post with YouTube transcript...")
             optimized_content = enhance_blog_with_transcript(optimized_content, content_context, model=model)
             print(f"Transcript-enhanced content length: {len(optimized_content) if optimized_content else 0}")
-
-        # ------------------------------------------------------------------
-        # Viral engine: post-generation self-check + one corrective pass
-        # ------------------------------------------------------------------
-        # Run the 12-item rubric against the draft. If any blocking checks
-        # fail, ask the LLM to regenerate with a corrective prompt. One
-        # pass only — we don't loop, to keep latency and cost bounded.
-        if _viral_engine is not None and optimized_content:
-            try:
-                issues = _viral_engine.validate_post(optimized_content)
-                if issues.get('warnings'):
-                    print(f"[viral_engine] warnings: {issues['warnings']}")
-                if issues.get('blocking'):
-                    print(f"[viral_engine] blocking failures: {issues['blocking']}")
-                    print("[viral_engine] requesting corrective regeneration...")
-                    correction_prompt = _viral_engine.build_correction_prompt(
-                        optimized_content, issues
-                    )
-                    corrected = get_ai_manager().generate_content(
-                        correction_prompt, "", model
-                    )
-                    if corrected and len(corrected) > 500:
-                        optimized_content = optimize_content_structure(clean_markdown(corrected))
-                        post_fix_issues = _viral_engine.validate_post(optimized_content)
-                        print(
-                            f"[viral_engine] post-fix: "
-                            f"{len(post_fix_issues['blocking'])} blocking, "
-                            f"{len(post_fix_issues['warnings'])} warnings"
-                        )
-            except Exception as vex:  # noqa: BLE001
-                print(f"[viral_engine] validation error (non-fatal): {vex}")
-
+        
         return optimized_content
     except Exception as e:
         print(f"Exception in generate_blog_post_text: {str(e)}")
@@ -1310,22 +1254,7 @@ def generate_blog():
         print("Extracting title from markdown...")
         title = extract_title_from_markdown(blog_post_text)
         print(f"Extracted title: {title}")
-
-        if _viral_agents_available and upgrade_post_title is not None:
-            try:
-                upgraded_title, upgraded_text, agent_result = upgrade_post_title(
-                    get_ai_manager(), blog_post_text, title, model=model
-                )
-                if agent_result and agent_result.get('passed_threshold'):
-                    print(f"[viral_agents] title upgraded: {title!r} -> {upgraded_title!r} "
-                          f"(score {agent_result.get('variants', [{}])[0].get('score', {}).get('total', 'n/a')})")
-                    title = upgraded_title
-                    blog_post_text = upgraded_text
-                else:
-                    print("[viral_agents] title upgrade did not pass 16+ threshold, keeping original")
-            except Exception as title_upgrade_err:
-                print(f"[viral_agents] title upgrade failed (non-critical): {title_upgrade_err}")
-
+        
         print("Generating images...")
         try:
             images = generate_images_for_blog(title, blog_post_text)
@@ -1464,48 +1393,11 @@ def generate_blog():
         
         with open(temp_file, 'w', encoding='utf-8') as f:
             json.dump(full_blog_data, f, ensure_ascii=False)
-
+        
         print(f"File written successfully")
         print(f"File exists after write: {temp_file.exists()}")
         print(f"File size: {temp_file.stat().st_size if temp_file.exists() else 0} bytes")
-
-        post_data_for_library = {
-            'id': post_id,
-            'title': title or 'Untitled Post',
-            'markdown_content': blog_post_text or '',
-            'html_content': blog_post_html or '',
-            'source_url': user_input if input_type in ('youtube', 'url', 'github') else '',
-            'source_type': input_type or 'topic',
-            'template': template or '',
-            'tone': tone or '',
-            'model': model or '',
-            'word_count': int(len(blog_post_text.split())) if blog_post_text else 0,
-            'reading_time': reading_time_int,
-            'engagement_score': int(engagement_score) if engagement_score else 0,
-            'seo_score': int(seo_analysis.get('seo_score', 0)),
-            'viral_potential': int(seo_analysis.get('viral_potential', 0)),
-            'metadata': {
-                'key_quotes': key_quotes if key_quotes else [],
-                'seo_recommendations': seo_recommendations if seo_recommendations else [],
-                'medium_readiness_score': medium_analysis.get('medium_readiness_score', 0),
-                'medium_recommendations': medium_analysis.get('recommendations', []),
-                'readability_score': int(seo_analysis.get('readability_score', 0)),
-                'reading_time': reading_time,
-            },
-        }
-        effective_tenant = getattr(g, 'tenant_id', None)
-        print(f"[content_library] attempting save: post_id={post_id}, tenant={effective_tenant}")
-        try:
-            save_post(post_data_for_library, tenant_id=effective_tenant)
-            print(f"[content_library] SUCCESS: persisted post {post_id} for tenant {effective_tenant}")
-        except Exception as cl_err:
-            print(f"[content_library] save failed with tenant {effective_tenant}: {cl_err}")
-            try:
-                save_post(post_data_for_library, tenant_id='legacy')
-                print(f"[content_library] SUCCESS: persisted post {post_id} with legacy tenant")
-            except Exception as cl_err2:
-                print(f"[content_library] legacy save also failed: {cl_err2}")
-
+        
         print("Attempting to save to Supabase...")
         db = get_supabase_manager()
         if db:
@@ -2108,166 +2000,16 @@ def title_alternatives():
         data = request.get_json()
         current_title = data.get('title', '')
         content = data.get('content', '')
-
+        
         prompt = get_title_alternatives_prompt(current_title, content)
         alternatives = get_ai_manager().generate_content(prompt)
-
+        
         return jsonify({
             'success': True,
             'alternatives': alternatives
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/api/score-title', methods=['POST'])
-def score_title():
-    """Viral engine title scoring endpoint.
-
-    Body: { "title": "current title (optional)", "content": "topic or transcript" }
-
-    Returns: {
-        "success": true,
-        "variants": [{title, template_id, score:{...,total}, rationale}, ...],
-        "recommended": "...",
-        "recommendation_rationale": "...",
-        "passed_threshold": bool   # total >= 16 on the recommended variant
-    }
-    """
-    if _viral_engine is None:
-        return jsonify({
-            'success': False,
-            'error': 'viral_engine not loaded — check viral_engine_config.json'
-        }), 503
-    try:
-        data = request.get_json() or {}
-        current_title = data.get('title', '')
-        content = data.get('content', '') or current_title
-
-        if _viral_agents_available and ViralTitleOrchestrator is not None:
-            try:
-                orchestrator = ViralTitleOrchestrator(get_ai_manager())
-                result = orchestrator.run(content, current_title)
-                return jsonify({
-                    'success': True,
-                    'mode': 'multi_agent',
-                    'plan': result.get('plan'),
-                    'variants': result.get('variants', []),
-                    'recommended': result.get('recommended', ''),
-                    'recommendation_rationale': result.get('recommendation_rationale', ''),
-                    'passed_threshold': bool(result.get('passed_threshold', False)),
-                })
-            except Exception as agent_err:
-                print(f"[viral_agents] orchestrator failed, falling back: {agent_err}")
-
-        prompt = _viral_engine.build_title_prompt(content, current_title)
-        raw = get_ai_manager().generate_content(prompt)
-
-        # Strip code-fence wrappers if the model added them
-        cleaned = raw.strip()
-        if cleaned.startswith('```'):
-            cleaned = cleaned.split('```', 2)[-1]
-            if cleaned.startswith('json'):
-                cleaned = cleaned[4:]
-            cleaned = cleaned.rstrip('`').strip()
-
-        try:
-            parsed = json.loads(cleaned)
-        except json.JSONDecodeError as je:
-            return jsonify({
-                'success': False,
-                'error': f'LLM did not return valid JSON: {je}',
-                'raw_output': raw[:2000]
-            }), 502
-
-        # Compute pass/fail against the 16+ threshold for the recommended title
-        passed = False
-        recommended = parsed.get('recommended', '')
-        for v in parsed.get('variants', []):
-            if v.get('title') == recommended:
-                passed = v.get('score', {}).get('total', 0) >= 16
-                break
-
-        return jsonify({
-            'success': True,
-            'mode': 'single_shot',
-            'variants': parsed.get('variants', []),
-            'recommended': recommended,
-            'recommendation_rationale': parsed.get('recommendation_rationale', ''),
-            'passed_threshold': passed
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/validate-post', methods=['POST'])
-def validate_post_endpoint():
-    """Run the 12-item self-check rubric against a markdown body.
-
-    Body: { "markdown": "..." }
-
-    Returns: { "success": true, "blocking": [...], "warnings": [...], "passed": bool }
-    """
-    if _viral_engine is None:
-        return jsonify({
-            'success': False,
-            'error': 'viral_engine not loaded — check viral_engine_config.json'
-        }), 503
-    try:
-        data = request.get_json() or {}
-        markdown_body = data.get('markdown', '')
-        if not markdown_body:
-            return jsonify({'success': False, 'error': 'markdown field required'}), 400
-
-        issues = _viral_engine.validate_post(markdown_body)
-        return jsonify({
-            'success': True,
-            'blocking': issues.get('blocking', []),
-            'warnings': issues.get('warnings', []),
-            'passed': len(issues.get('blocking', [])) == 0
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/generate-viral-body', methods=['POST'])
-@require_session
-@rate_limit_check(max_requests=5, window=60)
-def generate_viral_body_endpoint():
-    if not _viral_body_available or generate_viral_body is None:
-        return jsonify({
-            'success': False,
-            'error': 'viral_body_agents not loaded'
-        }), 503
-    try:
-        data = request.get_json() or {}
-        content = data.get('content', '')
-        title = data.get('title', '')
-        model = data.get('model', DEFAULT_MODEL)
-        if not content:
-            return jsonify({'success': False, 'error': 'content field required'}), 400
-        final_title, final_markdown, final_html, agent_result = generate_viral_body(
-            get_ai_manager(), content, title, model=model
-        )
-        if agent_result and agent_result.get('error'):
-            return jsonify({
-                'success': False,
-                'error': agent_result['error']
-            }), 500
-        return jsonify({
-            'success': True,
-            'mode': 'multi_agent',
-            'title': final_title,
-            'markdown': final_markdown,
-            'html': final_html,
-            'total_score': agent_result.get('total_score', 0) if agent_result else 0,
-            'passed_threshold': agent_result.get('passed_threshold', False) if agent_result else False,
-            'plan': agent_result.get('plan', {}) if agent_result else {},
-            'sections': len(agent_result.get('sections', [])) if agent_result else 0,
-        })
-    except Exception as e:
-        print(f"[viral_body_agents] endpoint error: {e}")
-        return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/meta-description', methods=['POST'])
 def meta_description():
@@ -2517,129 +2259,39 @@ def batch():
 @app.route('/history')
 @require_session
 def history():
-    all_posts = []
-    seen_ids = set()
-
-    print(f"[history] tenant_id={g.tenant_id}, user_id={getattr(g, 'user_id', None)}")
-
-    try:
-        cl_posts = get_all_posts(limit=50, tenant_id=g.tenant_id) or []
-        print(f"[history] content_library (tenant={g.tenant_id}) returned {len(cl_posts)} posts")
-        for p in cl_posts:
-            pid = p.get('id')
-            if pid and pid not in seen_ids:
-                seen_ids.add(pid)
-                all_posts.append(p)
-    except Exception as cl_err:
-        print(f"[history] content_library fetch failed: {cl_err}")
-
-    if not all_posts:
-        try:
-            legacy_posts = get_all_posts(limit=50, tenant_id='legacy') or []
-            print(f"[history] content_library (legacy fallback) returned {len(legacy_posts)} posts")
-            for p in legacy_posts:
-                pid = p.get('id')
-                if pid and pid not in seen_ids:
-                    seen_ids.add(pid)
-                    all_posts.append(p)
-        except Exception as leg_err:
-            print(f"[history] legacy fetch failed: {leg_err}")
-
-    try:
-        temp_posts = get_all_temp_posts() or []
-        print(f"[history] temp_posts returned {len(temp_posts)} posts")
-        for p in temp_posts:
-            pid = p.get('id')
-            if pid and pid not in seen_ids:
-                seen_ids.add(pid)
-                all_posts.append(p)
-    except Exception as temp_err:
-        print(f"[history] temp_posts fetch failed: {temp_err}")
-
     db = get_supabase_manager()
+    posts = []
+    db_warning = None
     if db:
         try:
-            sb_posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=50) or []
-            print(f"[history] supabase returned {len(sb_posts)} posts")
-            for p in sb_posts:
-                pid = p.get('id')
-                if pid and pid not in seen_ids:
-                    seen_ids.add(pid)
-                    all_posts.append(p)
-        except Exception as sb_err:
-            print(f"[history] supabase fetch failed: {sb_err}")
+            posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=50)
+        except Exception as e:
+            err_str = str(e)
+            if 'PGRST205' in err_str or 'schema cache' in err_str:
+                db_warning = 'tables_missing'
+            else:
+                db_warning = 'error'
+    else:
+        db_warning = 'not_configured'
+    if not posts:
+        posts = get_all_temp_posts()
 
-    all_posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    posts = all_posts[:50]
+    print(f"History route: Found {len(posts) if posts else 0} posts")
+    if posts:
+        print(f"First post: {posts[0].get('title', 'No title')}")
 
-    print(f"[history] total unique posts: {len(posts)}")
-
-    return render_template('history.html', posts=posts if posts else [], user=g.user, tenant_id=g.tenant_id)
-
-@app.route('/api/library')
-@require_session
-def api_library():
-    limit = request.args.get('limit', 50, type=int)
-    offset = request.args.get('offset', 0, type=int)
-    query = request.args.get('q', '').strip()
-    try:
-        if query:
-            posts = search_posts(query, tenant_id=g.tenant_id) or []
-        else:
-            posts = get_all_posts(limit=limit, offset=offset, tenant_id=g.tenant_id) or []
-        stats = get_stats(tenant_id=g.tenant_id)
-        return jsonify({
-            'success': True,
-            'posts': posts,
-            'stats': stats,
-            'limit': limit,
-            'offset': offset,
-            'count': len(posts),
-        })
-    except Exception as lib_err:
-        print(f"[content_library] api_library error: {lib_err}")
-        return jsonify({'success': False, 'error': str(lib_err), 'posts': [], 'stats': {}}), 500
+    return render_template('history.html', posts=posts if posts else [], user=g.user, tenant_id=g.tenant_id, db_warning=db_warning)
 
 @app.route('/api/posts/recent')
 @require_session
 def api_recent_posts():
-    all_posts = []
-    seen_ids = set()
-
-    try:
-        cl_posts = get_all_posts(limit=20, tenant_id=g.tenant_id) or []
-        for p in cl_posts:
-            pid = p.get('id')
-            if pid and pid not in seen_ids:
-                seen_ids.add(pid)
-                all_posts.append(p)
-    except Exception as cl_err:
-        print(f"[api_recent] content_library failed: {cl_err}")
-
-    try:
-        temp_posts = get_all_temp_posts() or []
-        for p in temp_posts:
-            pid = p.get('id')
-            if pid and pid not in seen_ids:
-                seen_ids.add(pid)
-                all_posts.append(p)
-    except Exception:
-        pass
-
     db = get_supabase_manager()
+    posts = []
     if db:
-        try:
-            sb_posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20) or []
-            for p in sb_posts:
-                pid = p.get('id')
-                if pid and pid not in seen_ids:
-                    seen_ids.add(pid)
-                    all_posts.append(p)
-        except Exception:
-            pass
-
-    all_posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    return jsonify({'success': True, 'posts': all_posts[:20]})
+        posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20)
+    if not posts:
+        posts = get_all_temp_posts()
+    return jsonify({'success': True, 'posts': posts})
 
 @app.route('/api/posts/<post_id>')
 @require_session
@@ -2657,12 +2309,6 @@ def api_get_post(post_id):
                 post['id'] = post_id
             except Exception:
                 pass
-    if not post:
-        try:
-            post = get_post(post_id, tenant_id=g.tenant_id)
-        except Exception as cl_err:
-            print(f"[content_library] get_post failed: {cl_err}")
-            post = None
     if post:
         return jsonify({'success': True, 'post': post})
     return jsonify({'error': 'Post not found'}), 404
@@ -2703,46 +2349,8 @@ def view_post(post_id):
                 print(f"Error reading temp file: {e}")
     
     if not blog_data:
-        temp_file = get_tenant_temp_file(post_id)
-        if temp_file.exists():
-            try:
-                with open(temp_file, 'r', encoding='utf-8') as f:
-                    candidate = json.load(f)
-                if not candidate.get('tenant_id') or normalize_tenant_id(candidate.get('tenant_id')) == g.tenant_id:
-                    blog_data = candidate
-            except Exception as tf_err:
-                print(f"[temp_file] fallback read failed: {tf_err}")
-
-    if not blog_data:
-        try:
-            cl_post = get_post(post_id, tenant_id=g.tenant_id)
-            if cl_post:
-                cl_meta = {}
-                try:
-                    cl_meta = json.loads(cl_post.get('metadata') or '{}')
-                except Exception:
-                    cl_meta = {}
-                blog_data = {
-                    'title': cl_post.get('title'),
-                    'blog_post_html': cl_post.get('html_content'),
-                    'blog_post_markdown': cl_post.get('markdown_content'),
-                    'image_data': cl_meta.get('image_data'),
-                    'image_data_2': cl_meta.get('image_data_2'),
-                    'reading_time': cl_meta.get('reading_time') or cl_post.get('reading_time'),
-                    'key_quotes': cl_meta.get('key_quotes', []),
-                    'engagement_score': cl_post.get('engagement_score'),
-                    'word_count': cl_post.get('word_count'),
-                    'seo_score': cl_post.get('seo_score'),
-                    'viral_potential': cl_post.get('viral_potential'),
-                    'readability_score': cl_meta.get('readability_score'),
-                    'seo_recommendations': cl_meta.get('seo_recommendations', []),
-                }
-        except Exception as cl_err:
-            print(f"[content_library] view fallback failed: {cl_err}")
-
-    if not blog_data:
         return redirect(url_for('history'))
-
+    
     return render_template('blog-post.html', **blog_data)
 
 @app.route('/api/posts/<post_id>/delete', methods=['DELETE'])
