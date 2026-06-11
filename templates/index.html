@@ -319,12 +319,15 @@
         </div>
         {% endif %}
         
-        <div id="dbWarning" class="hidden mb-6 glass rounded-xl p-4 border-yellow-500/20">
-            <div class="flex items-center text-yellow-400">
-                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <div id="dbWarning" class="hidden mb-6 rounded-2xl border border-amber-500/25 p-4" style="background:rgba(245,158,11,0.06);backdrop-filter:blur(12px);">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                 </svg>
-                <span>Database not configured. History and Analytics unavailable. Blog generation works normally.</span>
+                <div>
+                    <p class="text-sm font-semibold text-amber-300" id="dbWarningTitle">Database unavailable</p>
+                    <p class="mt-0.5 text-sm text-amber-200/70 leading-relaxed" id="dbWarningMessage">Post history and analytics are unavailable. Blog generation still works, but posts won't be saved permanently.</p>
+                </div>
             </div>
         </div>
 
@@ -439,6 +442,26 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div id="errorPanel" class="hidden mt-5 rounded-2xl border border-red-500/25 p-5" style="background:rgba(239,68,68,0.06);backdrop-filter:blur(12px);">
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,0.18);">
+                    <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-white" id="errorPanelTitle">Generation Failed</p>
+                    <p class="mt-1 text-sm text-red-300/75 leading-relaxed" id="errorPanelMessage"></p>
+                    <ul class="mt-2 space-y-1" id="errorPanelHints"></ul>
+                </div>
+                <button onclick="dismissError()" class="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-neutral-500 hover:text-white flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
         </div>
 
@@ -572,8 +595,17 @@
         fetch('/health')
             .then(r => r.json())
             .then(data => {
+                var warning = document.getElementById('dbWarning');
+                var titleEl = document.getElementById('dbWarningTitle');
+                var msgEl = document.getElementById('dbWarningMessage');
                 if (data.database === 'not_configured') {
-                    document.getElementById('dbWarning').classList.remove('hidden');
+                    if (titleEl) titleEl.textContent = 'Database not connected';
+                    if (msgEl) msgEl.textContent = 'Supabase is not configured. Post history and analytics are unavailable. Set SUPABASE_URL and SUPABASE_KEY to enable persistence.';
+                    if (warning) warning.classList.remove('hidden');
+                } else if (data.database === 'error' || data.database === 'tables_missing') {
+                    if (titleEl) titleEl.textContent = 'Database tables not set up';
+                    if (msgEl) msgEl.textContent = 'The blog_posts table is missing from your Supabase project. Posts won\'t be saved permanently. Run supabase_schema.sql in your Supabase SQL Editor to fix this.';
+                    if (warning) warning.classList.remove('hidden');
                 }
             })
             .catch(() => {});
@@ -619,7 +651,7 @@
                     if (data.success && data.redirect) {
                         window.location.href = data.redirect;
                     } else if (data.error) {
-                        alert('Error: ' + data.error);
+                        showError(data.error);
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalContent;
                     }
@@ -629,7 +661,7 @@
                         window.location.href = '/login';
                         return;
                     }
-                    alert(error.message);
+                    showError(error.message);
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalContent;
                 });
@@ -663,11 +695,11 @@
                 if (data.success && data.redirect) {
                     window.location.href = data.redirect;
                 } else if (data.error) {
-                    alert('Error: ' + data.error);
+                    showError(data.error);
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalContent;
                 } else {
-                    alert('Error: Unknown error occurred');
+                    showError('An unexpected error occurred. Please try again.');
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalContent;
                 }
@@ -677,7 +709,7 @@
                     window.location.href = '/login';
                     return;
                 }
-                alert(error.message);
+                showError(error.message);
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
             });
@@ -830,7 +862,7 @@
                 clearInterval(stageTimer);
                 if (loadingPanel) loadingPanel.classList.add('hidden');
                 setSurpriseBtn('idle');
-                alert(error.message || "Oops! The AI got too excited. Let's try again.");
+                showError(error.message || "Oops! The AI got too excited. Let's try again.");
             });
         }
 
@@ -1003,7 +1035,7 @@
             })
             .catch(function(error) {
                 const message = error.message === 'No hot topics found right now. Try again in a few minutes!' ? error.message : "Oops! The AI got too excited. Let's try that again.";
-                alert(message);
+                showError(message);
                 setSurpriseButtonIdle(true);
             });
         }
@@ -1096,7 +1128,7 @@
                 });
             })
             .catch(function(error) {
-                alert(error.message || 'Unable to generate prompt right now.');
+                showError(error.message || 'Unable to generate prompt right now.');
                 btn.textContent = originalText;
             })
             .finally(function() {
@@ -1157,6 +1189,87 @@
             surpriseCopyPrompt.addEventListener('click', function() {
                 triggerSurprisePromptGeneration();
             });
+        }
+
+        function parseErrorMessage(rawError) {
+            if (!rawError) return { title: 'Something went wrong', message: 'Please try again.', hints: [] };
+            var r = String(rawError).toLowerCase();
+            if (r.indexOf('all ai providers failed') !== -1 || (r.indexOf('openai') !== -1 && r.indexOf('anthropic') !== -1)) {
+                var hints = [];
+                if (r.indexOf('openai') !== -1 && (r.indexOf('invalid_api_key') !== -1 || r.indexOf('incorrect api key') !== -1 || (r.indexOf('openai') !== -1 && r.indexOf('401') !== -1))) {
+                    hints.push('OpenAI: API key is invalid or expired');
+                }
+                if (r.indexOf('anthropic') !== -1 && r.indexOf('401') !== -1) {
+                    hints.push('Anthropic: API key is invalid or expired');
+                }
+                if (r.indexOf('openrouter') !== -1 && r.indexOf('402') !== -1) {
+                    hints.push('OpenRouter: account has no credits — add funds at openrouter.ai/credits');
+                }
+                if (r.indexOf('openrouter') !== -1 && r.indexOf('401') !== -1) {
+                    hints.push('OpenRouter: API key is invalid or expired');
+                }
+                return {
+                    title: 'All AI Providers Failed',
+                    message: 'Your post could not be generated because every AI provider returned an error.',
+                    hints: hints.length ? hints : ['Check that at least one AI API key is valid and has available credits.']
+                };
+            }
+            if (r.indexOf('payment required') !== -1 || r.indexOf('402') !== -1 || r.indexOf('insufficient credits') !== -1) {
+                return { title: 'No AI Credits', message: 'Your AI provider account has run out of credits.', hints: ['Add credits to your OpenRouter account at openrouter.ai/credits.'] };
+            }
+            if (r.indexOf('invalid_api_key') !== -1 || r.indexOf('invalid x-api-key') !== -1 || r.indexOf('incorrect api key') !== -1) {
+                return { title: 'Invalid API Key', message: 'The AI provider rejected your API key.', hints: ['Verify your API key is correct and has not expired.'] };
+            }
+            if (r.indexOf('rate limit') !== -1 || r.indexOf('429') !== -1 || r.indexOf('too many requests') !== -1) {
+                return { title: 'Rate Limited', message: 'Too many requests in a short time. Please wait a moment before trying again.', hints: [] };
+            }
+            if (r.indexOf('sign in to confirm') !== -1 || r.indexOf('bot') !== -1 && r.indexOf('youtube') !== -1) {
+                return { title: 'YouTube Access Blocked', message: 'YouTube is blocking automated access to this video.', hints: ['Try pasting the video transcript directly into the input field instead.'] };
+            }
+            if (r.indexOf('please provide') !== -1 || r.indexOf('no content') !== -1 || r.indexOf('empty') !== -1 && r.indexOf('input') !== -1) {
+                return { title: 'No Content Provided', message: 'Please enter a YouTube URL, topic, or upload a file first.', hints: [] };
+            }
+            if (r.indexOf('pgrst205') !== -1 || r.indexOf('schema cache') !== -1) {
+                return { title: 'Database Not Set Up', message: 'The Supabase database tables are missing. Post generation still works, but saving is unavailable.', hints: ['Run supabase_schema.sql in your Supabase SQL Editor to enable post saving.'] };
+            }
+            return {
+                title: 'Generation Failed',
+                message: rawError.length > 280 ? rawError.substring(0, 280) + '…' : rawError,
+                hints: ['If this keeps happening, check the server logs for more details.']
+            };
+        }
+
+        function showError(rawMsg) {
+            var panel = document.getElementById('errorPanel');
+            var titleEl = document.getElementById('errorPanelTitle');
+            var msgEl = document.getElementById('errorPanelMessage');
+            var hintsEl = document.getElementById('errorPanelHints');
+            if (!panel) return;
+            var parsed = parseErrorMessage(rawMsg);
+            if (titleEl) titleEl.textContent = parsed.title;
+            if (msgEl) msgEl.textContent = parsed.message;
+            if (hintsEl) {
+                hintsEl.innerHTML = '';
+                (parsed.hints || []).forEach(function(hint) {
+                    var li = document.createElement('li');
+                    li.className = 'flex items-start gap-1.5 text-xs text-red-300/60';
+                    var arrow = document.createElement('span');
+                    arrow.className = 'flex-shrink-0 mt-0.5';
+                    arrow.textContent = '→';
+                    var text = document.createElement('span');
+                    text.textContent = hint;
+                    li.appendChild(arrow);
+                    li.appendChild(text);
+                    hintsEl.appendChild(li);
+                });
+            }
+            panel.classList.remove('hidden');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function dismissError() {
+            var panel = document.getElementById('errorPanel');
+            if (panel) panel.classList.add('hidden');
         }
     </script>
 </body>
