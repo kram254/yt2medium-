@@ -27,6 +27,13 @@ from rate_limiter import get_rate_limiter
 from job_queue import get_job_queue
 from advanced_analytics import analyze_readability, analyze_keywords, analyze_sentence_structure, analyze_tone_sentiment, analyze_engagement_potential, calculate_viral_potential, generate_content_insights, generate_improvement_suggestions
 from file_processor import process_uploaded_file
+from slop_filter import apply_slop_filter, quick_slop_check, strip_em_dashes
+from trend_research import get_last30days_surprise_prompt
+from quality_gate import run_quality_gate, format_quality_report
+from seo_optimizer import analyze_seo_deep, generate_seo_metadata, optimize_for_medium, generate_content_brief
+from content_repurposer import repurpose_all, repurpose_to_twitter_thread, repurpose_to_linkedin_post, repurpose_to_newsletter, repurpose_to_carousel, repurpose_to_short_video_script
+from cover_image_generator import generate_cover_image_prompt, generate_article_illustrations, generate_multi_platform_covers
+from copywriting_enhancer import generate_headline_variants, optimize_opening_hook, optimize_cta, enhance_post_copywriting
 from werkzeug.utils import secure_filename
 from content_templates import TEMPLATES, TONE_PRESETS, get_template_prompt
 from ai_editor import get_section_rewrite_prompt, get_tone_adjustment_prompt, get_expand_prompt, get_compress_prompt, get_title_alternatives_prompt, get_meta_description_prompt
@@ -35,7 +42,8 @@ from linkedin_agent import generate_linkedin_post
 from github_handler import get_github_handler
 from social_auth import get_medium_auth, get_linkedin_auth
 from social_storage import get_social_account_manager
-from supabase_client import get_supabase_manager
+from supabase_client import get_supabase_manager  # Auth only
+from postgres_client import get_db_manager  # Data persistence
 from post_scheduler import get_scheduler
 from progress_tracker import get_progress_tracker
 from diagram_generator import get_diagram_generator
@@ -792,7 +800,17 @@ def generate_blog_post_text(user_input, model, template=None, tone=None, industr
             print("Enhancing blog post with YouTube transcript...")
             optimized_content = enhance_blog_with_transcript(optimized_content, content_context, model=model)
             print(f"Transcript-enhanced content length: {len(optimized_content) if optimized_content else 0}")
-        
+
+        # Apply no-ai-slop filter as the final pass to remove AI writing patterns
+        slop_score, slop_patterns = quick_slop_check(optimized_content)
+        if slop_score > 0:
+            print(f"[SLOP_FILTER] Quick check found {slop_score} AI patterns: {slop_patterns[:5]}")
+        print("[SLOP_FILTER] Applying no-ai-slop filter...")
+        optimized_content = apply_slop_filter(optimized_content, get_ai_manager(), model=model)
+
+        # Final pass: strip all em dashes and en dashes — no exceptions
+        optimized_content = strip_em_dashes(optimized_content)
+
         return optimized_content
     except Exception as e:
         print(f"Exception in generate_blog_post_text: {str(e)}")
@@ -938,42 +956,11 @@ def surprise_me():
         cached_cards = cache.get('surprise_me_v2', tenant_id=g.tenant_id)
         cards_payload = cached_cards if isinstance(cached_cards, list) else None
         if not cards_payload:
-            ai_prompt = (
-                f"You are an expert AI/ML content strategist and trend researcher. Today is {current_date}.\n"
-                "Your job: identify the TOP 3 most trending, newsworthy, developer-relevant topics in AI, ML, LLMs, "
-                "and open-source tooling right now (not only Python) — as if you had access to X/Twitter trends, YouTube trending, "
-                "Medium articles, GitHub trending, Hacker News front page, and Reddit r/MachineLearning.\n"
-                "The information MUST be verifiable and legit. Do not hallucinate trends.\n"
-                "For each topic, generate a complete, ready-to-use Medium blog post prompt.\n\n"
-                "Return ONLY a raw JSON object with no markdown fences, no prose, no explanation.\n"
-                'The JSON must have exactly this structure:\n'
-                '{"cards": [\n'
-                '  {"rank": 1, "rank_badge": "#1 Trending", "headline": "punchy 6-10 word title", '
-                '"subtext": "one sentence hook", "why_now": "what makes this timely", '
-                '"platforms": ["x_twitter", "youtube"], "composite_score": 88, '
-                '"estimated_read_time": "9 min read", "keywords": ["kw1", "kw2"], '
-                '"chat_input_prompt": "Write a complete publish-ready Medium blog post titled [SPECIFIC TITLE]. '
-                'Angle: [SPECIFIC ANGLE]. The article must cover: (1) Hook with bold technical claim, '
-                '(2) Background and why this matters now, (3) Technical deep dive with Python code example, '
-                '(4) Real-world use cases, (5) Critical perspective with limitations, '
-                '(6) Actionable takeaways for this week. Tone: technical but accessible, first-person, no fluff. '
-                'Target reader: senior developer or ML engineer. Length: 1800-2400 words. '
-                'Medium tags: [TAG1, TAG2, TAG3, TAG4, TAG5]. End with a strong CTA."},'
-                '  {"rank": 2, "rank_badge": "#2 Trending", ...same shape...},'
-                '  {"rank": 3, "rank_badge": "#3 Trending", ...same shape...}'
-                ']}\n\n'
-                "Rules:\n"
-                "- All 3 topics must be DIFFERENT with no overlap.\n"
-                "- composite_score must be a number 60-100.\n"
-                "- chat_input_prompt must be at least 350 characters, name the specific tool/paper/model, "
-                "include the angle, full outline, tone, length target, and Medium tags.\n"
-                "- platforms array values must be from: x_twitter, youtube, instagram, reddit, medium only.\n"
-                f"- Focus on releases or trends from the past 7 days as of {current_date}.\n"
+            # Use last30days-powered research prompt for better trend sourcing
+            ai_prompt = get_last30days_surprise_prompt(
+                topics_of_interest=topics_of_interest,
+                excluded_topics=excluded_topics
             )
-            if topics_of_interest:
-                ai_prompt += "User interests (bias selection toward these): " + ", ".join(str(x) for x in topics_of_interest) + "\n"
-            if excluded_topics:
-                ai_prompt += "Excluded topics (do NOT suggest): " + ", ".join(str(x) for x in excluded_topics) + "\n"
             ai_result = get_ai_manager().generate_content(ai_prompt)
             parsed = None
             try:
@@ -1068,7 +1055,7 @@ def surprise_me():
             final_cards = [dict(c) for c in evergreen_cards]
         for i, card in enumerate(final_cards):
             card['rank'] = i + 1
-        db = get_supabase_manager()
+        db = get_db_manager()
         if db:
             try:
                 db.save_generation_log({
@@ -1150,7 +1137,7 @@ def surprise_me_prompt():
         if not isinstance(parsed, dict):
             return jsonify({'error': 'Failed to build JSON prompt. Please try again.'}), 500
         sanitized = _sanitize_prompt_value(parsed)
-        db = get_supabase_manager()
+        db = get_db_manager()
         if db:
             try:
                 meta = sanitized.get('meta') if isinstance(sanitized, dict) else {}
@@ -1399,7 +1386,7 @@ def generate_blog():
         print(f"File size: {temp_file.stat().st_size if temp_file.exists() else 0} bytes")
         
         print("Attempting to save to Supabase...")
-        db = get_supabase_manager()
+        db = get_db_manager()
         if db:
             print("Supabase manager available, saving blog post...")
             try:
@@ -1484,7 +1471,7 @@ def generate_blog():
         if "All AI providers failed" in error_message or "API" in error_message:
             error_message = "AI generation failed. Please check that you have at least one AI provider API key configured in your .env file (OPENAI_API_KEY, ANTHROPIC_API_KEY, or OPENROUTER_API_KEY). Original error: " + error_message
         
-        db = get_supabase_manager()
+        db = get_db_manager()
         if db:
             try:
                 db.save_generation_log({
@@ -1671,7 +1658,7 @@ def blog_post():
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(full_blog_data, f, ensure_ascii=False)
             
-            db = get_supabase_manager()
+            db = get_db_manager()
             if db:
                 try:
                     result = db.save_blog_post({
@@ -1716,7 +1703,7 @@ def export_markdown():
 
 @app.route('/health')
 def health():
-    db = get_supabase_manager()
+    db = get_db_manager()
     temp_files_count = len(list(TEMP_STORAGE_DIR.glob('*.json')))
     for tenant_dir in TEMP_STORAGE_DIR.iterdir():
         if tenant_dir.is_dir():
@@ -2259,7 +2246,7 @@ def batch():
 @app.route('/history')
 @require_session
 def history():
-    db = get_supabase_manager()
+    db = get_db_manager()
     posts = []
     db_warning = None
     if db:
@@ -2285,7 +2272,7 @@ def history():
 @app.route('/api/posts/recent')
 @require_session
 def api_recent_posts():
-    db = get_supabase_manager()
+    db = get_db_manager()
     posts = []
     if db:
         posts = db.get_recent_posts(user_id=g.user_id, tenant_id=g.tenant_id, limit=20)
@@ -2296,7 +2283,7 @@ def api_recent_posts():
 @app.route('/api/posts/<post_id>')
 @require_session
 def api_get_post(post_id):
-    db = get_supabase_manager()
+    db = get_db_manager()
     post = None
     if db:
         post = db.get_blog_post_by_id(post_id, user_id=g.user_id, tenant_id=g.tenant_id)
@@ -2316,7 +2303,7 @@ def api_get_post(post_id):
 @app.route('/post/<post_id>')
 @require_session
 def view_post(post_id):
-    db = get_supabase_manager()
+    db = get_db_manager()
     blog_data = None
     
     if db:
@@ -2356,7 +2343,7 @@ def view_post(post_id):
 @app.route('/api/posts/<post_id>/delete', methods=['DELETE'])
 @require_session
 def delete_post(post_id):
-    db = get_supabase_manager()
+    db = get_db_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
@@ -2368,7 +2355,7 @@ def delete_post(post_id):
 @app.route('/analytics')
 @require_session
 def analytics():
-    db = get_supabase_manager()
+    db = get_db_manager()
     if db:
         blog_analytics = db.get_analytics(user_id=g.user_id, tenant_id=g.tenant_id)
         gen_stats = db.get_generation_stats(user_id=g.user_id, tenant_id=g.tenant_id)
@@ -2383,7 +2370,7 @@ def analytics():
 @app.route('/api/analytics')
 @require_session
 def api_analytics():
-    db = get_supabase_manager()
+    db = get_db_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
@@ -2399,7 +2386,7 @@ def api_analytics():
 @app.route('/api/generation-stats')
 @require_session
 def api_generation_stats():
-    db = get_supabase_manager()
+    db = get_db_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     stats = db.get_generation_stats(user_id=g.user_id, tenant_id=g.tenant_id)
@@ -2414,7 +2401,7 @@ def api_search_posts():
     if not query:
         return jsonify({'error': 'Query parameter required'}), 400
     
-    db = get_supabase_manager()
+    db = get_db_manager()
     if not db:
         return jsonify({'error': 'Database not configured'}), 503
     
@@ -2679,6 +2666,357 @@ def api_social_platforms_status():
         return jsonify({'success': True, 'platforms': status})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ══════════════════════════════════════════════════════════════
+# SKILL-POWERED ENDPOINTS (additive — no existing routes touched)
+# Integrates: SEO optimizer, content repurposer, quality gate,
+#             cover image generator, copywriting enhancer
+# ══════════════════════════════════════════════════════════════
+
+@app.route('/api/quality-gate', methods=['POST'])
+@require_session
+def api_quality_gate():
+    """Run the pre-publish quality gate on a blog post."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        if not blog_text or len(blog_text) < 50:
+            return jsonify({'error': 'Blog text is required (min 50 chars)'}), 400
+
+        existing_posts = data.get('existing_posts') or []
+        result = run_quality_gate(blog_text, existing_posts=existing_posts)
+        result['report'] = format_quality_report(result)
+        return jsonify({'success': True, 'quality_gate': result})
+    except Exception as e:
+        print(f"Quality gate error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/seo/analyze', methods=['POST'])
+@require_session
+def api_seo_analyze():
+    """Deep SEO analysis of a blog post."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        target_keywords = data.get('target_keywords')
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        analysis = analyze_seo_deep(blog_text, target_keywords=target_keywords)
+        return jsonify({'success': True, 'seo_analysis': analysis})
+    except Exception as e:
+        print(f"SEO analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/seo/metadata', methods=['POST'])
+@require_session
+def api_seo_metadata():
+    """Generate SEO metadata (titles, meta description, tags, keywords)."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        metadata = generate_seo_metadata(blog_text, get_ai_manager())
+        return jsonify({'success': True, 'seo_metadata': metadata})
+    except Exception as e:
+        print(f"SEO metadata error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/seo/optimize', methods=['POST'])
+@require_session
+def api_seo_optimize():
+    """Optimize blog post structure for Medium's algorithm."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        optimized = optimize_for_medium(blog_text, get_ai_manager())
+        return jsonify({'success': True, 'optimized_content': optimized})
+    except Exception as e:
+        print(f"SEO optimize error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/seo/brief', methods=['POST'])
+@require_session
+def api_seo_brief():
+    """Generate a pre-writing content brief for a topic."""
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic') or ''
+        if not topic:
+            return jsonify({'error': 'Topic is required'}), 400
+
+        brief = generate_content_brief(topic, get_ai_manager())
+        return jsonify({'success': True, 'content_brief': brief})
+    except Exception as e:
+        print(f"Content brief error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/repurpose', methods=['POST'])
+@require_session
+def api_repurpose_all():
+    """Repurpose a blog post into all platform formats."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        results = repurpose_all(blog_text, get_ai_manager())
+        return jsonify({'success': True, 'repurposed': results})
+    except Exception as e:
+        print(f"Repurpose error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/repurpose/<format_type>', methods=['POST'])
+@require_session
+def api_repurpose_single(format_type):
+    """Repurpose a blog post into a specific format."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        format_map = {
+            'twitter': repurpose_to_twitter_thread,
+            'linkedin': repurpose_to_linkedin_post,
+            'newsletter': repurpose_to_newsletter,
+            'carousel': repurpose_to_carousel,
+            'video-script': repurpose_to_short_video_script,
+        }
+        handler = format_map.get(format_type)
+        if not handler:
+            return jsonify({'error': f'Unknown format: {format_type}. Use: {", ".join(format_map.keys())}'}), 400
+
+        result = handler(blog_text, get_ai_manager())
+        return jsonify({'success': True, 'repurposed': result})
+    except Exception as e:
+        print(f"Repurpose {format_type} error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cover-image', methods=['POST'])
+@require_session
+def api_cover_image():
+    """Generate a smart cover image prompt for a blog post."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        title = data.get('title') or ''
+        platform = data.get('platform') or 'medium'
+        style = data.get('style')
+        if not blog_text and not title:
+            return jsonify({'error': 'Blog text or title is required'}), 400
+
+        result = generate_cover_image_prompt(
+            blog_text, title, get_ai_manager(),
+            platform=platform, style=style
+        )
+        return jsonify({'success': True, 'cover_image': result})
+    except Exception as e:
+        print(f"Cover image error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cover-image/multi', methods=['POST'])
+@require_session
+def api_cover_image_multi():
+    """Generate cover image prompts for multiple platforms."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        title = data.get('title') or ''
+        platforms = data.get('platforms') or ['medium', 'linkedin', 'twitter']
+        if not blog_text and not title:
+            return jsonify({'error': 'Blog text or title is required'}), 400
+
+        results = generate_multi_platform_covers(
+            blog_text, title, get_ai_manager(), platforms=platforms
+        )
+        return jsonify({'success': True, 'cover_images': results})
+    except Exception as e:
+        print(f"Multi cover image error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/illustrations', methods=['POST'])
+@require_session
+def api_illustrations():
+    """Suggest in-article illustrations for a blog post."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        max_count = data.get('max_illustrations') or 3
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        results = generate_article_illustrations(
+            blog_text, get_ai_manager(), max_illustrations=max_count
+        )
+        return jsonify({'success': True, 'illustrations': results})
+    except Exception as e:
+        print(f"Illustrations error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/copywriting/headlines', methods=['POST'])
+@require_session
+def api_copywriting_headlines():
+    """Generate optimized headline variants."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        title = data.get('title') or ''
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        result = generate_headline_variants(blog_text, title, get_ai_manager())
+        return jsonify({'success': True, 'headlines': result})
+    except Exception as e:
+        print(f"Headlines error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/copywriting/hook', methods=['POST'])
+@require_session
+def api_copywriting_hook():
+    """Optimize the opening hook of a blog post."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        result = optimize_opening_hook(blog_text, get_ai_manager())
+        return jsonify({'success': True, 'hook': result})
+    except Exception as e:
+        print(f"Hook optimization error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/copywriting/cta', methods=['POST'])
+@require_session
+def api_copywriting_cta():
+    """Generate optimized CTAs for a blog post."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        current_cta = data.get('current_cta')
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        result = optimize_cta(blog_text, current_cta=current_cta, ai_manager=get_ai_manager())
+        return jsonify({'success': True, 'cta': result})
+    except Exception as e:
+        print(f"CTA optimization error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/copywriting/full', methods=['POST'])
+@require_session
+def api_copywriting_full():
+    """Full copywriting enhancement: headlines + hook + CTA."""
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        title = data.get('title') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        result = enhance_post_copywriting(blog_text, title, get_ai_manager())
+        return jsonify({'success': True, 'copywriting': result})
+    except Exception as e:
+        print(f"Copywriting enhancement error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/enhance-full', methods=['POST'])
+@require_session
+def api_enhance_full():
+    """
+    Full enhancement pipeline: quality gate + SEO + copywriting + slop filter.
+    One-click upgrade for any blog post.
+    """
+    try:
+        data = request.get_json() or {}
+        blog_text = data.get('blog_text') or data.get('content') or ''
+        title = data.get('title') or ''
+        if not blog_text:
+            return jsonify({'error': 'Blog text is required'}), 400
+
+        ai = get_ai_manager()
+        results = {}
+
+        # 1. Quality gate (pre-enhancement baseline)
+        try:
+            results['quality_before'] = run_quality_gate(blog_text)
+        except Exception as e:
+            print(f"Pre-quality gate failed: {e}")
+            results['quality_before'] = None
+
+        # 2. SEO optimization
+        try:
+            blog_text = optimize_for_medium(blog_text, ai)
+            results['seo_optimized'] = True
+        except Exception as e:
+            print(f"SEO optimization failed: {e}")
+            results['seo_optimized'] = False
+
+        # 3. Slop filter
+        try:
+            blog_text = apply_slop_filter(blog_text, ai)
+            blog_text = strip_em_dashes(blog_text)
+            results['slop_filtered'] = True
+        except Exception as e:
+            print(f"Slop filter failed: {e}")
+            results['slop_filtered'] = False
+
+        # 3.5 Strip em dashes (always, even if slop filter failed)
+        blog_text = strip_em_dashes(blog_text)
+
+        # 4. SEO metadata
+        try:
+            results['seo_metadata'] = generate_seo_metadata(blog_text, ai)
+        except Exception as e:
+            print(f"SEO metadata failed: {e}")
+            results['seo_metadata'] = None
+
+        # 5. Copywriting (headlines + hook + CTA)
+        try:
+            results['copywriting'] = enhance_post_copywriting(blog_text, title, ai)
+        except Exception as e:
+            print(f"Copywriting failed: {e}")
+            results['copywriting'] = None
+
+        # 6. Quality gate (post-enhancement)
+        try:
+            results['quality_after'] = run_quality_gate(blog_text)
+        except Exception as e:
+            print(f"Post-quality gate failed: {e}")
+            results['quality_after'] = None
+
+        results['enhanced_content'] = blog_text
+        return jsonify({'success': True, 'enhancement': results})
+    except Exception as e:
+        print(f"Full enhancement error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════════════════════════
+# END SKILL-POWERED ENDPOINTS
+# ══════════════════════════════════════════════════════════════
+
 
 @app.errorhandler(404)
 def not_found(e):
