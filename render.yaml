@@ -37,3 +37,13 @@ services:
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: yt2medium-db
+          property: connectionString
+
+databases:
+  - name: yt2medium-db
+    plan: starter
+    databaseName: yt2medium
+    user: yt2medium

@@ -516,6 +516,46 @@
                             </button>
                         </div>
                     </div>
+                    <div class="mt-6 pt-6 border-t border-white/10">
+                        <h4 class="text-sm font-semibold text-white mb-3 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            AI Enhancement Tools
+                        </h4>
+                        <div class="space-y-2">
+                            <button onclick="runQualityGate()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 glass glass-hover rounded-lg transition-all text-sm hover:bg-emerald-600/20">
+                                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                                <span>Quality Gate</span>
+                            </button>
+                            <button onclick="runSeoAnalysis()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 glass glass-hover rounded-lg transition-all text-sm hover:bg-indigo-600/20">
+                                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <span>Deep SEO Analysis</span>
+                            </button>
+                            <button onclick="runCopywritingEnhance()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 glass glass-hover rounded-lg transition-all text-sm hover:bg-amber-600/20">
+                                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                                <span>Headline &amp; CTA Optimizer</span>
+                            </button>
+                            <button onclick="showRepurposeMenu()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 rounded-lg transition-all text-sm font-semibold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                <span>Repurpose Content</span>
+                            </button>
+                            <button onclick="runFullEnhancement()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all text-sm font-semibold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                                </svg>
+                                <span>Full AI Enhancement</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1110,6 +1150,327 @@
             console.error('Error checking data availability:', e);
         }
         })();
+
+        // ═══════════════════════════════════════════════════
+        // AI ENHANCEMENT TOOLS - JavaScript
+        // ═══════════════════════════════════════════════════
+
+        function getPostContent() {
+            return _templateData.blog_post_markdown;
+        }
+        function getPostTitle() {
+            return _templateData.title;
+        }
+
+        // Generic modal helper
+        function showToolModal(title, bodyHTML, extraButtons) {
+            const existing = document.getElementById('toolModal');
+            if (existing) existing.remove();
+            const modal = document.createElement('div');
+            modal.id = 'toolModal';
+            modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+            modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+            const btns = extraButtons || '';
+            modal.innerHTML = `
+                <div class="rounded-2xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto border border-white/10" style="background: rgba(15,15,25,0.95);">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-white">${title}</h3>
+                        <button onclick="document.getElementById('toolModal').remove()" class="text-neutral-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                    <div class="tool-modal-body text-neutral-300 text-sm leading-relaxed">${bodyHTML}</div>
+                    <div class="mt-4 flex gap-3 justify-end">${btns}
+                        <button onclick="document.getElementById('toolModal').remove()" class="px-4 py-2 glass glass-hover rounded-lg text-sm">Close</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function showToolLoading(title) {
+            showToolModal(title, `
+                <div class="flex items-center justify-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-cyan-400 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-lg text-neutral-300">Analyzing...</span>
+                </div>`);
+        }
+
+        // ── Quality Gate ────────────────────────────────
+        async function runQualityGate() {
+            showToolLoading('Quality Gate');
+            try {
+                const resp = await fetch('/api/quality-gate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blog_text: getPostContent() })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const qg = data.quality_gate;
+                const gradeColors = { A: 'text-emerald-400', B: 'text-blue-400', C: 'text-amber-400', D: 'text-orange-400', F: 'text-red-400' };
+                const gradeColor = gradeColors[qg.grade] || 'text-white';
+                let recsHTML = '';
+                if (qg.recommendations && qg.recommendations.length) {
+                    recsHTML = '<div class="mt-4"><h4 class="font-semibold text-white mb-2">Recommendations</h4><ul class="space-y-1">' +
+                        qg.recommendations.map(r => `<li class="flex items-start space-x-2"><span class="text-amber-400 mt-0.5">&#x2022;</span><span>${r}</span></li>`).join('') + '</ul></div>';
+                }
+                const checks = qg.checks || {};
+                let checksHTML = '<div class="grid grid-cols-2 gap-3 mt-4">';
+                if (checks.authenticity) checksHTML += `<div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">AI Authenticity</div><div class="text-lg font-bold text-emerald-400">${checks.authenticity.authenticity_score}/100</div><div class="text-xs text-neutral-500">${(checks.authenticity.ai_patterns_found||[]).length} patterns found</div></div>`;
+                if (checks.readability) checksHTML += `<div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Readability</div><div class="text-lg font-bold text-blue-400">${checks.readability.verdict || 'N/A'}</div><div class="text-xs text-neutral-500">Grade ${(checks.readability.grade_level||0).toFixed(1)}</div></div>`;
+                if (checks.structure) checksHTML += `<div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Structure</div><div class="text-lg font-bold text-purple-400">${checks.structure.structure_score}/100</div><div class="text-xs text-neutral-500">${checks.structure.subheading_count} subheadings</div></div>`;
+                if (checks.originality) checksHTML += `<div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Originality</div><div class="text-lg font-bold text-pink-400">${checks.originality.is_duplicate ? 'Duplicate!' : 'Original'}</div></div>`;
+                checksHTML += '</div>';
+                showToolModal('Quality Gate', `
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div class="text-5xl font-black ${gradeColor}">${qg.grade}</div>
+                        <div>
+                            <div class="text-2xl font-bold text-white">${qg.overall_score}/100</div>
+                            <div class="text-sm ${qg.passed ? 'text-emerald-400' : 'text-red-400'}">${qg.passed ? '✅ Passed' : '❌ Needs Improvement'}</div>
+                        </div>
+                    </div>
+                    ${checksHTML}${recsHTML}`);
+            } catch (err) {
+                showToolModal('Quality Gate', `<div class="text-red-400">Error: ${err.message}</div>`);
+            }
+        }
+
+        // ── SEO Analysis ────────────────────────────────
+        async function runSeoAnalysis() {
+            showToolLoading('Deep SEO Analysis');
+            try {
+                const resp = await fetch('/api/seo/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blog_text: getPostContent() })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const seo = data.seo_analysis;
+                let kwHTML = '';
+                if (seo.keyword_density) {
+                    const kws = Object.entries(seo.keyword_density).slice(0, 8);
+                    kwHTML = '<div class="mt-4"><h4 class="font-semibold text-white mb-2">Top Keywords</h4><div class="flex flex-wrap gap-2">' +
+                        kws.map(([kw, pct]) => `<span class="px-2 py-1 rounded-full text-xs" style="background:rgba(99,102,241,0.2);color:#a5b4fc">${kw} <span class="text-neutral-500">${typeof pct === 'number' ? pct.toFixed(1) : pct}%</span></span>`).join('') + '</div></div>';
+                }
+                let gapsHTML = '';
+                if (seo.content_gaps && seo.content_gaps.length) {
+                    gapsHTML = '<div class="mt-4"><h4 class="font-semibold text-white mb-2">Content Gaps</h4><ul class="space-y-1">' +
+                        seo.content_gaps.map(g => `<li class="text-amber-300 text-xs">⚠ ${g}</li>`).join('') + '</ul></div>';
+                }
+                showToolModal('Deep SEO Analysis', `
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div class="text-4xl font-black text-indigo-400">${seo.overall_score || 0}</div>
+                        <div class="text-sm text-neutral-400">SEO Score / 100</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Words</div><div class="font-bold text-white">${seo.word_count || 0}</div></div>
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Paragraphs</div><div class="font-bold text-white">${seo.paragraph_count || 0}</div></div>
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Avg Sentence</div><div class="font-bold text-white">${(seo.avg_sentence_length||0).toFixed(0)} words</div></div>
+                    </div>
+                    ${kwHTML}${gapsHTML}
+                    ${seo.meta_description ? `<div class="mt-4 p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400 mb-1">Auto Meta Description</div><div class="text-sm text-white">${seo.meta_description}</div></div>` : ''}`);
+            } catch (err) {
+                showToolModal('Deep SEO Analysis', `<div class="text-red-400">Error: ${err.message}</div>`);
+            }
+        }
+
+        // ── Copywriting Enhancement ─────────────────────
+        async function runCopywritingEnhance() {
+            showToolLoading('Headline & CTA Optimizer');
+            try {
+                const resp = await fetch('/api/copywriting/full', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blog_text: getPostContent(), title: getPostTitle() })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const cw = data.copywriting;
+                let headlinesHTML = '';
+                if (cw.headlines && cw.headlines.variants) {
+                    headlinesHTML = '<div class="mb-4"><h4 class="font-semibold text-white mb-2">Headline Variants</h4><div class="space-y-2">' +
+                        cw.headlines.variants.map((v, i) => `<div class="p-3 rounded-lg flex items-center justify-between cursor-pointer hover:bg-white/10 transition-colors" style="background:rgba(255,255,255,0.05)" onclick="navigator.clipboard.writeText('${v.headline.replace(/'/g, "\\'")}');showNotification('Headline copied!','success')"><div><div class="text-white font-medium">${i === (cw.headlines.best_pick||0) ? '⭐ ' : ''}${v.headline}</div><div class="text-xs text-neutral-500 mt-1">${v.formula_used || ''} · CTR: ${v.estimated_ctr || 'N/A'}</div></div><span class="text-xs text-neutral-500 ml-2">click to copy</span></div>`).join('') + '</div></div>';
+                }
+                let hookHTML = '';
+                if (cw.hook && cw.hook.optimized_hook) {
+                    hookHTML = `<div class="mb-4"><h4 class="font-semibold text-white mb-2">Optimized Opening Hook</h4><div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-sm text-white">${cw.hook.optimized_hook}</div><div class="text-xs text-neutral-500 mt-2">Technique: ${cw.hook.technique_used || 'N/A'} · Retention: ${cw.hook.retention_estimate || 'N/A'}</div></div></div>`;
+                }
+                let ctaHTML = '';
+                if (cw.cta && cw.cta.cta_options && cw.cta.cta_options.length) {
+                    ctaHTML = '<div><h4 class="font-semibold text-white mb-2">CTA Options</h4><div class="space-y-2">' +
+                        cw.cta.cta_options.map(c => `<div class="p-3 rounded-lg cursor-pointer hover:bg-white/10 transition-colors" style="background:rgba(255,255,255,0.05)" onclick="navigator.clipboard.writeText('${(c.cta_text||'').replace(/'/g, "\\'")}');showNotification('CTA copied!','success')"><div class="text-sm text-white">${c.cta_text}</div><div class="text-xs text-neutral-500 mt-1">${c.framework || ''} · ${c.strength || ''}</div></div>`).join('') + '</div></div>';
+                }
+                showToolModal('Headline & CTA Optimizer', `${headlinesHTML}${hookHTML}${ctaHTML}`);
+            } catch (err) {
+                showToolModal('Headline & CTA Optimizer', `<div class="text-red-400">Error: ${err.message}</div>`);
+            }
+        }
+
+        // ── Repurpose Menu ──────────────────────────────
+        function showRepurposeMenu() {
+            showToolModal('Repurpose Content', `
+                <p class="mb-4">Transform this blog post into platform-native formats:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button onclick="repurposeTo('twitter')" class="p-4 rounded-lg text-left hover:bg-white/10 transition-colors" style="background:rgba(255,255,255,0.05)">
+                        <div class="font-semibold text-white">🐦 Twitter Thread</div>
+                        <div class="text-xs text-neutral-400 mt-1">Numbered tweets with hooks and hashtags</div>
+                    </button>
+                    <button onclick="repurposeTo('linkedin')" class="p-4 rounded-lg text-left hover:bg-white/10 transition-colors" style="background:rgba(255,255,255,0.05)">
+                        <div class="font-semibold text-white">💼 LinkedIn Post</div>
+                        <div class="text-xs text-neutral-400 mt-1">Scroll-stopping professional post</div>
+                    </button>
+                    <button onclick="repurposeTo('newsletter')" class="p-4 rounded-lg text-left hover:bg-white/10 transition-colors" style="background:rgba(255,255,255,0.05)">
+                        <div class="font-semibold text-white">📧 Newsletter</div>
+                        <div class="text-xs text-neutral-400 mt-1">Email-ready with subject line and CTA</div>
+                    </button>
+                    <button onclick="repurposeTo('carousel')" class="p-4 rounded-lg text-left hover:bg-white/10 transition-colors" style="background:rgba(255,255,255,0.05)">
+                        <div class="font-semibold text-white">🎠 Carousel Slides</div>
+                        <div class="text-xs text-neutral-400 mt-1">8-12 slides with visual suggestions</div>
+                    </button>
+                    <button onclick="repurposeTo('video-script')" class="p-4 rounded-lg text-left hover:bg-white/10 transition-colors sm:col-span-2" style="background:rgba(255,255,255,0.05)">
+                        <div class="font-semibold text-white">🎬 Short Video Script</div>
+                        <div class="text-xs text-neutral-400 mt-1">60-90 sec spoken-word script with B-roll suggestions</div>
+                    </button>
+                </div>
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <button onclick="repurposeAll()" class="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 rounded-lg font-semibold transition-all">
+                        ✨ Generate All Formats
+                    </button>
+                </div>`);
+        }
+
+        async function repurposeTo(format) {
+            showToolLoading(`Generating ${format}...`);
+            try {
+                const resp = await fetch(`/api/repurpose/${format}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blog_text: getPostContent() })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const result = data.repurposed;
+                let contentHTML = '';
+                if (format === 'twitter' && result.thread) {
+                    contentHTML = '<div class="space-y-3">' + result.thread.map((tweet, i) => `<div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-500 mb-1">Tweet ${i+1}/${result.thread.length}</div><div class="text-sm text-white">${tweet}</div></div>`).join('') + '</div>';
+                    if (result.hashtags && result.hashtags.length) contentHTML += `<div class="mt-3 text-xs text-blue-400">${result.hashtags.map(h => '#'+h).join(' ')}</div>`;
+                } else if (format === 'linkedin' && result.post) {
+                    contentHTML = `<div class="p-4 rounded-lg whitespace-pre-wrap" style="background:rgba(255,255,255,0.05)">${result.post}</div>`;
+                } else if (format === 'newsletter') {
+                    contentHTML = `<div class="space-y-3">
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-500">Subject Line</div><div class="text-white font-semibold">${result.subject_line || ''}</div></div>
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-500">Preview</div><div class="text-sm text-white">${result.preview_text || ''}</div></div>
+                        <div class="p-4 rounded-lg whitespace-pre-wrap" style="background:rgba(255,255,255,0.05)">${result.body || ''}</div>
+                    </div>`;
+                } else if (format === 'carousel' && result.slides) {
+                    contentHTML = '<div class="space-y-3">' + result.slides.map(s => `<div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-500">Slide ${s.slide_number || ''}</div><div class="text-white font-semibold">${s.headline || ''}</div><div class="text-sm text-neutral-300 mt-1">${s.body || ''}</div>${s.visual_suggestion ? `<div class="text-xs text-cyan-400 mt-1">🎨 ${s.visual_suggestion}</div>` : ''}</div>`).join('') + '</div>';
+                } else if (format === 'video-script') {
+                    contentHTML = `<div class="space-y-3">
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-500">Hook (first 3 sec)</div><div class="text-white font-semibold">${result.hook || ''}</div></div>
+                        <div class="p-4 rounded-lg whitespace-pre-wrap" style="background:rgba(255,255,255,0.05)">${result.body || ''}</div>
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-500">CTA</div><div class="text-white">${result.cta || ''}</div></div>
+                        <div class="text-xs text-neutral-500">⏱ ${result.duration_estimate || ''}</div>
+                    </div>`;
+                } else {
+                    contentHTML = `<pre class="text-xs text-neutral-300 overflow-x-auto p-4 rounded-lg" style="background:rgba(255,255,255,0.05)">${JSON.stringify(result, null, 2)}</pre>`;
+                }
+                const formatNames = { twitter: 'Twitter Thread', linkedin: 'LinkedIn Post', newsletter: 'Newsletter', carousel: 'Carousel Slides', 'video-script': 'Video Script' };
+                showToolModal(formatNames[format] || format, contentHTML,
+                    `<button onclick="copyRepurposedContent()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-sm transition-all">Copy Content</button>`);
+                window._lastRepurposedContent = format === 'twitter' ? (result.thread||[]).join('\n\n') : format === 'linkedin' ? result.post : format === 'newsletter' ? result.body : JSON.stringify(result, null, 2);
+            } catch (err) {
+                showToolModal('Repurpose Error', `<div class="text-red-400">Error: ${err.message}</div>`);
+            }
+        }
+
+        function copyRepurposedContent() {
+            if (window._lastRepurposedContent) {
+                navigator.clipboard.writeText(window._lastRepurposedContent);
+                showNotification('Content copied!', 'success');
+            }
+        }
+
+        async function repurposeAll() {
+            showToolLoading('Generating All Formats...');
+            try {
+                const resp = await fetch('/api/repurpose', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blog_text: getPostContent() })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const r = data.repurposed;
+                const sections = [];
+                if (r.twitter && r.twitter.thread) sections.push(`<div class="mb-4"><h4 class="font-semibold text-white mb-2">🐦 Twitter Thread (${r.twitter.thread.length} tweets)</h4><div class="p-3 rounded-lg text-sm text-neutral-300 max-h-32 overflow-y-auto" style="background:rgba(255,255,255,0.05)">${r.twitter.thread.join('<br><br>')}</div></div>`);
+                if (r.linkedin && r.linkedin.post) sections.push(`<div class="mb-4"><h4 class="font-semibold text-white mb-2">💼 LinkedIn Post</h4><div class="p-3 rounded-lg text-sm text-neutral-300 max-h-32 overflow-y-auto whitespace-pre-wrap" style="background:rgba(255,255,255,0.05)">${r.linkedin.post}</div></div>`);
+                if (r.newsletter && r.newsletter.subject_line) sections.push(`<div class="mb-4"><h4 class="font-semibold text-white mb-2">📧 Newsletter</h4><div class="p-3 rounded-lg text-sm text-neutral-300" style="background:rgba(255,255,255,0.05)">Subject: ${r.newsletter.subject_line}</div></div>`);
+                if (r.carousel && r.carousel.slides) sections.push(`<div class="mb-4"><h4 class="font-semibold text-white mb-2">🎠 Carousel (${r.carousel.slides.length} slides)</h4><div class="text-xs text-neutral-400">Generated successfully</div></div>`);
+                if (r.video_script && r.video_script.hook) sections.push(`<div class="mb-4"><h4 class="font-semibold text-white mb-2">🎬 Video Script</h4><div class="text-xs text-neutral-400">${r.video_script.duration_estimate || 'Generated'}</div></div>`);
+                showToolModal('All Formats Generated', sections.join('') || '<div class="text-neutral-400">No content generated</div>');
+            } catch (err) {
+                showToolModal('Repurpose All', `<div class="text-red-400">Error: ${err.message}</div>`);
+            }
+        }
+
+        // ── Full AI Enhancement ─────────────────────────
+        async function runFullEnhancement() {
+            showToolLoading('Running Full AI Enhancement...');
+            try {
+                const resp = await fetch('/api/enhance-full', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blog_text: getPostContent(), title: getPostTitle() })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const e = data.enhancement;
+                const before = e.quality_before ? e.quality_before.overall_score : '?';
+                const after = e.quality_after ? e.quality_after.overall_score : '?';
+                const gradeBefore = e.quality_before ? e.quality_before.grade : '?';
+                const gradeAfter = e.quality_after ? e.quality_after.grade : '?';
+                let headlinesHTML = '';
+                if (e.copywriting && e.copywriting.headlines && e.copywriting.headlines.variants) {
+                    headlinesHTML = '<div class="mt-4"><h4 class="font-semibold text-white mb-2">Suggested Headlines</h4><div class="space-y-1">' +
+                        e.copywriting.headlines.variants.slice(0, 3).map(v => `<div class="p-2 rounded text-sm text-white cursor-pointer hover:bg-white/10" style="background:rgba(255,255,255,0.05)" onclick="navigator.clipboard.writeText('${(v.headline||'').replace(/'/g, "\\'")}');showNotification('Copied!','success')">${v.headline}</div>`).join('') + '</div></div>';
+                }
+                showToolModal('Full AI Enhancement Complete', `
+                    <div class="flex items-center space-x-6 mb-6">
+                        <div class="text-center">
+                            <div class="text-xs text-neutral-500 mb-1">Before</div>
+                            <div class="text-3xl font-black text-neutral-500">${gradeBefore}</div>
+                            <div class="text-sm text-neutral-500">${before}/100</div>
+                        </div>
+                        <div class="text-2xl text-neutral-500">→</div>
+                        <div class="text-center">
+                            <div class="text-xs text-emerald-400 mb-1">After</div>
+                            <div class="text-3xl font-black text-emerald-400">${gradeAfter}</div>
+                            <div class="text-sm text-emerald-400">${after}/100</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">SEO Optimized</div><div class="font-bold ${e.seo_optimized ? 'text-emerald-400' : 'text-red-400'}">${e.seo_optimized ? '✅ Yes' : '❌ Failed'}</div></div>
+                        <div class="p-3 rounded-lg" style="background:rgba(255,255,255,0.05)"><div class="text-xs text-neutral-400">Slop Filtered</div><div class="font-bold ${e.slop_filtered ? 'text-emerald-400' : 'text-red-400'}">${e.slop_filtered ? '✅ Yes' : '❌ Failed'}</div></div>
+                    </div>
+                    ${headlinesHTML}
+                    <div class="mt-4 p-3 rounded-lg" style="background:rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2)">
+                        <div class="text-sm text-emerald-300">The enhanced content is ready. Copy it to replace your current post.</div>
+                    </div>`,
+                    `<button onclick="applyEnhancedContent()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-sm font-semibold transition-all">Apply Enhanced Content</button>`);
+                window._enhancedContent = e.enhanced_content;
+            } catch (err) {
+                showToolModal('Enhancement Error', `<div class="text-red-400">Error: ${err.message}</div>`);
+            }
+        }
+
+        function applyEnhancedContent() {
+            if (window._enhancedContent) {
+                navigator.clipboard.writeText(window._enhancedContent);
+                showNotification('Enhanced content copied to clipboard!', 'success');
+            }
+        }
     </script>
 </body>
 </html>
