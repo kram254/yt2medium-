@@ -29,9 +29,9 @@ services:
         sync: false
       - key: HUGGINGFACE_TOKEN
         sync: false
-      - key: SUPABASE_URL
+      - key: GOOGLE_CLIENT_ID
         sync: false
-      - key: SUPABASE_KEY
+      - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GITHUB_TOKEN
         sync: false

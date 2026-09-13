@@ -118,6 +118,22 @@ def init_db():
                 CREATE INDEX IF NOT EXISTS idx_generation_logs_created_at
                     ON generation_logs(created_at DESC);
 
+                CREATE TABLE IF NOT EXISTS users (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT,
+                    google_sub TEXT UNIQUE,
+                    name TEXT,
+                    avatar_url TEXT,
+                    session_token_hash TEXT,
+                    refresh_token_hash TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    last_login_at TIMESTAMP WITH TIME ZONE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+                CREATE INDEX IF NOT EXISTS idx_users_session_token ON users(session_token_hash);
+
                 CREATE OR REPLACE FUNCTION update_updated_at_column()
                 RETURNS TRIGGER AS $$
                 BEGIN

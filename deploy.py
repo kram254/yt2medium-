@@ -64,8 +64,9 @@ print("""
 
 6. Optional Variables:
    - ANTHROPIC_API_KEY=<your-key>
-   - SUPABASE_URL=<your-url>
-   - SUPABASE_KEY=<your-key>
+   - GOOGLE_CLIENT_ID=<your-client-id> (Google Cloud Console -> Credentials -> OAuth 2.0 Client ID)
+   - GOOGLE_CLIENT_SECRET=<your-client-secret>
+   - Add https://<your-app-url>/auth/callback as an Authorized redirect URI on that OAuth client
 
 7. Click 'Create Web Service'
 8. Wait 5-10 minutes for deployment

@@ -42,7 +42,7 @@ from linkedin_agent import generate_linkedin_post
 from github_handler import get_github_handler
 from social_auth import get_medium_auth, get_linkedin_auth
 from social_storage import get_social_account_manager
-from supabase_client import get_supabase_manager  # Auth only
+from supabase_client import get_supabase_manager  # Auth only (Postgres-backed)
 from postgres_client import get_db_manager  # Data persistence
 from post_scheduler import get_scheduler
 from progress_tracker import get_progress_tracker
@@ -51,7 +51,7 @@ import time
 import random
 import json
 import traceback
-from supabase_auth.errors import AuthApiError
+from supabase_client import AuthError  # raised by the Postgres-backed OAuth exchange
 import uuid
 import tempfile
 from pathlib import Path
@@ -324,9 +324,9 @@ def signup():
         callback_url = get_callback_url()
         print(f"Auth Signup: callback_url={callback_url}")
         res = supabase.sign_up(email, password, redirect_url=callback_url)
-        
+
         if res and res.user:
-            return render_template('login.html', message="Check your email for a confirmation link!")
+            return render_template('login.html', message="Account created! You can now sign in with your email and password.")
         else:
             return render_template('signup.html', error="Signup failed. Account might already exist.")
             
@@ -360,12 +360,15 @@ def login():
 @app.route('/logout')
 def logout():
     global_logout = request.args.get('global') == '1' or request.args.get('global') == 'true'
+    supabase = get_supabase_manager()
+    if supabase:
+        # Revoke the server-side session BEFORE clearing the Flask session,
+        # since sign_out reads the token from the tenant session.
+        supabase.sign_out()
     if global_logout:
         session.clear()
     else:
         clear_tenant_session(g.tenant_id)
-    supabase = get_supabase_manager()
-    supabase.sign_out()
     return redirect(url_for('login'))
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
@@ -376,7 +379,9 @@ def forgot_password():
         if supabase:
             callback_url = get_callback_url()
             print(f"Auth Forgot Password: callback_url={callback_url}")
-            supabase.reset_password(email, redirect_url=callback_url)
+            result = supabase.reset_password(email, redirect_url=callback_url)
+            if result and getattr(result, 'error', None):
+                return render_template('forgot-password.html', error=result.error_description)
         return render_template('forgot-password.html', message="If an account exists, a reset link has been sent.")
     return render_template('forgot-password.html')
 
@@ -390,11 +395,13 @@ def auth_magic_link():
     supabase = get_supabase_manager()
     if not supabase:
         return render_template('login.html', error="Database not configured")
-        
+
     callback_url = get_callback_url()
     print(f"Auth Magic Link: callback_url={callback_url}")
-    
-    supabase.sign_in_with_otp(email, redirect_url=callback_url)
+
+    result = supabase.sign_in_with_otp(email, redirect_url=callback_url)
+    if result and getattr(result, 'error', None):
+        return render_template('login.html', error=result.error_description)
     return render_template('login.html', message="Check your email for the one-time login link!")
 
 @app.route('/auth/google')
@@ -509,9 +516,9 @@ def auth_callback():
                             
                     print(f"Auth callback: Error details: {error_msg}")
                     return render_template('login.html', error=f"Exchange failed: {error_msg}")
-            except AuthApiError as e:
-                print(f"Auth callback: AuthApiError: {e.message}")
-                return render_template('login.html', error=f"Auth error: {e.message}")
+            except AuthError as e:
+                print(f"Auth callback: AuthError: {e}")
+                return render_template('login.html', error=f"Auth error: {e}")
             except Exception as e:
                 print(f"Auth callback: EXCEPTION during exchange: {str(e)}")
                 traceback.print_exc()
@@ -519,6 +526,32 @@ def auth_callback():
     
     # If no code and no error, might be an implicit flow with a hash fragment
     return render_template('auth_callback.html')
+
+@app.route('/auth/magic-link/consume')
+def auth_magic_link_consume():
+    """Consume a magic-link token from the URL (hashed) and log the user in.
+    Ready for when an email provider is configured; OTP send itself is
+    unavailable until then."""
+    token = request.args.get('token')
+    if not token:
+        return render_template('login.html', error="Invalid or missing login link token")
+
+    supabase = get_supabase_manager()
+    if not supabase:
+        return render_template('login.html', error="Database not configured")
+
+    user_row = supabase._user_by_token(token, refresh=True)
+    if not user_row:
+        return render_template('login.html', error="This login link is invalid or has expired. Please request a new one.")
+
+    session.permanent = True
+    tenant_set('user_id', user_row['id'])
+    tenant_set('user_email', user_row['email'])
+    tenant_set('tenant_id', g.tenant_id)
+    set_active_tenant_id(g.tenant_id)
+
+    next_url = tenant_pop('auth_next_url', None)
+    return redirect(next_url or url_for('index'))
 
 @app.route('/auth/store-session', methods=['POST'])
 def auth_store_session():

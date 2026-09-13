@@ -1230,7 +1230,7 @@
                 return { title: 'No Content Provided', message: 'Please enter a YouTube URL, topic, or upload a file first.', hints: [] };
             }
             if (r.indexOf('pgrst205') !== -1 || r.indexOf('schema cache') !== -1) {
-                return { title: 'Database Not Set Up', message: 'The Supabase database tables are missing. Post generation still works, but saving is unavailable.', hints: ['Run supabase_schema.sql in your Supabase SQL Editor to enable post saving.'] };
+                return { title: 'Database Not Set Up', message: 'A required database table is missing. Post generation still works, but saving is unavailable.', hints: ['Restart the service so the app can create its tables automatically, then check DATABASE_URL.'] };
             }
             return {
                 title: 'Generation Failed',
