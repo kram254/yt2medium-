@@ -161,8 +161,8 @@ jobs:
 
           # Test with None ai_manager (should use fallbacks)
           result = repurpose_all('Test blog post about AI tools for developers.', None)
-          assert 'twitter' in result
-          assert 'linkedin' in result
+          assert 'twitter_thread' in result
+          assert 'linkedin_post' in result
           assert 'newsletter' in result
           print('Content repurposer fallback tests passed')
           "
