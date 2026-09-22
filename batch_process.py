@@ -97,7 +97,7 @@ def process_batch(input_file, output_dir='output'):
             print(f"   📊 Words: {word_count} | Engagement: {engagement_score}/100 | SEO: {seo_score}/100 | Viral: {viral_potential}/100")
             
             results.append({
-                'url': url,
+                'url': item,
                 'status': 'success',
                 'filename': filename,
                 'title': title,
@@ -106,11 +106,11 @@ def process_batch(input_file, output_dir='output'):
                 'seo_score': seo_score,
                 'viral_potential': viral_potential
             })
-            
+
         except Exception as e:
             print(f"   ❌ Error: {str(e)}")
             results.append({
-                'url': url,
+                'url': item,
                 'status': 'failed',
                 'error': str(e)
             })
