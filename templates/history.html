@@ -94,8 +94,8 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold text-slate-300">Database not connected</p>
-                        <p class="mt-1 text-sm text-slate-400 leading-relaxed">Supabase is not configured. Posts are stored temporarily and will be lost on server restart.</p>
-                        <p class="mt-2 text-xs text-slate-500">Set <code class="text-slate-300 text-xs">SUPABASE_URL</code> and <code class="text-slate-300 text-xs">SUPABASE_KEY</code> in your environment to enable persistence.</p>
+                        <p class="mt-1 text-sm text-slate-400 leading-relaxed">PostgreSQL is not configured. Posts are stored temporarily and will be lost on server restart.</p>
+                        <p class="mt-2 text-xs text-slate-500">Set <code class="text-slate-300 text-xs">DATABASE_URL</code> in your environment to enable persistence.</p>
                     </div>
                 </div>
             </div>
@@ -206,6 +206,11 @@
                 }
             })
             .catch(e => alert('Error: ' + e.message));
+        }
+    </script>
+</body>
+</html>
+rror: ' + e.message));
         }
     </script>
 </body>

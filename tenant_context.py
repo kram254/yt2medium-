@@ -166,6 +166,10 @@ def clear_tenant_session(tenant_id=None):
         'sb-supabase.auth.token-code-verifier',
         'supabase.auth.token',
         'sb-supabase.auth.token',
+        'google_oauth_code_verifier',
+        'google_oauth_state',
+        'auth_session_token',
+        'auth_refresh_token',
     }
     for key in list(session.keys()):
         if key.startswith(namespaced_prefix) or key in legacy_keys:
